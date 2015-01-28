@@ -9,8 +9,9 @@
 use strict;
 use warnings;
 
-use Test::Most tests => 9;
+use Test::Most tests => 13;
 use Test::TempDir;
+use Capture::Tiny ':all';
 # use Test::NoWarnings;	# HTML::Clean has them
 
 BEGIN {
@@ -18,63 +19,59 @@ BEGIN {
 }
 
 OUTPUT: {
+	sub writer {
+		my $b = new_ok('FCGI::Buffer');
+
+		ok($b->can_cache() == 1);
+		ok($b->is_cached() == 0);
+
+		$b->init({optimise_content => 2});
+
+		print "Content-type: text/html; charset=ISO=8859-1\n\n";
+
+		print "<HTML><BODY>\n";
+		print "document.write(\"1\");\n";
+		print "document.write(\"2\");\n";
+		print "<script type=\"text/javascript\">\n";
+		print "var i = 1;\n";
+		print "document.write(\"foo\");\n";
+		print "document.write(\"bar\");\n";
+		print "var j = 1;\n";
+		print "document.write(\"a\");\n";
+		print "document.write(\"b\");\n";
+		print "</script>\n";
+		print "Hello World!\n";
+		print "<script type=\"text/javascript\">\n";
+		print "document.write(\"a\");\n";
+		print "document.write(\"b\");\n";
+		print "</script>\n";
+		print "<script type=\"text/javascript\">\n";
+		print "document.write(\"fred\");\n";
+		print "var k = 1;\n";
+		print "document.write(\"wilma\");\n";
+		print "</script>\n";
+		print "</body>\n";
+		print "Content-type: text/html; charset=ISO-8859-1\n\n";
+		print "<HTML><BODY>   Hello World</BODY></HTML>\n";
+
+		ok($b->is_cached() == 0);
+	}
+
 	delete $ENV{'HTTP_ACCEPT_ENCODING'};
 	delete $ENV{'SERVER_PROTOCOL'};
 
-	my $input = << 'EOF';
-	use CGI::Buffer;
+	my ($stdout, $stderr) = capture { writer() };
 
-	CGI::Buffer::set_options(optimise_content => 2);
-	
-	print "Content-type: text/html; charset=ISO=8859-1";
-	print "\n\n";
-
-	print "<HTML><BODY>\n";
-	print "document.write(\"1\");\n";
-	print "document.write(\"2\");\n";
-	print "<script type=\"text/javascript\">\n";
-	print "var i = 1;\n";
-	print "document.write(\"foo\");\n";
-	print "document.write(\"bar\");\n";
-	print "var j = 1;\n";
-	print "document.write(\"a\");\n";
-	print "document.write(\"b\");\n";
-	print "</script>\n";
-	print "Hello World!\n";
-	print "<script type=\"text/javascript\">\n";
-	print "document.write(\"a\");\n";
-	print "document.write(\"b\");\n";
-	print "</script>\n";
-	print "<script type=\"text/javascript\">\n";
-	print "document.write(\"fred\");\n";
-	print "var k = 1;\n";
-	print "document.write(\"wilma\");\n";
-	print "</script>\n";
-	print "</body>\n";
-EOF
-
-	my ($tmp, $filename) = tempfile();
-	print $tmp $input;
-
-	open(my $fout, '-|', "$^X -Iblib/lib " . $filename);
-
-	my $keep = $_;
-	undef $/;
-	my $output = <$fout>;
-	$/ = $keep;
-
-	close $tmp;
-
-	ok($output =~ /^Content-Length:\s+(\d+)+/m);
+	ok($stdout =~ /^Content-Length:\s+(\d+)+/m);
 	my $length = $1;
 
-	my ($headers, $body) = split /\r?\n\r?\n/, $output, 2;
+	my ($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
 	ok(defined($headers));
 	ok(defined($body));
 	ok(length($body) eq $length);
 
-	ok($output =~ /document\.write\("a"\+"b"\);/m);
-	ok($output =~ /document\.write\("foo"\+"bar"\);/m);
-	ok($output !~ /document\.write\("1"\+"2"\);/m);
-	ok($output !~ /document\.write\("fred"\+"wilma"\);/m);
+	ok($stdout =~ /document\.write\("a"\+"b"\);/m);
+	ok($stdout =~ /document\.write\("foo"\+"bar"\);/m);
+	ok($stdout !~ /document\.write\("1"\+"2"\);/m);
+	ok($stdout !~ /document\.write\("fred"\+"wilma"\);/m);
 }

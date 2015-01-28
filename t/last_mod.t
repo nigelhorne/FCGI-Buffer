@@ -50,7 +50,7 @@ LAST_MODIFIED: {
 				skip 'CHI required to test', 14;
 			}
 
-			my ($stdout, $stderr) = capture  { writer() };
+			my ($stdout, $stderr) = capture { writer() };
 
 			ok($stderr eq '');
 			ok($stdout !~ /^Content-Encoding: gzip/m);
