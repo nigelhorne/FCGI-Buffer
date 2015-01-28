@@ -9,7 +9,7 @@
 use strict;
 use warnings;
 
-use Test::Most tests => 13;
+use Test::Most tests => 14;
 use Test::TempDir;
 use Capture::Tiny ':all';
 # use Test::NoWarnings;	# HTML::Clean has them
@@ -62,6 +62,7 @@ OUTPUT: {
 
 	my ($stdout, $stderr) = capture { writer() };
 
+	ok($stderr eq '');
 	ok($stdout =~ /^Content-Length:\s+(\d+)+/m);
 	my $length = $1;
 

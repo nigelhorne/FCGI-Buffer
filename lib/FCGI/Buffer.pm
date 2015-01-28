@@ -125,6 +125,9 @@ sub DESTROY {
 		$self->{logger} = undef;
 	}
 	select($self->{old_buf});
+	if(!defined($self->{buf})) {
+		return;
+	}
 	$self->{pos} = $self->{buf}->getpos;
 	$self->{buf}->setpos(0);
 	my $buf;
@@ -173,7 +176,7 @@ sub DESTROY {
 				my $newlength;
 
 				while(1) {
-					$self->{body} = _optimise_content($self->{body});
+					$self->{body} = $self->_optimise_content();
 					$newlength = length($self->{body});
 					last if ($newlength >= $oldlength);
 					$oldlength = $newlength;
@@ -603,7 +606,7 @@ sub _check_modified_since {
 }
 
 sub _optimise_content {
-	my $self->{body} = shift;
+	my $self = shift;
 
 	# Regexp::List - wow!
 	$self->{body} =~ s/(\s+|\r)\n|\n\+/\n/gs;
@@ -872,9 +875,6 @@ the result stored in the cache.
 
 sub is_cached {
 	my $self = shift;
-
-	my $logger = $self->{logger};
-	my $cache = $self->{cache};
 
 	unless($self->{cache}) {
 		if($self->{logger}) {

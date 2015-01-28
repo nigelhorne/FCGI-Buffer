@@ -21,7 +21,7 @@ if($ENV{RELEASE_TESTING}) {
 if($can_test) {
 	BEGIN {
 		if($ENV{RELEASE_TESTING}) {
-			use_ok('FCGI::Info');
+			use_ok('FCGI::Buffer');
 			use warnings::unused -global;
 		}
 	}
@@ -29,7 +29,7 @@ if($can_test) {
 	if(not $ENV{RELEASE_TESTING}) {
 		plan(skip_all => 'Author tests not required for installation');
 	} else {
-		new_ok('FCGI::Info');
+		new_ok('FCGI::Buffer');
 		plan tests => 1;
 	}
 }

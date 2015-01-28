@@ -33,7 +33,7 @@ if($@) {
 			};
 
 			if($@) {
-				$test_count = 4;
+				$test_count = 5;
 				skip 'CHI not installed', 1 if $@;
 			}
 
