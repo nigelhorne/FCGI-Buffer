@@ -1,0 +1,4 @@
+Revision history for FCGI-Buffer
+
+0.01
+	First draft, clone from CGI::Buffer and object orient the code
