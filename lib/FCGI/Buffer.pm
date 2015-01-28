@@ -86,6 +86,12 @@ which works well but isn't really what you want.
 
 use constant MIN_GZIP_LEN => 32;
 
+=head2 new
+
+Create an FCGI::Buffer object.  Do one of these for each FCGI::Accept.
+
+=cut
+
 sub new {
 	my $proto = shift;
 	my $class = ref($proto) || $proto;
@@ -103,6 +109,7 @@ sub new {
 	$rc->{compress_content} = 1;
 	$rc->{optimise_content} = 0;
 	$rc->{lint_content} = 0;
+	$rc->{o} = ();
 
 	return bless $rc, $class;
 }
@@ -452,7 +459,7 @@ sub DESTROY {
 				$cache_hash->{'body'} = $unzipped_body;
 				if($self->{body} && $self->{send_body}) {
 					my $body_length = length($self->{body});
-					push @{$self->{o}}, "Content-Length: body_length";
+					push @{$self->{o}}, "Content-Length: $body_length";
 				}
 				if(scalar(@{$self->{o}})) {
 					# Remember, we're storing the UNzipped

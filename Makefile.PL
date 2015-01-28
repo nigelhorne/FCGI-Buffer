@@ -15,6 +15,7 @@ WriteMakefile(
     BUILD_REQUIRES => {
 	'Test::Most' => 0,
 	# 'Test::NoWarnings' => 0,
+	'Test::Output' => 0,
 	'Test::TempDir' => 0,
 	'DateTime' => 0,
 	'Compress::Zlib' => 0,

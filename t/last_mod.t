@@ -5,7 +5,7 @@
 use strict;
 use warnings;
 use Test::Most;
-use Test::TempDir;
+use Capture::Tiny ':all';
 use DateTime;
 # use Test::NoWarnings;	# HTML::Clean has them
 
@@ -13,55 +13,50 @@ BEGIN {
 	use_ok('FCGI::Buffer');
 }
 
-TEST: {
+sub writer {
+	my $b = new_ok('FCGI::Buffer');
 
-	LAST_MODIFIED: {
-		delete $ENV{'REMOTE_ADDR'};
-		delete $ENV{'HTTP_USER_AGENT'};
-		delete $ENV{'NO_CACHE'};
-		delete $ENV{'NO_STORE'};
+	ok($b->can_cache() == 1);
+	ok($b->is_cached() == 0);
+	my $hash = {};
+	my $c = CHI->new(driver => 'Memory', datastore => $hash);
 
-		ok(CGI::Buffer::can_cache() == 1);
-		ok(CGI::Buffer::is_cached() == 0);
+	$b->init({cache => $c, cache_key => 'foo'});
 
-		my $test_count = 13;
+	print "Content-type: text/html; charset=ISO-8859-1\n\n";
+	print "<HTML><BODY>   Hello World</BODY></HTML>\n";
+	ok($b->is_cached() == 0);
+}
+
+LAST_MODIFIED: {
+	delete $ENV{'REMOTE_ADDR'};
+	delete $ENV{'HTTP_USER_AGENT'};
+	delete $ENV{'NO_CACHE'};
+	delete $ENV{'NO_STORE'};
+
+	my $test_count = 13;
+
+	SKIP: {
+		eval {
+			require CHI;
+
+			CHI->import();
+		};
 
 		SKIP: {
-			eval {
-				require CHI;
-
-				CHI->import();
-			};
-
+			$test_count = 15;
 			if($@) {
-				$test_count = 4;
-				skip 'CHI required to test', 1 if $@;
+				diag ('CHI required to test');
+				skip 'CHI required to test', 14;
 			}
 
-			my ($tmp, $filename) = tempfile();
-			print $tmp "use strict;\n";
-			print $tmp "use CGI::Buffer;\n";
-			print $tmp "use CHI;\n";
-			print $tmp "my \$hash = {};\n";
-			print $tmp "my \$c = CHI->new(driver => 'Memory', datastore => \$hash);\n";
-			print $tmp "CGI::Buffer::init({cache => \$c, cache_key => 'foo'});\n";
-			print $tmp "print \"Content-type: text/html; charset=ISO-8859-1\";\n";
-			print $tmp "print \"\\n\\n\";\n";
-			print $tmp "print \"<HTML><BODY>   Hello World</BODY></HTML>\\n\";\n";
+			my ($stdout, $stderr) = capture  { writer() };
 
-			open(my $fout, '-|', "$^X -Iblib/lib " . $filename);
+			ok($stderr eq '');
+			ok($stdout !~ /^Content-Encoding: gzip/m);
+			ok($stdout !~ /^ETag: "/m);
 
-			my $keep = $_;
-			undef $/;
-			my $output = <$fout>;
-			$/ = $keep;
-
-			close $tmp;
-
-			ok($output !~ /^Content-Encoding: gzip/m);
-			ok($output !~ /^ETag: "/m);
-
-			my ($headers, $body) = split /\r?\n\r?\n/, $output, 2;
+			my ($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
 
 			ok($headers =~ /^Last-Modified:\s+(.+)/m);
 			my $date = $1;
@@ -72,7 +67,6 @@ TEST: {
 			ok(defined($length));
 
 			ok($body =~ /^<HTML><BODY>   Hello World<\/BODY><\/HTML>/m);
-			ok(CGI::Buffer::is_cached() == 0);
 
 			ok(length($body) eq $length);
 
@@ -89,6 +83,6 @@ TEST: {
 				ok($dt <= DateTime->now());
 			}
 		}
-		done_testing($test_count);
 	}
+	done_testing($test_count);
 }
