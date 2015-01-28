@@ -12,16 +12,18 @@ eval 'use Test::Carp';
 if($@) {
 	plan skip_all => 'Test::Carp required for test';
 } else {
-	use_ok('CGI::Buffer');
+	use_ok('FCGI::Buffer');
 
 	TOOLATE: {
+
 		delete $ENV{'REMOTE_ADDR'};
 		delete $ENV{'HTTP_USER_AGENT'};
 
-		ok(CGI::Buffer::can_cache() == 1);
-		ok(CGI::Buffer::is_cached() == 0);
+		my $b = new_ok('FCGI::Buffer');
+		ok($b->can_cache() == 1);
+		ok($b->is_cached() == 0);
 
-		my $test_count = 5;
+		my $test_count = 6;
 
 		SKIP: {
 			eval {
@@ -42,10 +44,14 @@ if($@) {
 
 			my $cache = CHI->new(driver => 'Memory', datastore => {});
 
-			diag("Ignore the error that it can't retrieve the given body");
-			does_carp(\&CGI::Buffer::set_options, cache => $cache, cache_key => 'xyzzy');
+			sub f {
+				$b->init(cache => $cache, cache_key => 'xyzzy');
+			}
 
-			ok(CGI::Buffer::is_cached() == 0);
+			# diag("Ignore the error that it can't retrieve the given body");
+			does_carp(\&f);
+
+			ok($b->is_cached() == 0);
 		}
 		done_testing($test_count);
 	}
