@@ -1014,7 +1014,7 @@ The letter of the spec says that's wrong, so I'm noting it here, but
 in practice you should not see this happen or have any difficulties
 because of it.
 
-FCGI::Buffer is not compatible with FastCGI.
+FCGI::Buffer has not been tested against FastCGI.
 
 I advise adding FCGI::Buffer as the last use statement so that it is
 cleared up first.  In particular it should be loaded after
@@ -1022,9 +1022,7 @@ L<Log::Log4Perl>, if you're using that, so that any messages it
 produces are printed after the HTTP headers have been sent by
 FCGI::Buffer;
 
-FCGI::Buffer is not compatible with FCGI.
-
-Please report any bugs or feature requests to C<bug-cgi-buffer at rt.cpan.org>,
+Please report any bugs or feature requests to C<bug-fcgi-buffer at rt.cpan.org>,
 or through the web interface at L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=FCGI-Buffer>.
 I will be notified, and then you'll automatically be notified of progress on
 your bug as I make changes.
