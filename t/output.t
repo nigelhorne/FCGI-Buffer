@@ -11,7 +11,7 @@
 use strict;
 use warnings;
 
-use Test::Most tests => 123;
+use Test::Most tests => 146;
 use Test::TempDir;
 use Compress::Zlib;
 use DateTime;
@@ -392,112 +392,71 @@ OUTPUT: {
 	ok(defined($length));
 	ok(length($body) eq $length);
 	ok(length($body) > 0);
-#
-#	#..........................................
-#	$ENV{'HTTP_IF_NONE_MATCH'} = $etag;
-#
-#	open($fout, '-|', "$^X -Iblib/lib " . $filename);
-#
-#	$keep = $_;
-#	undef $/;
-#	$stdout = <$fout>;
-#	$/ = $keep;
-#
-#	ok($stdout !~ /^Status: 304 Not Modified/mi);
-#	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
-#	ok(length($body) > 0);
-#
-#	#..........................................
-#	delete $ENV{'HTTP_IF_NONE_MATCH'};
-#	$ENV{'HTTP_IF_MODIFIED_SINCE'} = DateTime->now();
-#
-#	($tmp, $filename) = tempfile();
-#	if($ENV{'PERL5LIB'}) {
-#		foreach (split(':', $ENV{'PERL5LIB'})) {
-#			print $tmp "use lib '$_';\n";
-#		}
-#	}
-#	print $tmp "use CGI::Buffer { optimise_content => 1, generate_etag => 0 };\n";
-#	print $tmp "print \"Content-type: text/html; charset=ISO-8859-1\";\n";
-#	print $tmp "print \"\\n\\n\";\n";
-#	print $tmp "print \"<HTML><BODY><TABLE><TR><TD>foo</TD>  <TD>bar</TD></TR></TABLE></BODY></HTML>\\n\";\n";
-#
-#	open($fout, '-|', "$^X -Iblib/lib " . $filename);
-#
-#	$keep = $_;
-#	undef $/;
-#	$stdout = <$fout>;
-#	$/ = $keep;
-#
-#	close $tmp;
-#
-#	ok($stderr eq '');
-#	ok($stdout !~ /ETag: "([A-Za-z0-F0-f]{32})"/m);
-#	ok($stdout !~ /^Status: 304 Not Modified/mi);
-#
-#	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
-#
-#	ok($headers =~ /^Content-Length:\s+(\d+)/m);
-#	$length = $1;
-#
-#	ok(length($body) != 0);
-#	ok(defined($length));
-#	ok(length($body) == $length);
-#
-#	#......................................
-#	$ENV{'HTTP_IF_MODIFIED_SINCE'} = 'This is an invalid date';
-#
-#	($tmp, $filename) = tempfile();
-#	if($ENV{'PERL5LIB'}) {
-#		foreach (split(':', $ENV{'PERL5LIB'})) {
-#			print $tmp "use lib '$_';\n";
-#		}
-#	}
-#	print $tmp "use CGI::Buffer { optimise_content => 1, generate_etag => 0 };\n";
-#	print $tmp "print \"Content-type: text/html; charset=ISO-8859-1\";\n";
-#	print $tmp "print \"\\n\\n\";\n";
-#	print $tmp "print \"<HTML><BODY><TABLE><TR><TD>foo</TD>   <TD>bar</TD></TR></TABLE></BODY></HTML>\\n\";\n";
-#
-#	open($fout, '-|', "$^X -Iblib/lib " . $filename);
-#
-#	$keep = $_;
-#	undef $/;
-#	$stdout = <$fout>;
-#	$/ = $keep;
-#
-#	close $tmp;
-#
-#	ok($stdout !~ /ETag: "([A-Za-z0-F0-f]{32})"/m);
-#	ok($stdout !~ /^Status: 304 Not Modified/mi);
-#
-#	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
-#
-#	ok($headers =~ /^Content-Length:\s+(\d+)/m);
-#	$length = $1;
-#
-#	ok(length($body) != 0);
-#	ok(defined($length));
-#	ok(length($body) == $length);
-#
-#	#......................................
-#	# Check no output does nothing strange
-#	($tmp, $filename) = tempfile();
-#	if($ENV{'PERL5LIB'}) {
-#		foreach (split(':', $ENV{'PERL5LIB'})) {
-#			print $tmp "use lib '$_';\n";
-#		}
-#	}
-#	print $tmp "use strict;\n";
-#	print $tmp "use CGI::Buffer;\n";
-#
-#	open($fout, '-|', "$^X -Iblib/lib " . $filename);
-#
-#	$keep = $_;
-#	undef $/;
-#	$stdout = <$fout>;
-#	$/ = $keep;
-#
-#	close $tmp;
-#
-#	ok($stdout eq '');
+
+	#..........................................
+	$ENV{'HTTP_IF_NONE_MATCH'} = $etag;
+
+	($stdout, $stderr) = capture { test13() };
+
+	ok($stderr eq '');
+
+	ok($stdout !~ /^Status: 304 Not Modified/mi);
+	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
+	ok(length($body) > 0);
+
+	#..........................................
+	delete $ENV{'HTTP_IF_NONE_MATCH'};
+	$ENV{'HTTP_IF_MODIFIED_SINCE'} = DateTime->now();
+
+	sub test14 {
+		my $b = new_ok('FCGI::Buffer');
+
+		$b->init({ optimise_content => 1, generate_etag => 0 });
+
+		print "Content-type: text/html; charset=ISO-8859-1\n\n";
+		print "<HTML><BODY><TABLE><TR><TD>foo</TD>\t  <TD>bar</TD></TR></TABLE></BODY></HTML>\n";
+	}
+
+	($stdout, $stderr) = capture { test14() };
+
+	ok($stderr eq '');
+	ok(defined($stdout));
+	ok($stdout !~ /ETag: "([A-Za-z0-F0-f]{32})"/m);
+	ok($stdout !~ /^Status: 304 Not Modified/mi);
+
+	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
+
+	ok($headers =~ /^Content-Length:\s+(\d+)/m);
+	$length = $1;
+
+	ok(length($body) != 0);
+	ok(defined($length));
+	ok(length($body) == $length);
+
+	#......................................
+	$ENV{'HTTP_IF_MODIFIED_SINCE'} = 'This is an invalid date';
+
+	($stdout, $stderr) = capture { test14() };
+	ok($stdout !~ /ETag: "([A-Za-z0-F0-f]{32})"/m);
+	ok($stdout !~ /^Status: 304 Not Modified/mi);
+
+	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
+
+	ok($headers =~ /^Content-Length:\s+(\d+)/m);
+	$length = $1;
+
+	ok(length($body) != 0);
+	ok(defined($length));
+	ok(length($body) == $length);
+
+	#......................................
+	# Check no output does nothing strange
+	sub test15 {
+		my $b = new_ok('FCGI::Buffer');
+	}
+
+	($stdout, $stderr) = capture { test15() };
+
+	ok($stdout eq '');
+	ok($stderr eq '');
 }
