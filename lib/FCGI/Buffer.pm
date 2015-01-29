@@ -92,6 +92,7 @@ Create an FCGI::Buffer object.  Do one of these for each FCGI::Accept.
 
 =cut
 
+# FIXME: Call init() on any arguments that are given
 sub new {
 	my $proto = shift;
 	my $class = ref($proto) || $proto;
@@ -347,7 +348,7 @@ sub DESTROY {
 				if(defined($self->{cobject})) {
 					$cache_hash = Storable::thaw($self->{cobject}->value());
 					$headers = $cache_hash->{'headers'};
-					@{$self->{o}} = ("X-CGI-Buffer-$VERSION: Hit");
+					@{$self->{o}} = ("X-FCGI-Buffer-$VERSION: Hit");
 				} else {
 					carp "Error retrieving data for key $key";
 				}
@@ -503,7 +504,7 @@ sub DESTROY {
 					}
 				}
 			}
-			push @{$self->{o}}, "X-CGI-Buffer-$VERSION: Miss";
+			push @{$self->{o}}, "X-FCGI-Buffer-$VERSION: Miss";
 		}
 		# We don't need it any more, so give Perl a chance to
 		# tidy it up seeing as we're in the destructor
@@ -529,7 +530,7 @@ sub DESTROY {
 			}
 		}
 	} else {
-		push @{$self->{o}}, "X-CGI-Buffer-$VERSION: No headers";
+		push @{$self->{o}}, "X-FCGI-Buffer-$VERSION: No headers";
 	}
 
 	if($body_length && $self->{send_body}) {
@@ -688,7 +689,8 @@ Set various options and override default values.
     # optimise_content and lint_content are OFF.  Set optimise_content to 2 to
     # do aggressive JavaScript optimisations which may fail.
     use FCGI::Buffer;
-    FCGI::Buffer::init(
+    my $buffer = FCGI::Buffer->new();
+    $buffer->init({
 	generate_etag => 1,	# make good use of client's cache
 	generate_last_modified => 1,	# more use of client's cache
 	compress_content => 1,	# if gzip the output
@@ -715,14 +717,12 @@ To generate a last_modified header, you must give a cache object.
 Init allows a reference of the options to be passed. So both of these work:
     use FCGI::Buffer;
     #...
-    FCGI::Buffer::init(generate_etag => 1);
-    FCGI::Buffer::init({ generate_etag => 1, info => CGI::Info->new() });
+    my $buffer = FCGI::Buffer->new();
+    $b->init(generate_etag => 1);
+    $b->init({ generate_etag => 1, info => CGI::Info->new() });
 
 Generally speaking, passing by reference is better since it copies less on to
 the stack.
-
-Alternatively you can give the options when loading the package:
-    use FCGI::Buffer { optimise_content => 1 };
 
 =cut
 
@@ -856,12 +856,13 @@ the result stored in the cache.
     # To use server side caching you must give the cache argument, however
     # the cache_key argument is optional - if you don't give one then one will
     # be generated for you
-    if(FCGI::Buffer::can_cache()) {
-        FCGI::Buffer::init(
+    my $buffer = FCGI::Buffer->new();
+    if($buffer->can_cache()) {
+        $buffer->init(
 	    cache => CHI->new(driver => 'File'),
 	    cache_key => $i->domain_name() . '/' . $i->script_name() . '/' . $i->as_string() . '/' . $l->language()
         );
-        if(FCGI::Buffer::is_cached()) {
+        if($buffer->is_cached()) {
 	    # Output will be retrieved from the cache and sent automatically
 	    exit;
         }
@@ -1024,7 +1025,7 @@ FCGI::Buffer;
 FCGI::Buffer is not compatible with FCGI.
 
 Please report any bugs or feature requests to C<bug-cgi-buffer at rt.cpan.org>,
-or through the web interface at L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=CGI-Buffer>.
+or through the web interface at L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=FCGI-Buffer>.
 I will be notified, and then you'll automatically be notified of progress on
 your bug as I make changes.
 
@@ -1044,22 +1045,21 @@ You can also look for information at:
 
 =item * RT: CPAN's request tracker
 
-L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=CGI-Buffer>
+L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=FCGI-Buffer>
 
 =item * AnnoCPAN: Annotated CPAN documentation
 
-L<http://annocpan.org/dist/CGI-Buffer>
+L<http://annocpan.org/dist/FCGI-Buffer>
 
 =item * CPAN Ratings
 
-L<http://cpanratings.perl.org/d/CGI-Buffer>
+L<http://cpanratings.perl.org/d/FCGI-Buffer>
 
 =item * Search CPAN
 
-L<http://search.cpan.org/dist/CGI-Buffer/>
+L<http://search.cpan.org/dist/FCGI-Buffer/>
 
 =back
-
 
 =head1 ACKNOWLEDGEMENTS
 

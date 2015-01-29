@@ -11,7 +11,7 @@
 use strict;
 use warnings;
 
-use Test::Most tests => 73;
+use Test::Most tests => 123;
 use Test::TempDir;
 use Compress::Zlib;
 use DateTime;
@@ -244,205 +244,154 @@ OUTPUT: {
 	ok(length($body) eq $length);
 	ok($body =~ /href="\/foo.htm"/mi);
 
-#	#..........................................
-#
-#	($tmp, $filename) = tempfile();
-#	if($ENV{'PERL5LIB'}) {
-#		foreach (split(':', $ENV{'PERL5LIB'})) {
-#			print $tmp "use lib '$_';\n";
-#		}
-#	}
-#	print $tmp "use CGI::Buffer;\n";
-#	print $tmp "CGI::Buffer::set_options(optimise_content => 1);\n";
-#	print $tmp "print \"Content-type: text/html; charset=ISO-8859-1\";\n";
-#	print $tmp "print \"\\n\\n\";\n";
-#	print $tmp "print \"<HTML><BODY><A HREF=\\\"http://www.example.com/foo.htm\\\">Click</a> <hr> A Line \n<HR>\r\n Foo</BODY></HTML>\\n\";\n";
-#
-#	open($fout, '-|', "$^X -Iblib/lib " . $filename);
-#
-#	$keep = $_;
-#	undef $/;
-#	$stdout = <$fout>;
-#	$/ = $keep;
-#
-#	close $tmp;
-#
-#	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
-#	ok($headers =~ /^Content-Length:\s+(\d+)/m);
-#	$length = $1;
-#	ok(defined($length));
-#	ok(length($body) eq $length);
-#	ok($headers !~ /^Status: 500/m);
-#	ok($body =~ /<hr>A Line<hr>Foo/);
-#
-#	#..........................................
-#	# Space left in tact after </em>
-#	($tmp, $filename) = tempfile();
-#	if($ENV{'PERL5LIB'}) {
-#		foreach (split(':', $ENV{'PERL5LIB'})) {
-#			print $tmp "use lib '$_';\n";
-#		}
-#	}
-#	print $tmp "use CGI::Buffer { optimise_content => 1, lint_content => 0 };\n";
-#	print $tmp "print \"Content-type: text/html; charset=ISO-8859-1\";\n";
-#	print $tmp "print \"\\n\\n\";\n";
-#	print $tmp "print \"<HTML><BODY>\n<p><em>The Brass Band Portal</em> is visited some 500 times</BODY></HTML>\\n\";\n";
-#
-#	open($fout, '-|', "$^X -Iblib/lib " . $filename);
-#
-#	$keep = $_;
-#	undef $/;
-#	$stdout = <$fout>;
-#	$/ = $keep;
-#
-#	close $tmp;
-#
-#	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
-#	ok($headers =~ /^Content-Length:\s+(\d+)/m);
-#	$length = $1;
-#	ok(defined($length));
-#	ok(length($body) eq $length);
-#	ok($headers !~ /^Status: 500/m);
-#	ok($body eq "<HTML><BODY><p><em>The Brass Band Portal</em> is visited some 500 times</BODY></HTML>");
-#
-#	#..........................................
-#	diag('Ignore warning about <a> is never closed');
-#	delete $ENV{'SERVER_NAME'};
-#	($tmp, $filename) = tempfile();
-#	if($ENV{'PERL5LIB'}) {
-#		foreach (split(':', $ENV{'PERL5LIB'})) {
-#			print $tmp "use lib '$_';\n";
-#		}
-#	}
-#	print $tmp "use CGI::Buffer;\n";
-#	print $tmp "CGI::Buffer::set_options(optimise_content => 1, lint_content=> 1);\n";
-#	print $tmp "print \"Content-type: text/html; charset=ISO-8859-1\";\n";
-#	print $tmp "print \"\\n\\n\";\n";
-#	print $tmp "print \"<HTML><BODY><A HREF=\\\"http://www.example.com/foo.htm\\\">Click</BODY></HTML>\\n\";\n";
-#
-#	open($fout, '-|', "$^X -Iblib/lib " . $filename);
-#
-#	$keep = $_;
-#	undef $/;
-#	$stdout = <$fout>;
-#	$/ = $keep;
-#
-#	close $tmp;
-#
-#	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
-#	ok($headers =~ /^Content-Length:\s+(\d+)/m);
-#	$length = $1;
-#	ok(defined($length));
-#	ok(length($body) eq $length);
-#	ok($headers =~ /^Status: 500/m);
-#	ok($body =~ /<a>.+is never closed/);
-#
-#	#..........................................
-#	$ENV{'SERVER_PROTOCOL'} = 'HTTP/1.1';
-#	delete $ENV{'HTTP_ACCEPT_ENCODING'};
-#
-#	($tmp, $filename) = tempfile();
-#	if($ENV{'PERL5LIB'}) {
-#		foreach (split(':', $ENV{'PERL5LIB'})) {
-#			print $tmp "use lib '$_';\n";
-#		}
-#	}
-#	print $tmp "use CGI::Buffer;\n";
-#	print $tmp "CGI::Buffer::set_options(optimise_content => 1);\n";
-#	print $tmp "print \"Content-type: text/html; charset=ISO-8859-1\";\n";
-#	print $tmp "print \"\\n\\n\";\n";
-#	print $tmp "print \"<HTML><BODY><TABLE><TR><TD>foo</TD>  <TD>bar</TD></TR></TABLE></BODY></HTML>\\n\";\n";
-#
-#	open($fout, '-|', "$^X -Iblib/lib " . $filename);
-#
-#	$keep = $_;
-#	undef $/;
-#	$stdout = <$fout>;
-#	$/ = $keep;
-#
-#	ok($stdout =~ /<TD>foo<\/TD><TD>bar<\/TD>/mi);
-#	ok($stdout =~ /^Content-Length:\s+(\d+)/m);
-#	$length = $1;
-#	ok(defined($length));
-#
-#	ok($stdout =~ /ETag: "([A-Za-z0-F0-f]{32})"/m);
-#	my $etag = $1;
-#	ok(defined($etag));
-#
-#	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
-#	ok(length($body) eq $length);
-#	ok(length($body) > 0);
-#
-#	#..........................................
-#	$ENV{'HTTP_IF_NONE_MATCH'} = $etag;
-#
-#	open($fout, '-|', "$^X -Iblib/lib " . $filename);
-#
-#	$keep = $_;
-#	undef $/;
-#	$stdout = <$fout>;
-#	$/ = $keep;
-#
-#	ok($stdout =~ /^Status: 304 Not Modified/mi);
-#	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
-#	ok(length($body) == 0);
-#
-#	$ENV{'REQUEST_METHOD'} = 'HEAD';
-#
-#	open($fout, '-|', "$^X -Iblib/lib " . $filename);
-#
-#	$keep = $_;
-#	undef $/;
-#	$stdout = <$fout>;
-#	$/ = $keep;
-#
-#	close $tmp;
-#
-#	ok($stdout =~ /^Status: 304 Not Modified/mi);
-#	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
-#	ok(length($body) == 0);
-#
-#	#..........................................
-#	$ENV{'SERVER_PROTOCOL'} = 'HTTP/1.1';
-#	delete $ENV{'HTTP_ACCEPT_ENCODING'};
-#	$ENV{'REQUEST_METHOD'} = 'GET';
-#
-#	($tmp, $filename) = tempfile();
-#	print $tmp "use CGI::Buffer;\n";
-#	if($ENV{'PERL5LIB'}) {
-#		foreach (split(':', $ENV{'PERL5LIB'})) {
-#			print $tmp "use lib '$_';\n";
-#		}
-#	}
-#	print $tmp "CGI::Buffer::set_options(optimise_content => 1, generate_304 => 0);\n";
-#	print $tmp "print \"Content-type: text/html; charset=ISO-8859-1\";\n";
-#	print $tmp "print \"\\n\\n\";\n";
-#	print $tmp "print \"<HTML><BODY><TABLE><TR><TD>foo</TD>\\t  <TD>bar</TD></TR></TABLE></BODY></HTML>\\n\";\n";
-#
-#	open($fout, '-|', "$^X -Iblib/lib " . $filename);
-#
-#	$keep = $_;
-#	undef $/;
-#	$stdout = <$fout>;
-#	$/ = $keep;
-#
-#	close $tmp;
-#
-#	ok(defined($stdout));
-#	ok($stdout =~ /<TD>foo<\/TD><TD>bar<\/TD>/mi);
-#	ok($stdout !~ /^Status: 304 Not Modified/mi);
-#	ok($stdout =~ /^Content-Length:\s+(\d+)/m);
-#	$length = $1;
-#	ok(defined($length));
-#
-#	ok($stdout =~ /ETag: "([A-Za-z0-F0-f]{32})"/m);
-#	$etag = $1;
-#	ok(defined($etag));
-#
-#	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
-#	ok(defined($length));
-#	ok(length($body) eq $length);
-#	ok(length($body) > 0);
+	#..........................................
+	sub test9 {
+		my $b = new_ok('FCGI::Buffer');
+
+		$b->init(optimise_content => 1);
+
+		print "Content-type: text/html; charset=ISO-8859-1\n\n";
+		print "<HTML><BODY><A HREF=\"http://www.example.com/foo.htm\">Click</a> <hr> A Line \n<HR>\r\n Foo</BODY></HTML>\n";
+	}
+
+	($stdout, $stderr) = capture { test9() };
+
+	ok($stderr eq '');
+
+	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
+	ok($headers =~ /^Content-Length:\s+(\d+)/m);
+	$length = $1;
+	ok(defined($length));
+	ok(length($body) eq $length);
+	ok($headers !~ /^Status: 500/m);
+	ok($body =~ /<hr>A Line<hr>Foo/);
+
+	#..........................................
+	# Space left intact after </em>
+	sub test10 {
+		my $b = new_ok('FCGI::Buffer');
+
+		$b->init(optimise_content => 1, lint_content => 0);
+
+		print "Content-type: text/html; charset=ISO-8859-1\n\n";
+		print "<HTML><BODY>\n<p><em>The Brass Band Portal</em> is visited some 500 times</BODY></HTML>\n";
+	}
+
+	($stdout, $stderr) = capture { test10() };
+
+	ok($stderr eq '');
+
+	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
+	ok($headers =~ /^Content-Length:\s+(\d+)/m);
+	$length = $1;
+	ok(defined($length));
+	ok(length($body) eq $length);
+	ok($headers !~ /^Status: 500/m);
+	ok($body eq "<HTML><BODY><p><em>The Brass Band Portal</em> is visited some 500 times</BODY></HTML>");
+
+	#..........................................
+	delete $ENV{'SERVER_NAME'};
+	sub test11 {
+		my $b = new_ok('FCGI::Buffer');
+
+		$b->init({ optimise_content => 1, lint_content => 1 });
+
+		print "Content-type: text/html; charset=ISO-8859-1\n\n";
+		print "<HTML><BODY><A HREF=\"http://www.example.com/foo.htm\">Click</BODY></HTML>\n";
+	}
+
+	($stdout, $stderr) = capture { test11() };
+
+	ok($stderr =~ /<a>.+is never closed/);
+
+	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
+	ok($headers =~ /^Content-Length:\s+(\d+)/m);
+	$length = $1;
+	ok(defined($length));
+	ok(length($body) eq $length);
+	ok($headers =~ /^Status: 500/m);
+	ok($body =~ /<a>.+is never closed/);
+
+	#..........................................
+	$ENV{'SERVER_PROTOCOL'} = 'HTTP/1.1';
+	delete $ENV{'HTTP_ACCEPT_ENCODING'};
+
+	sub test12 {
+		my $b = new_ok('FCGI::Buffer');
+
+		$b->init({ optimise_content => 1 });
+
+		print "Content-type: text/html; charset=ISO-8859-1\n\n";
+		print "<HTML><BODY><TABLE><TR><TD>foo</TD>  <TD>bar</TD></TR></TABLE></BODY></HTML>\n";
+	}
+
+	($stdout, $stderr) = capture { test12() };
+
+	ok($stderr eq '');
+	ok($stdout =~ /<TD>foo<\/TD><TD>bar<\/TD>/mi);
+	ok($stdout =~ /^Content-Length:\s+(\d+)/m);
+	$length = $1;
+	ok(defined($length));
+
+	ok($stdout =~ /ETag: "([A-Za-z0-F0-f]{32})"/m);
+	my $etag = $1;
+	ok(defined($etag));
+
+	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
+	ok(length($body) eq $length);
+	ok(length($body) > 0);
+
+	#..........................................
+	$ENV{'HTTP_IF_NONE_MATCH'} = $etag;
+
+	($stdout, $stderr) = capture { test12() };
+
+	ok($stderr eq '');
+	ok($stdout =~ /^Status: 304 Not Modified/mi);
+	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
+	ok(length($body) == 0);
+
+	$ENV{'REQUEST_METHOD'} = 'HEAD';
+
+	($stdout, $stderr) = capture { test12() };
+
+	ok($stderr eq '');
+	ok($stdout =~ /^Status: 304 Not Modified/mi);
+	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
+	ok(length($body) == 0);
+
+	#..........................................
+	$ENV{'SERVER_PROTOCOL'} = 'HTTP/1.1';
+	delete $ENV{'HTTP_ACCEPT_ENCODING'};
+	$ENV{'REQUEST_METHOD'} = 'GET';
+
+	sub test13 {
+		my $b = new_ok('FCGI::Buffer');
+
+		$b->init({ optimise_content => 1, generate_304 => 0 });
+
+		print "Content-type: text/html; charset=ISO-8859-1\n\n";
+		print "<HTML><BODY><TABLE><TR><TD>foo</TD>\t  <TD>bar</TD></TR></TABLE></BODY></HTML>\n";
+	}
+
+	($stdout, $stderr) = capture { test13() };
+
+	ok($stderr eq '');
+	ok(defined($stdout));
+	ok($stdout =~ /<TD>foo<\/TD><TD>bar<\/TD>/mi);
+	ok($stdout !~ /^Status: 304 Not Modified/mi);
+	ok($stdout =~ /^Content-Length:\s+(\d+)/m);
+	$length = $1;
+	ok(defined($length));
+
+	ok($stdout =~ /ETag: "([A-Za-z0-F0-f]{32})"/m);
+	$etag = $1;
+	ok(defined($etag));
+
+	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
+	ok(defined($length));
+	ok(length($body) eq $length);
+	ok(length($body) > 0);
 #
 #	#..........................................
 #	$ENV{'HTTP_IF_NONE_MATCH'} = $etag;
