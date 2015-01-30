@@ -368,7 +368,7 @@ OUTPUT: {
 	sub test13 {
 		my $b = new_ok('FCGI::Buffer');
 
-		$b->init({ optimise_content => 1, generate_304 => 0 });
+		$b->set_options(optimise_content => 1, generate_304 => 0);
 
 		print "Content-type: text/html; charset=ISO-8859-1\n\n";
 		print "<HTML><BODY><TABLE><TR><TD>foo</TD>\t  <TD>bar</TD></TR></TABLE></BODY></HTML>\n";

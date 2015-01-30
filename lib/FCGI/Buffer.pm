@@ -805,9 +805,9 @@ Synonym for init, kept for historical reasons.
 
 sub set_options {
 	my $self = shift;
-	my $params = shift;
+	my %params = (ref($_[0]) eq 'HASH') ? %{$_[0]} : @_;
 
-	$self->init($params);
+	$self->init(\%params);
 }
 
 =head2 can_cache
