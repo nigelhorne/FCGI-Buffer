@@ -804,9 +804,10 @@ Synonym for init, kept for historical reasons.
 =cut
 
 sub set_options {
-	my %params = @_;
+	my $self = shift;
+	my $params = shift;
 
-	init(%params);
+	$self->init($params);
 }
 
 =head2 can_cache
