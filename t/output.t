@@ -11,7 +11,7 @@
 use strict;
 use warnings;
 
-use Test::Most tests => 146;
+use Test::Most tests => 154;
 use Test::TempDir;
 use Compress::Zlib;
 use DateTime;
@@ -340,6 +340,35 @@ OUTPUT: {
 	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
 	ok(length($body) eq $length);
 	ok(length($body) > 0);
+
+	#..........................................
+	# Check no problemt is content_type isn't set
+	$ENV{'SERVER_PROTOCOL'} = 'HTTP/1.1';
+	delete $ENV{'HTTP_ACCEPT_ENCODING'};
+
+	sub test12a {
+		my $b = new_ok('FCGI::Buffer');
+
+		$b->init({ optimise_content => 1 });
+
+		print "charset=ISO-8859-1\n\n";
+		print "<HTML><BODY><TABLE><TR><TD>foo</TD>  <TD>bar</TD></TR></TABLE></BODY></HTML>\n";
+	}
+
+	($stdout, $stderr) = capture { test12a() };
+
+	ok($stdout =~ /<TD>foo<\/TD>  <TD>bar<\/TD>/mi);
+
+	ok($stdout =~ /ETag: "([A-Za-z0-F0-f]{32})"/m);
+	$etag = $1;
+	ok(defined($etag));
+
+	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
+	ok($headers =~ /^Content-Length:\s+(\d+)/m);
+	$length = $1;
+	ok(defined($length));
+	ok(length($body) eq $length);
+	ok($length > 0);
 
 	#..........................................
 	$ENV{'HTTP_IF_NONE_MATCH'} = $etag;

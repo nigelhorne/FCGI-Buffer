@@ -2,6 +2,7 @@ Revision history for FCGI-Buffer
 
 0.02
 	Fix set_options
+	Fix handling when content-type isn't set
 
 0.01	Thu Jan 29 15:42:06 EST 2015
 	First draft, clone from CGI::Buffer and object orient the code

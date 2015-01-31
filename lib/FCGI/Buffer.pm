@@ -965,14 +965,16 @@ sub _should_gzip {
 		my $accept = lc($ENV{'HTTP_ACCEPT_ENCODING'} ? $ENV{'HTTP_ACCEPT_ENCODING'} : $ENV{'HTTP_TE'});
 		foreach my $encoding ('x-gzip', 'gzip') {
 			$_ = $accept;
-			my @content_type = @{$self->{content_type}};
-			if($content_type[0]) {
-				if (m/$encoding/i && (lc($content_type[0]) eq 'text')) {
-					return $encoding;
-				}
-			} else {
-				if (m/$encoding/i) {
-					return $encoding;
+			if(defined($self->{content_type})) {
+				my @content_type = @{$self->{content_type}};
+				if($content_type[0]) {
+					if (m/$encoding/i && (lc($content_type[0]) eq 'text')) {
+						return $encoding;
+					}
+				} else {
+					if (m/$encoding/i) {
+						return $encoding;
+					}
 				}
 			}
 		}
