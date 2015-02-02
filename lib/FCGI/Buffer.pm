@@ -116,6 +116,7 @@ sub new {
 }
 
 sub DESTROY {
+	return if ${^GLOBAL_PHASE} eq 'DESTRUCT';	# >= 5.14.0 only
 	my $self = shift;
 
 	if($self->{logger}) {
@@ -123,16 +124,16 @@ sub DESTROY {
 		# outputs to the logger.  We need to do that now since
 		# if we leave it to Perl to delete later we may get
 		# a mesage that Log4Perl::init() hasn't been called
-		$self->{logger} = undef;
+		# $self->{logger} = undef;
 	}
 	select($self->{old_buf});
 	if(!defined($self->{buf})) {
 		return;
 	}
-	$self->{pos} = $self->{buf}->getpos;
+	my $pos = $self->{buf}->getpos;
 	$self->{buf}->setpos(0);
 	my $buf;
-	read($self->{buf}, $buf, $self->{pos});
+	read($self->{buf}, $buf, $pos);
 	my $headers;
 	($headers, $self->{body}) = split /\r?\n\r?\n/, $buf, 2;
 
@@ -757,13 +758,13 @@ sub init {
 	}
 
 	# Unsafe options - must be called before output has been started
-	$self->{pos} = $self->{buf}->getpos;
-	if($self->{pos} > 0) {
+	my $pos = $self->{buf}->getpos;
+	if($pos > 0) {
 		if(defined($self->{logger})) {
-			$self->{logger}->warn("Too late to call init, $self->{pos} characters have been printed");
+			$self->{logger}->warn("Too late to call init, $pos characters have been printed");
 		} else {
 			# Must do Carp::carp instead of carp for Test::Carp
-			Carp::carp "Too late to call init, $self->{pos} characters have been printed";
+			Carp::carp "Too late to call init, $pos characters have been printed";
 		}
 	}
 	if(defined($params{cache}) && $self->can_cache()) {
