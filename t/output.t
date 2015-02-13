@@ -11,7 +11,7 @@
 use strict;
 use warnings;
 
-use Test::Most tests => 154;
+use Test::Most tests => 172;
 use Test::TempDir;
 use Compress::Zlib;
 use DateTime;
@@ -26,6 +26,7 @@ OUTPUT: {
 	delete $ENV{'HTTP_ACCEPT_ENCODING'};
 	delete $ENV{'HTTP_TE'};
 	delete $ENV{'SERVER_PROTOCOL'};
+	delete $ENV{'HTTP_RANGE'};
 
 	sub test1 {
 		my $b = new_ok('FCGI::Buffer');
@@ -342,7 +343,44 @@ OUTPUT: {
 	ok(length($body) > 0);
 
 	#..........................................
-	# Check no problemt is content_type isn't set
+	# Test HTTP_RANGE
+	$ENV{'HTTP_RANGE'} = 'bytes=-40';
+	($stdout, $stderr) = capture { test12() };
+
+	ok($stderr eq '');
+	ok($stdout =~ /^Content-Length:\s+(\d+)/m);
+	$length = $1;
+	ok(defined($length));
+	ok($length <= 40);
+
+	ok($stdout =~ /ETag: "([A-Za-z0-F0-f]{32})"/m);
+	$etag = $1;
+	ok(defined($etag));
+
+	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
+	ok(length($body) eq $length);
+	ok(length($body) > 0);
+
+	$ENV{'HTTP_RANGE'} = 'bytes=30-39';
+	($stdout, $stderr) = capture { test12() };
+
+	ok($stderr eq '');
+	ok($stdout =~ /^Content-Length:\s+(\d+)/m);
+	$length = $1;
+	ok(defined($length));
+	ok($length <= 10);
+
+	ok($stdout =~ /ETag: "([A-Za-z0-F0-f]{32})"/m);
+	$etag = $1;
+	ok(defined($etag));
+
+	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
+	ok(length($body) eq $length);
+	ok(length($body) > 0);
+	delete $ENV{'HTTP_RANGE'};
+
+	#..........................................
+	# Check no problems if content_type isn't set
 	$ENV{'SERVER_PROTOCOL'} = 'HTTP/1.1';
 	delete $ENV{'HTTP_ACCEPT_ENCODING'};
 
