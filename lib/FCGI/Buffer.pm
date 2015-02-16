@@ -547,12 +547,12 @@ sub DESTROY {
 		$SIG{__WARN__} = sub {
 			$wideCharWarningsIssued += "@_" =~ /Wide character in .../;
 			$widemess = "@_";
-			if($logger) {
-				$logger->fatal($widemess);
+			if($self->{logger}) {
+				$self->{logger}->fatal($widemess);
 				my $i = 1;
-				$logger->trace('Stack Trace');
+				$self->{logger}->trace('Stack Trace');
 				while((my @call_details = (caller($i++)))) {
-					$logger->trace($call_details[1] . ':' . $call_details[2] . ' in function ' . $call_details[3]);
+					$self->{logger}->trace($call_details[1] . ':' . $call_details[2] . ' in function ' . $call_details[3]);
 				}
 			}
 			CORE::warn(@_);     # call the builtin warn as usual
