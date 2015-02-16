@@ -119,13 +119,13 @@ sub DESTROY {
 	return if ${^GLOBAL_PHASE} eq 'DESTRUCT';	# >= 5.14.0 only
 	my $self = shift;
 
-	if($self->{logger}) {
+	# if($self->{logger}) {
 		# This will cause everything to get flushed and prevent
 		# outputs to the logger.  We need to do that now since
 		# if we leave it to Perl to delete later we may get
 		# a mesage that Log4Perl::init() hasn't been called
 		# $self->{logger} = undef;
-	}
+	# }
 	select($self->{old_buf});
 	if(!defined($self->{buf})) {
 		return;
@@ -377,9 +377,13 @@ sub DESTROY {
 					foreach my $k (keys %{$cache_hash}) {
 						$self->{body} .= "\t$k\n";
 					}
-					warn($self->{body});
 					$self->{cache}->remove($key);
-					carp "Can't retrieve body for key $key";
+					if($self->{logger}) {
+						$self->{logger}->error("Can't retrieve body for key $key");
+					} else {
+						carp "Can't retrieve body for key $key";
+					}
+					warn($self->{body});
 					$self->{send_body} = 0;
 					$self->{status} = 500;
 				}
