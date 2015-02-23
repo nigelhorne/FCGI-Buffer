@@ -102,15 +102,15 @@ sub new {
 
 	my $rc = {
 		buf => $buf,
-		old_buf => $old_buf
+		old_buf => $old_buf,
+		generate_etag => 1,
+		generate_304 => 1,
+		generate_last_modified => 1,
+		compress_content => 1,
+		optimise_content => 0,
+		lint_content => 0,
 	};
-	$rc->{generate_etag} = 1;
-	$rc->{generate_304} = 1;
-	$rc->{generate_last_modified} = 1;
-	$rc->{compress_content} = 1;
-	$rc->{optimise_content} = 0;
-	$rc->{lint_content} = 0;
-	$rc->{o} = ();
+	# $rc->{o} = ();
 
 	return bless $rc, $class;
 }
@@ -470,7 +470,7 @@ sub DESTROY {
 					my $body_length = length($self->{body});
 					push @{$self->{o}}, "Content-Length: $body_length";
 				}
-				if(scalar(@{$self->{o}})) {
+				if($self->{o} && scalar(@{$self->{o}})) {
 					# Remember, we're storing the UNzipped
 					# version in the cache
 					my $c;
