@@ -16,7 +16,6 @@ WriteMakefile(
 	'Test::Most' => 0,
 	# 'Test::NoWarnings' => 0,
 	'Capture::Tiny' => 0,
-	'Test::TempDir' => 0,
 	'DateTime' => 0,
 	# 'Test::Kwalitee' => 0,
     },

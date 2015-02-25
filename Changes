@@ -1,6 +1,8 @@
 Revision history for FCGI-Buffer
 
 0.03
+	Removed Test::TempDir RT102225
+	Added t/cache.t
 	Fix '(in cleanup) Can't call method "READ" on an undefined value'
 		Perl >= 5.14.0 only
 

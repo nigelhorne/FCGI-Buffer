@@ -124,7 +124,7 @@ sub DESTROY {
 		# outputs to the logger.  We need to do that now since
 		# if we leave it to Perl to delete later we may get
 		# a mesage that Log4Perl::init() hasn't been called
-		# $self->{logger} = undef;
+		# delete $self->{logger};
 	# }
 	select($self->{old_buf});
 	if(!defined($self->{buf})) {
@@ -162,7 +162,7 @@ sub DESTROY {
 	if(defined($self->{body}) && ($self->{body} eq '')) {
 		# E.g. if header of Location is given with no body, for
 		#	redirection
-		$self->{body} = undef;
+		delete $self->{body};
 		if($self->{cache}) {
 			# Don't try to retrieve it below from the cache
 			$self->{send_body} = 0;
@@ -513,7 +513,7 @@ sub DESTROY {
 		}
 		# We don't need it any more, so give Perl a chance to
 		# tidy it up seeing as we're in the destructor
-		$self->{cache} = undef;
+		delete $self->{cache};
 	}
 
 	my $body_length = defined($self->{body}) ? length($self->{body}) : 0;
@@ -914,7 +914,7 @@ sub is_cached {
 		if($self->{logger}) {
 			$self->{logger}->warn('is_cached: object is in the cache but not the data');
 		}
-		$self->{cobject} = undef;
+		delete $self->{cobject};
 		return 0;
 	}
 
@@ -927,7 +927,7 @@ sub is_cached {
 		}
 		# Can't determine the age. Play it safe an assume we're not
 		# cached
-		$self->{cobject} = undef;
+		delete $self->{cobject};
 		return 0;
 	}
 	if($age > $self->{cobject}->created_at()) {
@@ -935,7 +935,7 @@ sub is_cached {
 		if($self->{logger}) {
 			$self->{logger}->debug('Script has been updated');
 		}
-		$self->{cobject} = undef;
+		delete $self->{cobject};
 		# Nothing will be in date and all new searches would miss
 		# anyway, so may as well clear it all
 		$self->{cache}->clear();
@@ -973,6 +973,10 @@ sub _my_age {
 
 sub _should_gzip {
 	my $self = shift;
+
+	if(defined($self->{send_body}) && ($self->{send_body} == 0)) {
+		return '';
+	}
 
 	if($self->{compress_content} && ($ENV{'HTTP_ACCEPT_ENCODING'} || $ENV{'HTTP_TE'})) {
 		my $accept = lc($ENV{'HTTP_ACCEPT_ENCODING'} ? $ENV{'HTTP_ACCEPT_ENCODING'} : $ENV{'HTTP_TE'});

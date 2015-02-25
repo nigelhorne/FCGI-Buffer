@@ -10,7 +10,6 @@ use strict;
 use warnings;
 
 use Test::Most tests => 14;
-use Test::TempDir;
 use Capture::Tiny ':all';
 # use Test::NoWarnings;	# HTML::Clean has them
 

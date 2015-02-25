@@ -11,8 +11,7 @@
 use strict;
 use warnings;
 
-use Test::Most tests => 172;
-use Test::TempDir;
+use Test::Most tests => 176;
 use Compress::Zlib;
 use DateTime;
 use Capture::Tiny ':all';
@@ -518,6 +517,9 @@ OUTPUT: {
 
 	#......................................
 	# Check no output does nothing strange
+
+	delete $ENV{'HTTP_IF_MODIFIED_SINCE'};
+
 	sub test15 {
 		my $b = new_ok('FCGI::Buffer');
 	}
@@ -525,5 +527,23 @@ OUTPUT: {
 	($stdout, $stderr) = capture { test15() };
 
 	ok($stdout eq '');
+	ok($stderr eq '');
+
+	#......................................
+	# Check no body does nothing strange
+	sub test16 {
+		my $b = new_ok('FCGI::Buffer');
+
+		$b->set_options({ optimise_content => 1, generate_etag => 0 });
+
+		print "Content-type: text/html; charset=ISO-8859-1\n\n";
+	}
+
+	($stdout, $stderr) = capture { test16() };
+
+	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
+
+	ok(length($body) == 0);
+	ok($headers eq 'Content-type: text/html; charset=ISO-8859-1');
 	ok($stderr eq '');
 }
