@@ -1,11 +1,11 @@
 #!/usr/bin/perl -wT
 
-# Once you've integrated CGI::Buffer into a page on your website, you can use
+# Once you've integrated FCGI::Buffer into a page on your website, you can use
 # this program to verify that both it and your page are working correctly. It
 # does this by testing ETag, IF_NONE_MATCH and IF_MODIFIED_SINCE work as you'd
 # like.  It also verifies that your page's output is gzipped and optimised.
 # Note that for last-modified headers to be generated you need to give a
-# cache object to CGI::Buffer
+# cache object to FCGI::Buffer
 
 use strict;
 use warnings;
