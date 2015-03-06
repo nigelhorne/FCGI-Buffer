@@ -4,9 +4,10 @@
 
 use strict;
 use warnings;
-use Test::Most tests => 7;
+use Test::Most tests => 14;
 use Storable;
 use Capture::Tiny ':all';
+use CGI::Info;
 # use Test::NoWarnings;	# HTML::Clean has them
 
 BEGIN {
@@ -24,7 +25,7 @@ CACHED: {
 			CHI->import;
 		};
 
-		skip 'CHI not installed', 4 if $@;
+		skip 'CHI not installed', 11 if $@;
 
 		diag("Using CHI $CHI::VERSION");
 
@@ -49,6 +50,31 @@ CACHED: {
 		my ($stdout, $stderr) = capture { test1() };
 
 		my ($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
+
+		ok(length($body) == 0);
+		ok($headers eq 'Content-type: text/html; charset=ISO-8859-1');
+		ok($stderr eq '');
+
+		sub test2 {
+			my $b = new_ok('FCGI::Buffer');
+
+			ok($b->is_cached() == 0);
+			ok($b->can_cache() == 1);
+
+			$b->init({
+				optimise_content => 1,
+				generate_etag => 0,
+				cache => $cache,
+				cache_key => 'plugh',
+				info => new_ok('CGI::Info')
+			});
+
+			print "Content-type: text/html; charset=ISO-8859-1\n\n";
+		}
+
+		($stdout, $stderr) = capture { test2() };
+
+		($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
 
 		ok(length($body) == 0);
 		ok($headers eq 'Content-type: text/html; charset=ISO-8859-1');

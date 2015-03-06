@@ -94,8 +94,9 @@ Create an FCGI::Buffer object.  Do one of these for each FCGI::Accept.
 
 # FIXME: Call init() on any arguments that are given
 sub new {
-	my $proto = shift;
-	my $class = ref($proto) || $proto;
+	my $class = shift;
+
+	return unless($class);
 
 	my $buf = IO::String->new();
 	my $old_buf = select($buf);
@@ -448,7 +449,7 @@ sub DESTROY {
 				push @{$self->{o}}, "ETag: $self->{etag}";
 			}
 			if($self->{cobject}) {
-				if($ENV{'HTTP_IF_MODIFIED_SINCE'} && ($self->{status} != 304) && (!$cannot_304)) {
+				if($ENV{'HTTP_IF_MODIFIED_SINCE'} && ($self->{status} != 304) && !$cannot_304) {
 					$self->_check_modified_since({
 						since => $ENV{'HTTP_IF_MODIFIED_SINCE'},
 						modified => $self->{cobject}->created_at()
@@ -466,10 +467,6 @@ sub DESTROY {
 					$self->{cache_age} = '10 minutes';
 				}
 				$cache_hash->{'body'} = $unzipped_body;
-				if($self->{body} && $self->{send_body}) {
-					my $body_length = length($self->{body});
-					push @{$self->{o}}, "Content-Length: $body_length";
-				}
 				if($self->{o} && scalar(@{$self->{o}})) {
 					# Remember, we're storing the UNzipped
 					# version in the cache
@@ -516,7 +513,15 @@ sub DESTROY {
 		delete $self->{cache};
 	}
 
-	my $body_length = defined($self->{body}) ? length($self->{body}) : 0;
+	my $body_length;
+	if(defined($self->{body})) {
+		if(utf8::is_utf8($self->{body})) {
+			utf8::encode($self->{body});
+		} 
+		$body_length = length($self->{body});
+	} else {
+		$body_length = 0;
+	}
 
 	if(defined($headers) && length($headers)) {
 		# Put the original headers first, then those generated within

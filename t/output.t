@@ -11,10 +11,11 @@
 use strict;
 use warnings;
 
-use Test::Most tests => 176;
+use Test::Most tests => 200;
 use Compress::Zlib;
 use DateTime;
 use Capture::Tiny ':all';
+use CGI::Info;
 # use Test::NoWarnings;	# HTML::Clean has them
 
 BEGIN {
@@ -427,7 +428,6 @@ OUTPUT: {
 	ok(length($body) == 0);
 
 	#..........................................
-	$ENV{'SERVER_PROTOCOL'} = 'HTTP/1.1';
 	delete $ENV{'HTTP_ACCEPT_ENCODING'};
 	$ENV{'REQUEST_METHOD'} = 'GET';
 
@@ -460,7 +460,41 @@ OUTPUT: {
 	ok(length($body) > 0);
 
 	#..........................................
+	delete $ENV{'HTTP_ACCEPT_ENCODING'};
+	$ENV{'SERVER_PROTOCOL'} = 'HTTP/1.0';
+	$ENV{'REQUEST_METHOD'} = 'GET';
+
+	sub test13a {
+		my $b = new_ok('FCGI::Buffer');
+
+		$b->set_options(optimise_content => 1, generate_304 => 0);
+
+		print "Content-type: text/html; charset=ISO-8859-1\n\n";
+		print "<HTML><BODY><TABLE><TR><TD>foo</TD>\t  <TD>bar</TD></TR></TABLE></BODY></HTML>\n";
+	}
+
+	($stdout, $stderr) = capture { test13a() };
+
+	ok($stderr eq '');
+	ok(defined($stdout));
+	ok($stdout =~ /<TD>foo<\/TD><TD>bar<\/TD>/mi);
+	ok($stdout !~ /^Status: 304 Not Modified/mi);
+	ok($stdout =~ /^Content-Length:\s+(\d+)/m);
+	$length = $1;
+	ok(defined($length));
+
+	ok($stdout !~ /ETag: /m);	# HTTP/1.0 doesn't support Etag
+	$etag = $1;
+	ok(defined($etag));
+
+	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
+	ok(defined($length));
+	ok(length($body) eq $length);
+	ok(length($body) > 0);
+
+	#..........................................
 	$ENV{'HTTP_IF_NONE_MATCH'} = $etag;
+	$ENV{'SERVER_PROTOCOL'} = 'HTTP/1.1';
 
 	($stdout, $stderr) = capture { test13() };
 
@@ -477,7 +511,7 @@ OUTPUT: {
 	sub test14 {
 		my $b = new_ok('FCGI::Buffer');
 
-		$b->set_options({ optimise_content => 1, generate_etag => 0 });
+		$b->set_options({ optimise_content => 1, generate_etag => 0, info => new_ok('CGI::Info') });
 
 		print "Content-type: text/html; charset=ISO-8859-1\n\n";
 		print "<HTML><BODY><TABLE><TR><TD>foo</TD>\t  <TD>bar</TD></TR></TABLE></BODY></HTML>\n";
@@ -534,7 +568,7 @@ OUTPUT: {
 	sub test16 {
 		my $b = new_ok('FCGI::Buffer');
 
-		$b->set_options({ optimise_content => 1, generate_etag => 0 });
+		$b->set_options({ optimise_content => 1, generate_etag => 0, info => new_ok('CGI::Info') });
 
 		print "Content-type: text/html; charset=ISO-8859-1\n\n";
 	}
@@ -546,4 +580,35 @@ OUTPUT: {
 	ok(length($body) == 0);
 	ok($headers eq 'Content-type: text/html; charset=ISO-8859-1');
 	ok($stderr eq '');
+
+	#..........................................
+	# Check wide character handling
+	delete $ENV{'HTTP_IF_NONE_MATCH'};
+
+	sub test17 {
+		my $b = new_ok('FCGI::Buffer');
+
+		$b->set_options({ optimise_content => 1, generate_etag => 0 });
+
+		print "Content-type: text/html; charset=ISO-8859-1\n\n";
+		print "<HTML><BODY><TABLE><TR><TD>foo\x{0142}</TD>\t  <TD>bar</TD></TR></TABLE></BODY></HTML>\n";
+	}
+
+	($stdout, $stderr) = capture { test17() };
+
+	ok($stderr eq '');
+	ok(defined($stdout));
+	ok($stdout !~ /ETag: "([A-Za-z0-F0-f]{32})"/m);
+	ok($stdout !~ /^Status: 304 Not Modified/mi);
+
+	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
+
+	ok($headers =~ /^Content-Length:\s+(\d+)/m);
+	$length = $1;
+
+	diag("length = " . length($body) . ", 1 = $1");
+
+	ok(length($body) != 0);
+	ok(defined($length));
+	ok(length($body) == $length);
 }
