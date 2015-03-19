@@ -158,7 +158,6 @@ OUTPUT: {
 	($stdout, $stderr) = capture { test5() };
 
 	ok($stderr eq '');
-	ok($stdout !~ /www.example.com/m);
 	ok($stdout =~ /href="\/"/m);
 	ok($stdout !~ /<script>\s/m);
 	ok($stdout =~ /^Content-Length:\s+(\d+)/m);
@@ -166,6 +165,7 @@ OUTPUT: {
 	ok(defined($length));
 
 	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
+	ok($body !~ /www.example.com/m);
 	ok(length($body) eq $length);
 
 	#..........................................
@@ -181,13 +181,13 @@ OUTPUT: {
 	($stdout, $stderr) = capture { test6() };
 
 	ok($stderr eq '');
-	ok($stdout !~ /www.example.com/m);
 	ok($stdout =~ /href="\/foo.htm"/m);
 	ok($stdout =~ /^Content-Length:\s+(\d+)/m);
 	$length = $1;
 	ok(defined($length));
 
 	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
+	ok($body !~ /www.example.com/m);
 	ok(length($body) eq $length);
 
 	#..........................................
@@ -200,21 +200,22 @@ OUTPUT: {
 		print "<HTML><BODY><A HREF= \n\"http://www.example.com/foo.htm\">Click</A></BODY></HTML>\n";
 	}
 
-	# Server is www.example.com (set in a previous test), so the href
-	# should be optimised, therefore www.example.com shouldn't appear
-	# anywhere at all
 	($stdout, $stderr) = capture { test7() };
 
 	ok($stderr eq '');
-	ok($stdout !~ /www\.example\.com/m);
 
 	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
 
 	ok($headers =~ /^Content-Length:\s+(\d+)/m);
 	$length = $1;
 	ok(defined($length));
+
 	ok(length($body) eq $length);
 	ok($body =~ /href="\/foo.htm"/mi);
+	# Server is www.example.com (set in a previous test), so the href
+	# should be optimised, therefore www.example.com shouldn't appear
+	# anywhere at all
+	ok($body !~ /www\.example\.com/m);
 
 	#..........................................
 	# Check for removal of consecutive white space between links
@@ -231,10 +232,6 @@ OUTPUT: {
 
 	ok($stderr eq '');
 
-	# Server is www.example.com (set in a previous test), so the href
-	# should be optimised, therefore www.example.com shouldn't appear
-	# anywhere at all
-	ok($stdout !~ /www\.example\.com/m);
 	ok($stdout =~ /<a href="\/foo\.htm">Click<\/A> <a href="\/bar\.htm">Or here<\/a>/mi);
 
 	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
@@ -242,8 +239,13 @@ OUTPUT: {
 	ok($headers =~ /^Content-Length:\s+(\d+)/m);
 	$length = $1;
 	ok(defined($length));
+
 	ok(length($body) eq $length);
 	ok($body =~ /href="\/foo.htm"/mi);
+	# Server is www.example.com (set in a previous test), so the href
+	# should be optimised, therefore www.example.com shouldn't appear
+	# anywhere at all
+	ok($body !~ /www\.example\.com/m);
 
 	#..........................................
 	sub test9 {
@@ -578,7 +580,7 @@ OUTPUT: {
 	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
 
 	ok(length($body) == 0);
-	ok($headers eq 'Content-type: text/html; charset=ISO-8859-1');
+	ok($headers =~ /^Content-type: text\/html; charset=ISO-8859-1/m);
 	ok($stderr eq '');
 
 	#..........................................

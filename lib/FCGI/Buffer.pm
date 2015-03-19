@@ -351,6 +351,14 @@ sub DESTROY {
 					$cache_hash = Storable::thaw($self->{cobject}->value());
 					$headers = $cache_hash->{'headers'};
 					@{$self->{o}} = ("X-FCGI-Buffer-$VERSION: Hit");
+					if($self->{info}) {
+						my $host_name = $self->{info}->host_name();
+						push @{$self->{o}}, "X-Cache: HIT from $host_name";
+						push @{$self->{o}}, "X-Cache-Lookup: HIT from $host_name";
+					} else {
+						push @{$self->{o}}, 'X-Cache: HIT';
+						push @{$self->{o}}, 'X-Cache-Lookup: HIT';
+					}
 				} else {
 					carp "Error retrieving data for key $key";
 				}
@@ -506,11 +514,34 @@ sub DESTROY {
 					}
 				}
 			}
+			if($self->{info}) {
+				my $host_name = $self->{info}->host_name();
+				if(defined($self->{x_cache})) {
+					push @{$self->{o}}, 'X-Cache: ' . $self->{x_cache} . " from $host_name";
+				} else {
+					push @{$self->{o}}, "X-Cache: MISS from $host_name";
+				}
+				push @{$self->{o}}, "X-Cache-Lookup: MISS from $host_name";
+			} else {
+				if(defined($self->{x_cache})) {
+					push @{$self->{o}}, 'X-Cache: ' . $self->{x_cache};
+				} else {
+					push @{$self->{o}}, 'X-Cache: MISS';
+				}
+				push @{$self->{o}}, 'X-Cache-Lookup: MISS';
+			}
 			push @{$self->{o}}, "X-FCGI-Buffer-$VERSION: Miss";
 		}
 		# We don't need it any more, so give Perl a chance to
 		# tidy it up seeing as we're in the destructor
 		delete $self->{cache};
+	} elsif($self->{info}) {
+		my $host_name = $self->{info}->host_name();
+		push @{$self->{o}}, "X-Cache: MISS from $host_name";
+		push @{$self->{o}}, "X-Cache-Lookup: MISS from $host_name";
+	} else {
+		push @{$self->{o}}, 'X-Cache: MISS';
+		push @{$self->{o}}, 'X-Cache-Lookup: MISS';
 	}
 
 	my $body_length;
@@ -837,7 +868,11 @@ Returns true if the server is allowed to store the results locally.
 sub can_cache {
 	my $self = shift;
 
+	if(defined($self->{x_cache})) {
+		return ($self->{x_cache} eq 'HIT');
+	}
 	if(defined($ENV{'NO_CACHE'}) || defined($ENV{'NO_STORE'})) {
+		$self->{x_cache} = 'MISS';
 		return 0;
 	}
 	if(defined($ENV{'HTTP_CACHE_CONTROL'})) {
@@ -848,9 +883,11 @@ sub can_cache {
 		if(($control eq 'no-store') ||
 		       ($control eq 'no-cache') ||
 		       ($control eq 'private')) {
+			$self->{x_cache} = 'MISS';
 			return 0;
 		}
 	}
+	$self->{x_cache} = 'HIT';
 	return 1;
 }
 
