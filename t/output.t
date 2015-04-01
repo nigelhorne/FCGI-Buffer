@@ -1,4 +1,4 @@
-#!perl -w
+#!perl -wT
 
 # Test if FCGI::Buffer adds Content-Length and Etag headers, also simple
 # check that optimise_content does something.
@@ -11,7 +11,7 @@
 use strict;
 use warnings;
 
-use Test::Most tests => 200;
+use Test::Most tests => 211;
 use Compress::Zlib;
 use DateTime;
 use Capture::Tiny ':all';
@@ -608,7 +608,48 @@ OUTPUT: {
 	ok($headers =~ /^Content-Length:\s+(\d+)/m);
 	$length = $1;
 
-	diag("length = " . length($body) . ", 1 = $1");
+	# diag("length = " . length($body) . ", 1 = $1");
+
+	ok(length($body) != 0);
+	ok(defined($length));
+	ok(length($body) == $length);
+
+	#..........................................
+	# Check output
+
+	delete $ENV{'HTTP_TE'};
+
+	sub test18 {
+		my $b = new_ok('FCGI::Buffer');
+
+		$b->set_options({ optimise_content => 1, generate_etag => 0 });
+
+		print "Content-type: text/html; charset=ISO-8859-1\n\n";
+		print << 'EOF';
+<HTML>
+	<HEAD>
+		<meta name="Description" content="Test necessary spaces are preserved">
+	</HEAD>
+	<BODY>
+		 <a href="music.fcgi">music</a> and <a href="computing.fcgi">computing</a>
+	</BODY>
+</HTML>
+EOF
+	}
+
+	($stdout, $stderr) = capture { test18() };
+
+	ok($stderr eq '');
+	ok(defined($stdout));
+	ok($stdout !~ /ETag: "([A-Za-z0-F0-f]{32})"/m);
+	ok($stdout !~ /^Status: 304 Not Modified/mi);
+
+	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
+
+	ok($body =~ / and /m);
+	ok($headers =~ /^Content-Length:\s+(\d+)/m);
+	$length = $1;
+	ok($headers =~ /MISS/m);
 
 	ok(length($body) != 0);
 	ok(defined($length));

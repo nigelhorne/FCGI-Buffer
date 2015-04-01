@@ -680,7 +680,7 @@ sub _optimise_content {
 	$self->{body} =~ s/\n\s+|\s+\n/\n/g;
 	$self->{body} =~ s/\t+/ /g;
 	$self->{body} =~ s/\s(\<.+?\>\s\<.+?\>)/$1/;
-	$self->{body} =~ s/(\<.+?\>\s\<.+?\>)\s/$1/g;
+	# $self->{body} =~ s/(\<.+?\>\s\<.+?\>)\s/$1/g;
 	$self->{body} =~ s/\<p\>\s/\<p\>/gi;
 	$self->{body} =~ s/\<\/p\>\s\<p\>/\<\/p\>\<p\>/gi;
 	$self->{body} =~ s/\<\/tr\>\s\<tr\>/\<\/tr\>\<tr\>/gi;

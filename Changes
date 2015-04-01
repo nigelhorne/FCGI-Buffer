@@ -2,6 +2,7 @@ Revision history for FCGI-Buffer
 
 0.04
 	Added X-Cache and X-Cache-Lookup headers
+	Fixed overly agressive optimisation
 
 0.03
 	Removed Test::TempDir RT102225
