@@ -290,7 +290,7 @@ sub DESTROY {
 			if($self->{logger}) {
 				$self->{logger}->debug("Compare $ENV{HTTP_IF_NONE_MATCH} with $self->{etag}");
 			}
-			if($self->{etag}) {
+			if($ENV{'HTTP_IF_NONE_MATCH'} =~ /\Q$self->{etag}\E/) {
 				push @{$self->{o}}, "Status: 304 Not Modified";
 				$self->{send_body} = 0;
 				$self->{status} = 304;

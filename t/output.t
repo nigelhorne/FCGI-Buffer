@@ -411,22 +411,22 @@ OUTPUT: {
 	ok($length > 0);
 
 	#..........................................
-	$ENV{'HTTP_IF_NONE_MATCH'} = $etag;
+	$ENV{'HTTP_IF_NONE_MATCH'} = "\"$etag\"";
 
-	($stdout, $stderr) = capture { test12() };
+	($stdout, $stderr) = capture { test12a() };
 
 	ok($stderr eq '');
-	ok($stdout =~ /^Status: 304 Not Modified/mi);
 	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
+	ok($headers =~ /^Status: 304 Not Modified/mi);
 	ok(length($body) == 0);
 
 	$ENV{'REQUEST_METHOD'} = 'HEAD';
 
-	($stdout, $stderr) = capture { test12() };
+	($stdout, $stderr) = capture { test12a() };
 
 	ok($stderr eq '');
-	ok($stdout =~ /^Status: 304 Not Modified/mi);
 	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
+	ok($headers =~ /^Status: 304 Not Modified/mi);
 	ok(length($body) == 0);
 
 	#..........................................
