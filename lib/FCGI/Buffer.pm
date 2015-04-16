@@ -548,7 +548,7 @@ sub DESTROY {
 	if(defined($self->{body})) {
 		if(utf8::is_utf8($self->{body})) {
 			utf8::encode($self->{body});
-		} 
+		}
 		$body_length = length($self->{body});
 	} else {
 		$body_length = 0;
@@ -882,6 +882,7 @@ sub can_cache {
 		}
 		if(($control eq 'no-store') ||
 		       ($control eq 'no-cache') ||
+		       ($control eq 'max-age=0') ||
 		       ($control eq 'private')) {
 			$self->{x_cache} = 'MISS';
 			return 0;
