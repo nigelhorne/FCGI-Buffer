@@ -187,7 +187,7 @@ sub DESTROY {
 
 				# If we're on http://www.example.com and have a link
 				# to http://www.example.com/foo/bar.htm, change the
-				# link to /foo.bar.htm - there's no need to include
+				# link to /foo/bar.htm - there's no need to include
 				# the site name in the link
 				unless(defined($self->{info})) {
 					if($self->{cache}) {
