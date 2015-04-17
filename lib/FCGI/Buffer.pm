@@ -290,7 +290,7 @@ sub DESTROY {
 			if($self->{logger}) {
 				$self->{logger}->debug("Compare $ENV{HTTP_IF_NONE_MATCH} with $self->{etag}");
 			}
-			if($ENV{'HTTP_IF_NONE_MATCH'} =~ /\Q$self->{etag}\E/) {
+			if($ENV{'HTTP_IF_NONE_MATCH'} eq $self->{etag}) {
 				push @{$self->{o}}, "Status: 304 Not Modified";
 				$self->{send_body} = 0;
 				$self->{status} = 304;
@@ -408,7 +408,7 @@ sub DESTROY {
 						}
 						$self->{etag} = '"' . Digest::MD5->new->add(Encode::encode_utf8($self->{body}))->hexdigest() . '"';
 					}
-					if(($self->{etag} =~ /\Q$ENV{'HTTP_IF_NONE_MATCH'}\E/) && $self->{generate_304}) {
+					if(($ENV{'HTTP_IF_NONE_MATCH'} eq $self->{etag}) && $self->{generate_304}) {
 						push @{$self->{o}}, "Status: 304 Not Modified";
 						$self->{status} = 304;
 						$self->{send_body} = 0;
@@ -443,7 +443,7 @@ sub DESTROY {
 				$self->{etag} = $cache_hash->{'etag'};
 			}
 			if($ENV{'HTTP_IF_NONE_MATCH'} && $self->{send_body} && ($self->{status} != 304) && $self->{generate_304}) {
-				if(defined($self->{etag}) && ($self->{etag} =~ /\Q$ENV{'HTTP_IF_NONE_MATCH'}\E/) && ($self->{status} == 200)) {
+				if(defined($self->{etag}) && ($self->{etag} eq $ENV{'HTTP_IF_NONE_MATCH'}) && ($self->{status} == 200)) {
 					push @{$self->{o}}, "Status: 304 Not Modified";
 					$self->{send_body} = 0;
 					$self->{status} = 304;
