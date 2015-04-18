@@ -400,13 +400,16 @@ sub DESTROY {
 			if($self->{send_body} && $ENV{'SERVER_PROTOCOL'} &&
 			  ($ENV{'SERVER_PROTOCOL'} eq 'HTTP/1.1') &&
 			  ($self->{status} == 200)) {
-				if($ENV{'HTTP_IF_NONE_MATCH'}) {
+				if($ENV{'HTTP_IF_NONE_MATCH'} && $self->{generate_etag}) {
 					if(!defined($self->{etag})) {
 						unless($encode_loaded) {
 							require Encode;
 							$encode_loaded = 1;
 						}
 						$self->{etag} = '"' . Digest::MD5->new->add(Encode::encode_utf8($self->{body}))->hexdigest() . '"';
+					}
+					if($self->{'logger'} && $self->{generate_304}) {
+						$self->{logger}->debug("Compare etags $ENV{HTTP_IF_NONE_MATCH} and $self->{etag}");
 					}
 					if(($ENV{'HTTP_IF_NONE_MATCH'} eq $self->{etag}) && $self->{generate_304}) {
 						push @{$self->{o}}, "Status: 304 Not Modified";

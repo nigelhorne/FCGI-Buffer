@@ -42,11 +42,11 @@ CACHED: {
 		});
 		ok(!$b->is_cached());
 
-		my $c;
-
-		$c->{'body'} = '';
-		$c->{'etag'} = '';
-		$c->{'headers'} = '';
+		my $c = {
+			'body' => '',
+			'etag' => '',
+			'headers' => ''
+		};
 
 		$cache->set('xyzzy', Storable::freeze($c));
 		ok($b->is_cached());
