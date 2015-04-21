@@ -306,6 +306,7 @@ sub DESTROY {
 
 	if((length($encoding) > 0) && defined($self->{body})) {
 		my $range = $ENV{'Range'} ? $ENV{'Range'} : $ENV{'HTTP_RANGE'};
+
 		if($range && !$self->{cache}) {
 			# TODO: Partials
 			if($range =~ /^bytes=(\d*)-(\d*)/) {
@@ -625,6 +626,11 @@ sub DESTROY {
 
 sub _check_modified_since {
 	my $self = shift;
+
+	if($self->{logger}) {
+		$self->{logger}->trace('In _check_modified_since');
+	}
+
 	if(!$self->{generate_304}) {
 		return;
 	}
