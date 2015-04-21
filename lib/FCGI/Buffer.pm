@@ -13,7 +13,7 @@ use HTTP::Date;
 
 =head1 NAME
 
-FCGI::Buffer - Verify and Optimise FCGI Output
+FCGI::Buffer - Verify, Cache and Optimise FCGI Output
 
 =head1 VERSION
 
