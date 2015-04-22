@@ -138,6 +138,9 @@ sub DESTROY {
 	my $headers;
 	($headers, $self->{body}) = split /\r?\n\r?\n/, $buf, 2;
 
+	if($ENV{'HTTP_IF_NONE_MATCH'} && $self->{logger}) {
+		$self->{logger}->debug("HTTP_IF_NONE_MATCH: $ENV{HTTP_IF_NONE_MATCH}");
+	}
 	unless($headers || $self->is_cached()) {
 		# There was no output
 		return;
