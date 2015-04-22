@@ -138,8 +138,13 @@ sub DESTROY {
 	my $headers;
 	($headers, $self->{body}) = split /\r?\n\r?\n/, $buf, 2;
 
-	if($ENV{'HTTP_IF_NONE_MATCH'} && $self->{logger}) {
-		$self->{logger}->debug("HTTP_IF_NONE_MATCH: $ENV{HTTP_IF_NONE_MATCH}");
+	if($self->{'logger'}) {
+		if($ENV{'HTTP_IF_NONE_MATCH'}) {
+			$self->{logger}->debug("HTTP_IF_NONE_MATCH: $ENV{HTTP_IF_NONE_MATCH}");
+		}
+		if($ENV{'HTTP_IF_MODIFIED_SINCE'}) {
+			$self->{logger}->debug("HTTP_IF_MODIFIED_SINCE: $ENV{HTTP_IF_MODIFIED_SINCE}");
+		}
 	}
 	unless($headers || $self->is_cached()) {
 		# There was no output
