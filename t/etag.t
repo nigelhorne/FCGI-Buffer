@@ -44,7 +44,7 @@ ETAG: {
 				my $hash = {};
 				my $c = CHI->new(driver => 'Memory', datastore => $hash);
 
-				$b->init({ cache => $c, cache_key => 'foo', generate_etag => 1 });
+				$b->init({ cache => $c, cache_key => 'foo' });
 
 				print "Content-type: text/html; charset=ISO-8859-1\n\n";
 				print "<HTML><BODY>   Hello World</BODY></HTML>\n";
