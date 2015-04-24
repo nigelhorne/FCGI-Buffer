@@ -294,6 +294,9 @@ sub DESTROY {
 		$encode_loaded = 1;
 		$self->{etag} = '"' . Digest::MD5->new->add(Encode::encode_utf8($self->{body}))->hexdigest() . '"';
 		push @{$self->{o}}, "ETag: $self->{etag}";
+		if($self->{logger}) {
+			$self->{logger}->debug("Set ETag to $self->{etag}");
+		}
 		if($ENV{'HTTP_IF_NONE_MATCH'} && $self->{generate_304} && ($self->{status} == 200)) {
 			if($self->{logger}) {
 				$self->{logger}->debug("Compare $ENV{HTTP_IF_NONE_MATCH} with $self->{etag}");
@@ -467,6 +470,9 @@ sub DESTROY {
 				}
 			} elsif($self->{generate_etag} && defined($self->{etag}) && ((!defined($headers)) || ($headers !~ /^ETag: /m))) {
 				push @{$self->{o}}, "ETag: $self->{etag}";
+				if($self->{logger}) {
+					$self->{logger}->debug("Set ETag to $self->{etag}");
+				}
 			}
 			if($self->{cobject}) {
 				if($ENV{'HTTP_IF_MODIFIED_SINCE'} && ($self->{status} != 304) && !$cannot_304) {
@@ -1109,7 +1115,7 @@ your bug as I make changes.
 
 =head1 SEE ALSO
 
-HTML::Packer, HTML::Lint
+CGI::Buffer, HTML::Packer, HTML::Lint
 
 =head1 SUPPORT
 
