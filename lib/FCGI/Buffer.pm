@@ -483,7 +483,11 @@ sub DESTROY {
 						since => $ENV{'HTTP_IF_MODIFIED_SINCE'},
 						modified => $self->{cobject}->created_at()
 					});
-				} elsif($self->{generate_last_modified}) {
+				}
+				if(($self->{status} == 200) && $self->{generate_last_modified}) {
+					if($self->{logger}) {
+						$self->{logger}->debug('Set Last-Modified to ' . HTTP::Date::time2str($self->{cobject}->created_at()));
+					}
 					push @{$self->{o}}, "Last-Modified: " . HTTP::Date::time2str($self->{cobject}->created_at());
 				}
 			}
