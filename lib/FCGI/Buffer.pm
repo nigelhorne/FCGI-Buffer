@@ -147,6 +147,7 @@ sub DESTROY {
 		}
 		$self->{logger}->debug("Generate_etag = $self->{generate_etag}");
 		$self->{logger}->debug("Generate_304 = $self->{generate_304}");
+		$self->{logger}->debug("Generate_last_modified = $self->{generate_last_modified}");
 	}
 	unless($headers || $self->is_cached()) {
 		# There was no output
