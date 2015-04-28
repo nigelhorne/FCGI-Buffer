@@ -285,6 +285,10 @@ sub DESTROY {
 		$self->{status} = $1;
 	}
 
+	if($self->{'logger'}) {
+		$self->{'logger'}->debug("Initial status = $self->{status}");
+	}
+
 	# Generate the eTag before compressing, since the compressed data
 	# includes the mtime field which changes thus causing a different
 	# Etag to be generated
