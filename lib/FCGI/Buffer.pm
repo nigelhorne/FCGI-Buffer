@@ -449,6 +449,9 @@ sub DESTROY {
 							require Encode;
 							$encode_loaded = 1;
 						}
+						if($self->{generate_etag} && !defined($self->{etag}) && ((!defined($headers)) || ($headers !~ /^ETag: /m))) {
+							$self->{etag} = '"' . Digest::MD5->new->add(Encode::encode_utf8($self->{body}))->hexdigest() . '"';
+						}
 						my $nbody = Compress::Zlib::memGzip(\Encode::encode_utf8($self->{body}));
 						if(length($nbody) < length($self->{body})) {
 							$self->{body} = $nbody;
@@ -459,10 +462,12 @@ sub DESTROY {
 				}
 			}
 			my $cannot_304 = !$self->{generate_304};
-			if(defined($headers) && ($headers =~ /^ETag: "([a-z0-9]{32})"/m)) {
-				$self->{etag} = $1;
-			} else {
-				$self->{etag} = $cache_hash->{'etag'};
+			unless($self->{etag}) {
+				if(defined($headers) && ($headers =~ /^ETag: "([a-z0-9]{32})"/m)) {
+					$self->{etag} = $1;
+				} else {
+					$self->{etag} = $cache_hash->{'etag'};
+				}
 			}
 			if($ENV{'HTTP_IF_NONE_MATCH'} && $self->{send_body} && ($self->{status} != 304) && $self->{generate_304}) {
 				if(defined($self->{etag}) && ($self->{etag} eq $ENV{'HTTP_IF_NONE_MATCH'}) && ($self->{status} == 200)) {
