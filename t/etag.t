@@ -54,14 +54,16 @@ ETAG: {
 			my ($stdout, $stderr) = capture { test1() };
 
 			ok($stderr eq '');
-			ok($stdout !~ /^Content-Encoding: gzip/m);
-			ok($stdout =~ /^ETag: "/m);
 
 			my ($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
+
+			ok($headers !~ /^Content-Encoding: gzip/m);
+			ok($headers =~ /^ETag: "/m);
 
 			ok($headers =~ /^ETag:\s+(.+)/m);
 			my $etag = $1;
 			ok(defined($etag));
+			$etag =~ s/\r//;
 
 			ok($headers =~ /^Content-Length:\s+(\d+)/m);
 			my $length = $1;
@@ -71,7 +73,6 @@ ETAG: {
 			ok(length($body) eq $length);
 
 			$ENV{'HTTP_IF_NONE_MATCH'} = $etag;
-			$ENV{'HTTP_IF_NONE_MATCH'} =~ s/\r//;
 			($stdout, $stderr) = capture { test1() };
 
 			ok($stderr eq '');

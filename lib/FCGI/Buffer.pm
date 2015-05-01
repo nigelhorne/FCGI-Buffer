@@ -293,10 +293,6 @@ sub DESTROY {
 		require Encode;
 		$encode_loaded = 1;
 		$self->{etag} = '"' . Digest::MD5->new->add(Encode::encode_utf8($self->{body}))->hexdigest() . '"';
-		push @{$self->{o}}, "ETag: $self->{etag}";
-		if($self->{logger}) {
-			$self->{logger}->debug("Set ETag to $self->{etag}");
-		}
 		if($ENV{'HTTP_IF_NONE_MATCH'} && $self->{generate_304} && ($self->{status} == 200)) {
 			if($self->{logger}) {
 				$self->{logger}->debug("Compare $ENV{HTTP_IF_NONE_MATCH} with $self->{etag}");
@@ -419,9 +415,6 @@ sub DESTROY {
 							$encode_loaded = 1;
 						}
 						$self->{etag} = '"' . Digest::MD5->new->add(Encode::encode_utf8($self->{body}))->hexdigest() . '"';
-						if($self->{logger}) {
-							$self->{logger}->debug("Set ETag to $self->{etag}");
-						}
 					}
 					if($self->{'logger'} && $self->{generate_304}) {
 						$self->{logger}->debug("Compare etags $ENV{HTTP_IF_NONE_MATCH} and $self->{etag}");
@@ -475,11 +468,6 @@ sub DESTROY {
 					}
 				} else {
 					$cannot_304 = 1;
-				}
-			} elsif($self->{generate_etag} && defined($self->{etag}) && ((!defined($headers)) || ($headers !~ /^ETag: /m))) {
-				push @{$self->{o}}, "ETag: $self->{etag}";
-				if($self->{logger}) {
-					$self->{logger}->debug("Set ETag to $self->{etag}");
 				}
 			}
 			if($self->{cobject}) {
@@ -567,11 +555,16 @@ sub DESTROY {
 		delete $self->{cache};
 	} elsif($self->{info}) {
 		my $host_name = $self->{info}->host_name();
-		push @{$self->{o}}, "X-Cache: MISS from $host_name";
-		push @{$self->{o}}, "X-Cache-Lookup: MISS from $host_name";
+		push @{$self->{o}}, ("X-Cache: MISS from $host_name", "X-Cache-Lookup: MISS from $host_name");
 	} else {
-		push @{$self->{o}}, 'X-Cache: MISS';
-		push @{$self->{o}}, 'X-Cache-Lookup: MISS';
+		push @{$self->{o}}, ('X-Cache: MISS', 'X-Cache-Lookup: MISS');
+	}
+
+	if($self->{generate_etag} && defined($self->{etag}) && ((!defined($headers)) || ($headers !~ /^ETag: /m))) {
+		push @{$self->{o}}, "ETag: $self->{etag}";
+		if($self->{logger}) {
+			$self->{logger}->debug("Set ETag to $self->{etag}");
+		}
 	}
 
 	my $body_length;
@@ -605,8 +598,7 @@ sub DESTROY {
 	}
 
 	if($body_length && $self->{send_body}) {
-		push @{$self->{o}}, '';
-		push @{$self->{o}}, $self->{body};
+		push @{$self->{o}}, ('', $self->{body});
 	}
 
 	# XXXXXXXXXXXXXXXXXXXXXXX
