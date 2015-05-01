@@ -120,13 +120,6 @@ sub DESTROY {
 	return if ${^GLOBAL_PHASE} eq 'DESTRUCT';	# >= 5.14.0 only
 	my $self = shift;
 
-	# if($self->{logger}) {
-		# This will cause everything to get flushed and prevent
-		# outputs to the logger.  We need to do that now since
-		# if we leave it to Perl to delete later we may get
-		# a mesage that Log4Perl::init() hasn't been called
-		# delete $self->{logger};
-	# }
 	select($self->{old_buf});
 	if(!defined($self->{buf})) {
 		return;
@@ -426,6 +419,9 @@ sub DESTROY {
 							$encode_loaded = 1;
 						}
 						$self->{etag} = '"' . Digest::MD5->new->add(Encode::encode_utf8($self->{body}))->hexdigest() . '"';
+						if($self->{logger}) {
+							$self->{logger}->debug("Set ETag to $self->{etag}");
+						}
 					}
 					if($self->{'logger'} && $self->{generate_304}) {
 						$self->{logger}->debug("Compare etags $ENV{HTTP_IF_NONE_MATCH} and $self->{etag}");
