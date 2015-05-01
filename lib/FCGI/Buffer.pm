@@ -561,9 +561,13 @@ sub DESTROY {
 	}
 
 	if($self->{generate_etag} && defined($self->{etag}) && ((!defined($headers)) || ($headers !~ /^ETag: /m))) {
-		push @{$self->{o}}, "ETag: $self->{etag}";
-		if($self->{logger}) {
-			$self->{logger}->debug("Set ETag to $self->{etag}");
+		if(defined($self->{etag})) {
+			push @{$self->{o}}, "ETag: $self->{etag}";
+			if($self->{logger}) {
+				$self->{logger}->debug("Set ETag to $self->{etag}");
+			}
+		} elsif(($self->{status} == 200) && $self->{logger}) {
+			$self->{logger}->warn("BUG: ETag not generated");
 		}
 	}
 
