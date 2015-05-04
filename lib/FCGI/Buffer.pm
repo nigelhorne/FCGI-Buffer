@@ -560,14 +560,14 @@ sub DESTROY {
 		push @{$self->{o}}, ('X-Cache: MISS', 'X-Cache-Lookup: MISS');
 	}
 
-	if($self->{generate_etag} && defined($self->{etag}) && ((!defined($headers)) || ($headers !~ /^ETag: /m))) {
+	if($self->{generate_etag} && ((!defined($headers)) || ($headers !~ /^ETag: /m))) {
 		if(defined($self->{etag})) {
 			push @{$self->{o}}, "ETag: $self->{etag}";
 			if($self->{logger}) {
 				$self->{logger}->debug("Set ETag to $self->{etag}");
 			}
-		} elsif(($self->{status} == 200) && $self->{logger}) {
-			$self->{logger}->warn("BUG: ETag not generated");
+		} elsif($self->{logger}) {
+			$self->{logger}->warn("BUG: ETag not generated, status $self->{status}");
 		}
 	}
 
