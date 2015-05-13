@@ -104,7 +104,6 @@ sub new {
 	my $rc = {
 		buf => $buf,
 		old_buf => $old_buf,
-		generate_etag => 1,
 		generate_304 => 1,
 		generate_last_modified => 1,
 		compress_content => 1,
@@ -112,6 +111,13 @@ sub new {
 		lint_content => 0,
 	};
 	# $rc->{o} = ();
+
+	if($ENV{'SERVER_PROTOCOL'} &&
+	  ($ENV{'SERVER_PROTOCOL'} eq 'HTTP/1.1')) {
+	  	$rc->{generate_etag} = 1;
+	} else {
+	  	$rc->{generate_etag} = 0;
+	}
 
 	return bless $rc, $class;
 }
