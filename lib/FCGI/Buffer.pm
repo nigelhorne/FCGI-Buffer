@@ -568,7 +568,7 @@ sub DESTROY {
 			if($self->{logger}) {
 				$self->{logger}->debug("Set ETag to $self->{etag}");
 			}
-		} elsif($self->{logger}) {
+		} elsif($self->{logger} && (($self->{status} == 200) || $self->{status} == 304)) {
 			$self->{logger}->warn("BUG: ETag not generated, status $self->{status}");
 		}
 	}
