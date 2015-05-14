@@ -4,6 +4,7 @@ Revision history for FCGI-Buffer
 	Added X-Cache and X-Cache-Lookup headers
 	Fixed overly agressive optimisation
 	Don't use the cache if the client sends max-age=0
+	Added cache_age option to init()
 
 0.03
 	Removed Test::TempDir RT102225
