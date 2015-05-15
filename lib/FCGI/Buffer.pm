@@ -873,10 +873,9 @@ sub init {
 				if(defined($self->{logger})) {
 					$self->{logger}->debug("cache_age = $self->{cache_age}");
 				}
-			} elsif(defined($params{cache_age})) {
-				$self->{cache_age} = $params{cache_age};
 			}
 		}
+		$self->{cache_age} ||= $params{cache_age};
 		$self->{cache} = $params{cache};
 		if(defined($params{cache_key})) {
 			$self->{cache_key} = $params{cache_key};
