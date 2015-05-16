@@ -1027,7 +1027,8 @@ sub is_cached {
 		delete $self->{cobject};
 		# Nothing will be in date and all new searches would miss
 		# anyway, so may as well clear it all
-		$self->{cache}->clear();
+		# FIXME: RT104471
+		# $self->{cache}->clear();
 		return 0;
 	}
 	if($self->{logger}) {
