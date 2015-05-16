@@ -574,7 +574,7 @@ sub DESTROY {
 			if($self->{logger}) {
 				$self->{logger}->debug("Set ETag to $self->{etag}");
 			}
-		} elsif($self->{logger} && (($self->{status} == 200) || $self->{status} == 304)) {
+		} elsif($self->{logger} && (($self->{status} == 200) || $self->{status} == 304) && !$self->is_cached()) {
 			$self->{logger}->warn("BUG: ETag not generated, status $self->{status}");
 		}
 	}
