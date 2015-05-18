@@ -1,7 +1,5 @@
 #!perl -Tw
 
-# Doesn't test much useful yet
-
 use strict;
 use warnings;
 use Test::Most tests => 52;
@@ -25,7 +23,7 @@ CACHED: {
 			CHI->import;
 		};
 
-		skip 'CHI not installed', 11 if $@;
+		skip 'CHI not installed', 50 if $@;
 
 		diag("Using CHI $CHI::VERSION");
 
