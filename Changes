@@ -2,6 +2,7 @@ Revision history for FCGI-Buffer
 
 0.04
 	Added t/nocache.t
+	Fix t/cache.t when CHI is not installed
 
 0.03	Sun May 17 08:43:42 EDT 2015
 	Added X-Cache and X-Cache-Lookup headers
