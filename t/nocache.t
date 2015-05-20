@@ -4,11 +4,10 @@
 
 use strict;
 use warnings;
-use Test::Most tests => 8;
+use Test::Most;
 use Storable;
 use Capture::Tiny ':all';
 use CGI::Info;
-use Test::NoWarnings;
 
 eval "use Test::Without::Module qw(CHI)";
 
@@ -17,42 +16,45 @@ BEGIN {
 }
 
 NOCACHED: {
-	if ($@) {
-		plan skip_all => 'Test::Without::Module required for testing when no CHI is installed';
-	} else {
-		delete $ENV{'REMOTE_ADDR'};
-		delete $ENV{'HTTP_USER_AGENT'};
+	SKIP: {
+		if ($@) {
+			diag('Test::Without::Module required for testing when no CHI is installed');
+			skip 'CHI required to test', 6;
+		} else {
+			delete $ENV{'REMOTE_ADDR'};
+			delete $ENV{'HTTP_USER_AGENT'};
 
-		delete $ENV{'HTTP_ACCEPT_ENCODING'};
-		delete $ENV{'HTTP_TE'};
-		delete $ENV{'SERVER_PROTOCOL'};
-		delete $ENV{'HTTP_RANGE'};
+			delete $ENV{'HTTP_ACCEPT_ENCODING'};
+			delete $ENV{'HTTP_TE'};
+			delete $ENV{'SERVER_PROTOCOL'};
+			delete $ENV{'HTTP_RANGE'};
 
-		sub test1 {
-			my $b = new_ok('FCGI::Buffer');
+			sub test1 {
+				my $b = new_ok('FCGI::Buffer');
 
-			ok($b->is_cached() == 0);
-			ok($b->can_cache() == 1);
+				ok($b->is_cached() == 0);
+				ok($b->can_cache() == 1);
 
-			$b->init({
-				optimise_content => 1,
-				generate_etag => 0,
-				cache_key => 'test1',
-				logger => MyLogger->new()
-			});
+				$b->init({
+					optimise_content => 1,
+					generate_etag => 0,
+					cache_key => 'test1',
+					logger => MyLogger->new()
+				});
 
-			print "Content-type: text/html; charset=ISO-8859-1\n\n";
+				print "Content-type: text/html; charset=ISO-8859-1\n\n";
+			}
+
+			my ($stdout, $stderr) = capture { test1() };
+
+			my ($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
+
+			ok(length($body) == 0);
+			ok($headers =~ /Content-type: text\/html; charset=ISO-8859-1/m);
+			ok($stderr eq '');
 		}
-
-		my ($stdout, $stderr) = capture { test1() };
-
-		my ($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
-
-		ok(length($body) == 0);
-		ok($headers =~ /Content-type: text\/html; charset=ISO-8859-1/m);
-		ok($stderr eq '');
-
 	}
+	done_testing(7);
 }
 
 # On some platforms it's failing - find out why

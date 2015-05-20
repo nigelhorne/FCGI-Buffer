@@ -46,7 +46,7 @@ LAST_MODIFIED: {
 		SKIP: {
 			$test_count = 15;
 			if($@) {
-				diag ('CHI required to test');
+				diag('CHI required to test');
 				skip 'CHI required to test', 14;
 			}
 
