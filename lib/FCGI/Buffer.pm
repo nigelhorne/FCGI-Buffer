@@ -17,11 +17,11 @@ FCGI::Buffer - Verify, Cache and Optimise FCGI Output
 
 =head1 VERSION
 
-Version 0.03
+Version 0.04
 
 =cut
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 =head1 SYNOPSIS
 
@@ -114,9 +114,9 @@ sub new {
 
 	if($ENV{'SERVER_PROTOCOL'} &&
 	  ($ENV{'SERVER_PROTOCOL'} eq 'HTTP/1.1')) {
-	  	$rc->{generate_etag} = 1;
+		$rc->{generate_etag} = 1;
 	} else {
-	  	$rc->{generate_etag} = 0;
+		$rc->{generate_etag} = 0;
 	}
 
 	return bless $rc, $class;
@@ -927,9 +927,9 @@ sub can_cache {
 			$self->{logger}->debug("cache_control = $control");
 		}
 		if(($control eq 'no-store') ||
-		       ($control eq 'no-cache') ||
-		       ($control eq 'max-age=0') ||
-		       ($control eq 'private')) {
+		   ($control eq 'no-cache') ||
+		   ($control eq 'max-age=0') ||
+		   ($control eq 'private')) {
 			$self->{x_cache} = 'MISS';
 			return 0;
 		}

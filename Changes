@@ -1,6 +1,6 @@
 Revision history for FCGI-Buffer
 
-0.04
+0.04	Fri May 22 12:19:38 EDT 2015
 	Added t/nocache.t
 	Fix t/cache.t when CHI is not installed
 
