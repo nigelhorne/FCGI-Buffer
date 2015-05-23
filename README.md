@@ -1,2 +1,2 @@
 # FCGI-Buffer
-Verify and Optimise FCGI Output
+Verify, Cache and Optimise FCGI Output
