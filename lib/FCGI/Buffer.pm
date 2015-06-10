@@ -161,15 +161,7 @@ sub DESTROY {
 	}
 
 	if($headers) {
-		foreach my $header (split(/\r?\n/, $headers)) {
-			my ($header_name, $header_value) = split /\:\s*/, $header, 2;
-			if (lc($header_name) eq 'content-type') {
-				my @content_type;
-				@content_type = split /\//, $header_value, 2;
-				$self->{content_type} = \@content_type;
-				last;
-			}
-		}
+		$self->_set_content_type($headers);
 	}
 
 	if(defined($self->{body}) && ($self->{body} eq '')) {
@@ -366,6 +358,7 @@ sub DESTROY {
 				if(defined($self->{cobject})) {
 					$cache_hash = Storable::thaw($self->{cobject}->value());
 					$headers = $cache_hash->{'headers'};
+					$self->_set_content_type($headers);
 					@{$self->{o}} = ("X-FCGI-Buffer-$VERSION: Hit");
 					if($self->{info}) {
 						my $host_name = $self->{info}->host_name();
@@ -436,6 +429,9 @@ sub DESTROY {
 						}
 					}
 				}
+			}
+			if($self->{status} == 200) {
+				$encoding = $self->_should_gzip();
 				if($self->{send_body} && (length($encoding) > 0)) {
 					if(length($self->{body}) >= MIN_GZIP_LEN) {
 						require Compress::Zlib;
@@ -1089,6 +1085,22 @@ sub _should_gzip {
 
 	return '';
 }
+
+sub _set_content_type {
+	my $self = shift;
+	my $headers = shift;
+
+	foreach my $header (split(/\r?\n/, $headers)) {
+		my ($header_name, $header_value) = split /\:\s*/, $header, 2;
+		if (lc($header_name) eq 'content-type') {
+			my @content_type;
+			@content_type = split /\//, $header_value, 2;
+			$self->{content_type} = \@content_type;
+			return;
+		}
+	}
+}
+
 
 =head1 AUTHOR
 
