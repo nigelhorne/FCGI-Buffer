@@ -62,6 +62,9 @@ OUTPUT: {
 	my ($stdout, $stderr) = capture { writer() };
 
 	ok($stderr eq '');
+	if($stderr ne '') {
+		diag($stderr);
+	}
 	ok($stdout =~ /^Content-Length:\s+(\d+)+/m);
 	my $length = $1;
 

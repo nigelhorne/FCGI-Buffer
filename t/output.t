@@ -70,6 +70,9 @@ OUTPUT: {
 	($stdout, $stderr) = capture { test2() };
 
 	ok($stderr eq '');
+	if($stderr ne '') {
+		diag($stderr);
+	}
 	ok($stdout =~ /^Content-Length:\s+(\d+)/m);
 	$length = $1;
 	ok(defined($length));
