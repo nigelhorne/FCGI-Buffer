@@ -523,6 +523,9 @@ sub DESTROY {
 				if($self->{generate_etag} && defined($self->{etag})) {
 					$cache_hash->{'etag'} = $self->{etag};
 				}
+				# TODO: Support the Expires header
+				# if($headers !~ /^Expires: /m))) {
+				# }
 				$self->{cache}->set($key, Storable::freeze($cache_hash), $self->{cache_age});
 				if($self->{logger}) {
 					$self->{logger}->debug("store $key in the cache");
@@ -922,6 +925,7 @@ sub can_cache {
 		if(defined($self->{logger})) {
 			$self->{logger}->debug("cache_control = $control");
 		}
+		# TODO: check Authorization header not present
 		if(($control eq 'no-store') ||
 		   ($control eq 'no-cache') ||
 		   ($control eq 'max-age=0') ||
@@ -1100,7 +1104,6 @@ sub _set_content_type {
 		}
 	}
 }
-
 
 =head1 AUTHOR
 
