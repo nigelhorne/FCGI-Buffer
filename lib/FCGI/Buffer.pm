@@ -179,6 +179,10 @@ sub DESTROY {
 				# require HTML::Clean;
 				require HTML::Packer;	# Overkill using HTML::Clean and HTML::Packer...
 
+				if($self->{'logger'}) {
+					$self->{'logger'}->trace('Packer');
+				}
+
 				my $oldlength = length($self->{body});
 				my $newlength;
 
@@ -255,6 +259,9 @@ sub DESTROY {
 				require HTML::Lint;
 				HTML::Lint->import;
 
+				if($self->{'logger'}) {
+					$self->{'logger'}->trace('Lint');
+				}
 				my $lint = HTML::Lint->new();
 				$lint->parse($self->{body});
 
