@@ -788,6 +788,9 @@ sub _generate_key {
 		}
 	}
 	$key =~ s/\//::/g;
+	if(defined($self->{logger})) {
+		$self->{logger}->trace("Returning $key");
+	}
 	return $key;
 }
 
