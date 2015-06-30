@@ -99,11 +99,10 @@ sub new {
 	return unless($class);
 
 	my $buf = IO::String->new();
-	my $old_buf = select($buf);
 
 	my $rc = {
 		buf => $buf,
-		old_buf => $old_buf,
+		old_buf => select($buf),
 		generate_304 => 1,
 		generate_last_modified => 1,
 		compress_content => 1,
@@ -187,7 +186,7 @@ sub DESTROY {
 				my $newlength;
 
 				while(1) {
-					$self->{body} = $self->_optimise_content();
+					$self->_optimise_content();
 					$newlength = length($self->{body});
 					last if ($newlength >= $oldlength);
 					$oldlength = $newlength;
@@ -704,12 +703,12 @@ sub _optimise_content {
 	my $self = shift;
 
 	# Regexp::List - wow!
-	$self->{body} =~ s/(\s+|\r)\n|\n\+/\n/gs;
+	$self->{body} =~ s/(?^:(?:\n(?:\s+|\s+\n|\+)|(?:\s+|\r)\n))/\n/g;
 	# $self->{body} =~ s/\r\n/\n/gs;
 	# $self->{body} =~ s/\s+\n/\n/gs;
 	# $self->{body} =~ s/\n+/\n/gs;
-	$self->{body} =~ s/\<\/option\>\s\<option/\<\/option\>\<option/gis;
-	$self->{body} =~ s/\<\/div\>\s\<div/\<\/div\>\<div/gis;
+	# $self->{body} =~ s/\n\s+|\s+\n/\n/g;
+	$self->{body} =~ s/\<\/div\>\s+\<div/\<\/div\>\<div/gis;
 	# $self->{body} =~ s/\<\/p\>\s\<\/div/\<\/p\>\<\/div/gis;
 	# $self->{body} =~ s/\<div\>\s+/\<div\>/gis;	# Remove spaces after <div>
 	$self->{body} =~ s/(<div>\s+|\s+<div>)/<div>/gis;
@@ -722,8 +721,6 @@ sub _optimise_content {
 	$self->{body} =~ s/<body>\s+/<body>/is;
 	$self->{body} =~ s/\s+\<\/html/\<\/html/is;
 	$self->{body} =~ s/\s+\<\/body/\<\/body/is;
-	$self->{body} =~ s/\n\s+|\s+\n/\n/g;
-	$self->{body} =~ s/\t+/ /g;
 	$self->{body} =~ s/\s(\<.+?\>\s\<.+?\>)/$1/;
 	# $self->{body} =~ s/(\<.+?\>\s\<.+?\>)\s/$1/g;
 	$self->{body} =~ s/\<p\>\s/\<p\>/gi;
@@ -735,7 +732,7 @@ sub _optimise_content {
 	$self->{body} =~ s/\<br\s?\/?\>\s?\<p\>/\<p\>/gi;
 	$self->{body} =~ s/\<br\>\s/\<br\>/gi;
 	$self->{body} =~ s/\<br\s?\/\>\s/\<br \/\>/gi;
-	$self->{body} =~ s/ +/ /gs;	# Remove duplicate space, don't use \s+ it breaks JavaScript
+	$self->{body} =~ s/[ \t]+/ /gs;	# Remove duplicate space, don't use \s+ it breaks JavaScript
 	$self->{body} =~ s/\s\<p\>/\<p\>/gi;
 	$self->{body} =~ s/\s\<script/\<script/gi;
 	$self->{body} =~ s/(<script>\s|\s<script>)/<script>/gis;
@@ -746,11 +743,10 @@ sub _optimise_content {
 	$self->{body} =~ s/(\s?<hr>\s|\s<hr>\s?)/<hr>/gis;
 	# $self->{body} =~ s/\s<hr>/<hr>/gis;
 	# $self->{body} =~ s/<hr>\s/<hr>/gis;
-	$self->{body} =~ s/<\/li>\s<li>/<\/li><li>/gis;
-	$self->{body} =~ s/<\/li>\s<\/ul>/<\/li><\/ul>/gis;
-	$self->{body} =~ s/<ul>\s<li>/<ul><li>/gis;
-
-	return $self->{body};
+	$self->{body} =~ s/<\/li>\+s<li>/<\/li><li>/gis;
+	$self->{body} =~ s/<\/li>\+s<\/ul>/<\/li><\/ul>/gis;
+	$self->{body} =~ s/<ul>\+s<li>/<ul><li>/gis;
+	$self->{body} =~ s/\<\/option\>\s+\<option/\<\/option\>\<option/gis;
 }
 
 # Create a key for the cache
