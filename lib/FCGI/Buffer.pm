@@ -776,7 +776,10 @@ sub _generate_key {
 
 	# Honour the Vary headers
 	my $headers = $self->{'headers'};
-	if($headers && ($headers =~ /^Vary: (.*)/m)) {
+	if($headers && ($headers =~ /^Vary: .*$/m)) {
+		if(defined($self->{logger})) {
+			$self->{logger}->debug('Found Vary header');
+		}
 		foreach my $h1(split(/\r?\n/, $headers)) {
 			my ($h1_name, $h1_value) = split /\:\s*/, $h1, 2;
 			if(lc($h1_name) eq 'vary') {
