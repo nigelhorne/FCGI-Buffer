@@ -796,6 +796,7 @@ sub _generate_key {
 	if(defined($self->{logger})) {
 		$self->{logger}->trace("Returning $key");
 	}
+	$self->{cache_key} = $key;
 	return $key;
 }
 
