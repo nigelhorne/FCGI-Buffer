@@ -11,11 +11,12 @@
 use strict;
 use warnings;
 
-use Test::Most tests => 211;
+use Test::Most tests => 221;
 use Compress::Zlib;
 use DateTime;
 use Capture::Tiny ':all';
 use CGI::Info;
+use Digest::MD5;
 # use Test::NoWarnings;	# HTML::Clean has them
 
 BEGIN {
@@ -659,4 +660,37 @@ EOF
 	ok(length($body) != 0);
 	ok(defined($length));
 	ok(length($body) == $length);
+
+	#..........................................
+	# Check handling of more complex tables
+	$ENV{'SERVER_PROTOCOL'} = 'HTTP/1.1';
+	delete $ENV{'HTTP_ACCEPT_ENCODING'};
+
+	sub test19 {
+		my $b = new_ok('FCGI::Buffer');
+
+		$b->init({ optimise_content => 1 });
+
+		print "Content-type: text/html; charset=ISO-8859-1\n\n";
+		print "<HTML><BODY><TABLE><TR><TD ALIGN=\"CENTER\"><A HREF=\"#anchor\"></A></TD><TD>foo</TD>  <TD>bar</TD></TR></TABLE></BODY></HTML>\n";
+	}
+
+	($stdout, $stderr) = capture { test19() };
+
+	ok($stderr eq '');
+	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
+
+	ok($headers =~ /^Content-Length:\s+(\d+)/m);
+	$length = $1;
+	ok(defined($length));
+
+	ok($headers =~ /ETag: "([A-Za-z0-F0-f]{32})"/m);
+	$etag = $1;
+	ok(defined($etag));
+
+	ok($body =~ /<TD ALIGN="CENTER"><A HREF="#anchor"><\/A><\/TD><TD>foo<\/TD><TD>bar<\/TD>/mi);
+	ok(length($body) eq $length);
+	ok(length($body) > 0);
+
+	ok($etag eq Digest::MD5->new()->add($body)->hexdigest());
 }
