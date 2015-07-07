@@ -469,6 +469,9 @@ sub DESTROY {
 				}
 			}
 			if($ENV{'HTTP_IF_NONE_MATCH'} && $self->{send_body} && ($self->{status} != 304) && $self->{generate_304}) {
+				if($self->{logger}) {
+					$self->{logger}->debug("Compare $ENV{HTTP_IF_NONE_MATCH} with $self->{etag}");
+				}
 				if(defined($self->{etag}) && ($self->{etag} eq $ENV{'HTTP_IF_NONE_MATCH'}) && ($self->{status} == 200)) {
 					push @{$self->{o}}, "Status: 304 Not Modified";
 					$self->{send_body} = 0;
