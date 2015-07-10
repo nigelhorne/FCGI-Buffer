@@ -185,11 +185,15 @@ sub DESTROY {
 				my $oldlength = length($self->{body});
 				my $newlength;
 
-				while(1) {
+				if($self->{optimise_content} == 1) {
 					$self->_optimise_content();
-					$newlength = length($self->{body});
-					last if ($newlength >= $oldlength);
-					$oldlength = $newlength;
+				} else {
+					while(1) {
+						$self->_optimise_content();
+						$newlength = length($self->{body});
+						last if ($newlength >= $oldlength);
+						$oldlength = $newlength;
+					}
 				}
 
 				# If we're on http://www.example.com and have a link
@@ -317,7 +321,7 @@ sub DESTROY {
 	my $encoding = $self->_should_gzip();
 	my $unzipped_body = $self->{body};
 
-	if((length($encoding) > 0) && defined($self->{body})) {
+	if(defined($self->{body})) {
 		my $range = $ENV{'Range'} ? $ENV{'Range'} : $ENV{'HTTP_RANGE'};
 
 		if($range && !$self->{cache}) {
@@ -333,7 +337,7 @@ sub DESTROY {
 				$unzipped_body = $self->{body};
 			}
 		}
-		if(length($self->{body}) >= MIN_GZIP_LEN) {
+		if((length($encoding) > 0) && (length($self->{body}) >= MIN_GZIP_LEN)) {
 			require Compress::Zlib;
 			Compress::Zlib->import;
 
@@ -743,7 +747,8 @@ sub _optimise_content {
 	$self->{body} =~ s/\<td\>\s/\<td\>/gi;
 	$self->{body} =~ s/\s+\<a\shref="(.+?)"\>\s?/ <a href="$1">/gis;
 	$self->{body} =~ s/\s?<a\shref=\s"(.+?)"\>/ <a href="$1">/gis;
-	$self->{body} =~ s/(\s?<hr>\s|\s<hr>\s?)/<hr>/gis;
+	$self->{body} =~ s/\s+<\/a\>\s+/<\/a> /gis;
+	$self->{body} =~ s/(\s?<hr>\s+|\s+<hr>\s?)/<hr>/gis;
 	# $self->{body} =~ s/\s<hr>/<hr>/gis;
 	# $self->{body} =~ s/<hr>\s/<hr>/gis;
 	$self->{body} =~ s/<\/li>\+s<li>/<\/li><li>/gis;

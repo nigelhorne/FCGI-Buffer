@@ -225,6 +225,8 @@ OUTPUT: {
 
 	#..........................................
 	# Check for removal of consecutive white space between links
+	delete $ENV{'HTTP_TE'};
+
 	sub test8 {
 		my $b = new_ok('FCGI::Buffer');
 
@@ -238,8 +240,6 @@ OUTPUT: {
 
 	ok($stderr eq '');
 
-	ok($stdout =~ /<a href="\/foo\.htm">Click<\/A> <a href="\/bar\.htm">Or here<\/a>/mi);
-
 	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
 
 	ok($headers =~ /^Content-Length:\s+(\d+)/m);
@@ -248,6 +248,8 @@ OUTPUT: {
 
 	ok(length($body) eq $length);
 	ok($body =~ /href="\/foo.htm"/mi);
+	ok($body =~ /<a href="\/foo\.htm">Click<\/A> <a href="\/bar\.htm">Or here<\/a>/mi);
+
 	# Server is www.example.com (set in a previous test), so the href
 	# should be optimised, therefore www.example.com shouldn't appear
 	# anywhere at all
@@ -356,16 +358,16 @@ OUTPUT: {
 	($stdout, $stderr) = capture { test12() };
 
 	ok($stderr eq '');
-	ok($stdout =~ /^Content-Length:\s+(\d+)/m);
+	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
+	ok($headers =~ /^Content-Length:\s+(\d+)/m);
 	$length = $1;
 	ok(defined($length));
 	ok($length <= 40);
 
-	ok($stdout =~ /ETag: "([A-Za-z0-F0-f]{32})"/m);
+	ok($headers =~ /ETag: "([A-Za-z0-F0-f]{32})"/m);
 	$etag = $1;
 	ok(defined($etag));
 
-	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
 	ok(length($body) eq $length);
 	ok(length($body) > 0);
 
@@ -622,8 +624,6 @@ OUTPUT: {
 
 	#..........................................
 	# Check output
-
-	delete $ENV{'HTTP_TE'};
 
 	sub test18 {
 		my $b = new_ok('FCGI::Buffer');
