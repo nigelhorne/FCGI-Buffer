@@ -11,7 +11,7 @@
 use strict;
 use warnings;
 
-use Test::Most tests => 221;
+use Test::Most tests => 231;
 use Compress::Zlib;
 use DateTime;
 use Capture::Tiny ':all';
@@ -526,6 +526,26 @@ OUTPUT: {
 		print "Content-type: text/html; charset=ISO-8859-1\n\n";
 		print "<HTML><BODY><TABLE><TR><TD>foo</TD>\t  <TD>bar</TD></TR></TABLE></BODY></HTML>\n";
 	}
+
+	($stdout, $stderr) = capture { test14() };
+
+	ok($stderr eq '');
+	ok(defined($stdout));
+	ok($stdout !~ /ETag: "([A-Za-z0-F0-f]{32})"/m);
+	ok($stdout !~ /^Status: 304 Not Modified/mi);
+
+	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
+
+	ok($headers =~ /^Content-Length:\s+(\d+)/m);
+	$length = $1;
+
+	ok(length($body) != 0);
+	ok(defined($length));
+	ok(length($body) == $length);
+
+	#..........................................
+	delete $ENV{'HTTP_IF_NONE_MATCH'};
+	$ENV{'HTTP_IF_MODIFIED_SINCE'} = 'Mon, 13 Jul 2015 15:09:08 GMT';
 
 	($stdout, $stderr) = capture { test14() };
 

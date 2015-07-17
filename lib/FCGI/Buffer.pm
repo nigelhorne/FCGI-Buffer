@@ -683,13 +683,22 @@ sub _check_modified_since {
 	}
 	my $s = HTTP::Date::str2time($$params{since});
 	if(!defined($s)) {
+		if($self->{logger}) {
+			$self->{logger}->info("$$params{since} is not a valid date");
+		}
 		# IF_MODIFIED_SINCE isn't a valid data
 		return;
 	}
 
 	my $age = $self->_my_age();
 	if(!defined($age)) {
+		if($self->{logger}) {
+			$self->{logger}->info("Can't determine my age");
+		}
 		return;
+	}
+	if($self->{logger}) {
+		$self->{logger}->debug("_check_modified_since: Compage $age with $s");
 	}
 	if($age > $s) {
 		# Script has been updated so it may produce different output
