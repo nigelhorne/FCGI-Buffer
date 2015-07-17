@@ -697,14 +697,17 @@ sub _check_modified_since {
 		}
 		return;
 	}
-	if($self->{logger}) {
-		$self->{logger}->debug("_check_modified_since: Compage $age with $s");
-	}
 	if($age > $s) {
+		if($self->{logger}) {
+			$self->{logger}->debug('_check_modified_since: script has been modified');
+		}
 		# Script has been updated so it may produce different output
 		return;
 	}
 
+	if($self->{logger}) {
+		$self->{logger}->debug("_check_modified_since: Compare $$params{modified} with $s");
+	}
 	if($$params{modified} <= $s) {
 		push @{$self->{o}}, "Status: 304 Not Modified";
 		$self->{status} = 304;
