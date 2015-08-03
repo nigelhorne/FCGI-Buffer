@@ -63,10 +63,10 @@ LAST_MODIFIED: {
 
 			ok($stderr eq '');
 			ok($stdout !~ /^Content-Encoding: gzip/m);
-			ok($stdout =~ /^ETag: "/m);
 
 			my ($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
 
+			ok($headers =~ /^ETag: "/m);
 			ok($headers =~ /^Last-Modified:\s+(.+)/m);
 			my $date = $1;
 			ok(defined($date));
@@ -85,12 +85,22 @@ LAST_MODIFIED: {
 				DateTime::Format::HTTP->import();
 			};
 
-			if($@) {
+			# This would be nice, but it doesn't work
+			# if($@) {
+				# skip 'DateTime::Format::HTTP required to test everything', 1;
+			# } else {
+				# my $dt = DateTime::Format::HTTP->parse_datetime($date);
+				# ok($dt <= DateTime->now());
+			# }
+
+			SKIP: {
 				skip 'DateTime::Format::HTTP required to test everything', 1 if $@;
-			} else {
+
 				my $dt = DateTime::Format::HTTP->parse_datetime($date);
 				ok($dt <= DateTime->now());
 			}
+
+
 			$ENV{'HTTP_IF_MODIFIED_SINCE'} = 'Mon, 13 Jul 2015 15:09:08 GMT';
 			($stdout, $stderr) = capture { writer() };
 
