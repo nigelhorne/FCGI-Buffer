@@ -307,19 +307,7 @@ sub DESTROY {
 		$self->{_encode_loaded} = 1;
 		$self->{etag} = '"' . Digest::MD5->new->add(Encode::encode_utf8($self->{body}))->hexdigest() . '"';
 		if($ENV{'HTTP_IF_NONE_MATCH'} && $self->{generate_304} && ($self->{status} == 200)) {
-			if($self->{logger}) {
-				$self->{logger}->debug("Compare $ENV{HTTP_IF_NONE_MATCH} with $self->{etag}");
-			}
-			if($ENV{'HTTP_IF_NONE_MATCH'} eq $self->{etag}) {
-				push @{$self->{o}}, "Status: 304 Not Modified";
-				$self->{send_body} = 0;
-				$self->{status} = 304;
-				if($self->{logger}) {
-					$self->{logger}->debug('Set status to 304');
-				}
-			} elsif($self->{logger}) {
-				$self->{logger}->debug(diff(\$self->{body}, \$self->{cache}->get($self->_generate_key())));
-			}
+			$self->_check_if_none_match();
 		}
 	}
 
@@ -417,17 +405,7 @@ sub DESTROY {
 						}
 						$self->{etag} = '"' . Digest::MD5->new->add(Encode::encode_utf8($self->{body}))->hexdigest() . '"';
 					}
-					if($self->{'logger'} && $self->{generate_304}) {
-						$self->{logger}->debug("Compare etags $ENV{HTTP_IF_NONE_MATCH} and $self->{etag}");
-					}
-					if(($ENV{'HTTP_IF_NONE_MATCH'} eq $self->{etag}) && $self->{generate_304}) {
-						push @{$self->{o}}, "Status: 304 Not Modified";
-						$self->{status} = 304;
-						$self->{send_body} = 0;
-						if($self->{logger}) {
-							$self->{logger}->debug('Set status to 304');
-						}
-					}
+					$self->_check_if_none_match();
 				}
 			}
 			if($self->{status} == 200) {
@@ -448,17 +426,7 @@ sub DESTROY {
 				}
 			}
 			if($ENV{'HTTP_IF_NONE_MATCH'} && $self->{send_body} && ($self->{status} != 304) && $self->{generate_304}) {
-				if($self->{logger}) {
-					$self->{logger}->debug("Compare $ENV{HTTP_IF_NONE_MATCH} with $self->{etag}");
-				}
-				if(defined($self->{etag}) && ($self->{etag} eq $ENV{'HTTP_IF_NONE_MATCH'}) && ($self->{status} == 200)) {
-					push @{$self->{o}}, "Status: 304 Not Modified";
-					$self->{send_body} = 0;
-					$self->{status} = 304;
-					if($self->{logger}) {
-						$self->{logger}->debug('Set status to 304');
-					}
-				} else {
+				if(!$self->_check_if_none_match()) {
 					$cannot_304 = 1;
 				}
 			}
@@ -1161,6 +1129,27 @@ sub _compress()
 		push @{$self->{o}}, "Content-Encoding: $encoding";
 		push @{$self->{o}}, "Vary: Accept-Encoding";
 	}
+}
+
+sub _check_if_none_match {
+	my $self = shift;
+
+	if($self->{logger}) {
+		$self->{logger}->debug("Compare $ENV{HTTP_IF_NONE_MATCH} with $self->{etag}");
+	}
+	if($ENV{'HTTP_IF_NONE_MATCH'} eq $self->{etag}) {
+		push @{$self->{o}}, "Status: 304 Not Modified";
+		$self->{send_body} = 0;
+		$self->{status} = 304;
+		if($self->{logger}) {
+			$self->{logger}->debug('Set status to 304');
+		}
+		return 1;
+	}
+	if($self->{logger}) {
+		$self->{logger}->debug(diff(\$self->{body}, \$self->{cache}->get($self->_generate_key())));
+	}
+	return 0;
 }
 
 =head1 AUTHOR
