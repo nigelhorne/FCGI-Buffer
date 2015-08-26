@@ -8,6 +8,7 @@ use IO::String;
 use CGI::Info;
 use Carp;
 use HTTP::Date;
+use Text::Diff;	# For debugging
 
 # TODO: Encapsulate the data
 
@@ -317,6 +318,8 @@ sub DESTROY {
 				if($self->{logger}) {
 					$self->{logger}->debug('Set status to 304');
 				}
+			} elsif($self->{logger}) {
+				$self->{logger}->debug(diff(\$self->{body}, \$self->{cache}->get($self->_generate_key())));
 			}
 		}
 	}
@@ -505,6 +508,7 @@ sub DESTROY {
 				}
 			}
 		} else {
+			# Not in the server side cache
 			if($self->{status} == 200) {
 				unless($self->{cache_age}) {
 					# It would be great if CHI::set()
