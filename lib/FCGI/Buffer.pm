@@ -542,10 +542,10 @@ sub DESTROY {
 				# TODO: Support the Expires header
 				# if($headers !~ /^Expires: /m))) {
 				# }
-				$self->{cache}->set($key, Storable::freeze($cache_hash), $self->{cache_age});
 				if($self->{logger}) {
-					$self->{logger}->debug("store $key in the cache");
+					$self->{logger}->debug("store $key in the cache, age = " . $self->{cache_age});
 				}
+				$self->{cache}->set($key, Storable::freeze($cache_hash), $self->{cache_age});
 				if($self->{generate_last_modified}) {
 					$self->{cobject} = $self->{cache}->get_object($key);
 					if(defined($self->{cobject})) {
