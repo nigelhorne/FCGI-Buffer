@@ -299,13 +299,12 @@ sub DESTROY {
 	# Generate the eTag before compressing, since the compressed data
 	# includes the mtime field which changes thus causing a different
 	# Etag to be generated
-	my $encode_loaded;
 	if($ENV{'SERVER_PROTOCOL'} &&
 	  ($ENV{'SERVER_PROTOCOL'} eq 'HTTP/1.1') &&
 	  $self->{generate_etag} && defined($self->{body})) {
 		# encode to avoid "Wide character in subroutine entry"
 		require Encode;
-		$encode_loaded = 1;
+		$self->{_encode_loaded} = 1;
 		$self->{etag} = '"' . Digest::MD5->new->add(Encode::encode_utf8($self->{body}))->hexdigest() . '"';
 		if($ENV{'HTTP_IF_NONE_MATCH'} && $self->{generate_304} && ($self->{status} == 200)) {
 			if($self->{logger}) {
@@ -327,7 +326,7 @@ sub DESTROY {
 	my $encoding = $self->_should_gzip();
 	my $unzipped_body = $self->{body};
 
-	if(defined($self->{body})) {
+	if(defined($unzipped_body)) {
 		my $range = $ENV{'Range'} ? $ENV{'Range'} : $ENV{'HTTP_RANGE'};
 
 		if($range && !$self->{cache}) {
@@ -343,22 +342,7 @@ sub DESTROY {
 				$unzipped_body = $self->{body};
 			}
 		}
-		if((length($encoding) > 0) && (length($self->{body}) >= MIN_GZIP_LEN)) {
-			require Compress::Zlib;
-			Compress::Zlib->import;
-
-			# Avoid 'Wide character in memGzip'
-			unless($encode_loaded) {
-				require Encode;
-				$encode_loaded = 1;
-			}
-			my $nbody = Compress::Zlib::memGzip(\Encode::encode_utf8($self->{body}));
-			if(length($nbody) < length($self->{body})) {
-				$self->{body} = $nbody;
-				push @{$self->{o}}, "Content-Encoding: $encoding";
-				push @{$self->{o}}, "Vary: Accept-Encoding";
-			}
-		}
+		$self->_compress({ encoding => $encoding });
 	}
 
 	if($self->{cache}) {
@@ -427,9 +411,9 @@ sub DESTROY {
 			  ($self->{status} == 200)) {
 				if($ENV{'HTTP_IF_NONE_MATCH'} && $self->{generate_etag}) {
 					if(!defined($self->{etag})) {
-						unless($encode_loaded) {
+						unless($self->{_encode_loaded}) {
 							require Encode;
-							$encode_loaded = 1;
+							$self->{_encode_loaded} = 1;
 						}
 						$self->{etag} = '"' . Digest::MD5->new->add(Encode::encode_utf8($self->{body}))->hexdigest() . '"';
 					}
@@ -448,26 +432,11 @@ sub DESTROY {
 			}
 			if($self->{status} == 200) {
 				$encoding = $self->_should_gzip();
-				if($self->{send_body} && (length($encoding) > 0)) {
-					if(length($self->{body}) >= MIN_GZIP_LEN) {
-						require Compress::Zlib;
-						Compress::Zlib->import;
-
-						# Avoid 'Wide character in memGzip'
-						unless($encode_loaded) {
-							require Encode;
-							$encode_loaded = 1;
-						}
-						if($self->{generate_etag} && !defined($self->{etag}) && ((!defined($headers)) || ($headers !~ /^ETag: /m))) {
-							$self->{etag} = '"' . Digest::MD5->new->add(Encode::encode_utf8($self->{body}))->hexdigest() . '"';
-						}
-						my $nbody = Compress::Zlib::memGzip(\Encode::encode_utf8($self->{body}));
-						if(length($nbody) < length($self->{body})) {
-							$self->{body} = $nbody;
-							push @{$self->{o}}, "Content-Encoding: $encoding";
-							push @{$self->{o}}, "Vary: Accept-Encoding";
-						}
+				if($self->{send_body}) {
+					if($self->{generate_etag} && !defined($self->{etag}) && ((!defined($headers)) || ($headers !~ /^ETag: /m))) {
+						$self->{etag} = '"' . Digest::MD5->new->add(Encode::encode_utf8($self->{body}))->hexdigest() . '"';
 					}
+					$self->_compress({ encoding => $encoding });
 				}
 			}
 			my $cannot_304 = !$self->{generate_304};
@@ -1165,6 +1134,32 @@ sub _set_content_type {
 			$self->{content_type} = \@content_type;
 			return;
 		}
+	}
+}
+
+sub _compress()
+{
+	my $self = shift;
+	my %params = (ref($_[0]) eq 'HASH') ? %{$_[0]} : @_;
+
+	my $encoding = $params{encoding};
+
+	if((length($encoding) == 0) || (length($self->{body}) < MIN_GZIP_LEN)) {
+		return;
+	}
+	require Compress::Zlib;
+	Compress::Zlib->import;
+
+	# Avoid 'Wide character in memGzip'
+	unless($self->{_encode_loaded}) {
+		require Encode;
+		$self->{_encode_loaded} = 1;
+	}
+	my $nbody = Compress::Zlib::memGzip(\Encode::encode_utf8($self->{body}));
+	if(length($nbody) < length($self->{body})) {
+		$self->{body} = $nbody;
+		push @{$self->{o}}, "Content-Encoding: $encoding";
+		push @{$self->{o}}, "Vary: Accept-Encoding";
 	}
 }
 
