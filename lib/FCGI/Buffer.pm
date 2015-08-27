@@ -1148,12 +1148,14 @@ sub _check_if_none_match {
 	if($self->{logger} && $self->{logger}->is_debug()) {
 		my $cached_copy = $self->{cache}->get($self->_generate_key());
 
-		if($cached_copy) {
+		if($cached_copy && $self->{body}) {
 			require Text::Diff;
 			Text::Diff->import();
 
 			my $diffs = diff(\$self->{body}, \$cached_copy);
 			$self->{logger}->debug('diffs: ', $diffs);
+		} else {
+			$self->{logger}->debug('Nothing to compare');
 		}
 	}
 	return 0;
