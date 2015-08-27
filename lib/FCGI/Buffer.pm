@@ -8,7 +8,6 @@ use IO::String;
 use CGI::Info;
 use Carp;
 use HTTP::Date;
-use Text::Diff;	# For debugging
 
 # TODO: Encapsulate the data
 
@@ -1146,8 +1145,16 @@ sub _check_if_none_match {
 		}
 		return 1;
 	}
-	if($self->{logger}) {
-		$self->{logger}->debug(diff(\$self->{body}, \$self->{cache}->get($self->_generate_key())));
+	if($self->{logger} && $self->{logger}->is_debug()) {
+		my $cached_copy = $self->{cache}->get($self->_generate_key());
+
+		if($cached_copy) {
+			require Text::Diff;
+			Text::Diff->import();
+
+			my $diffs = diff(\$self->{body}, \$cached_copy);
+			$self->{logger}->debug('diffs: ', $diffs);
+		}
 	}
 	return 0;
 }
