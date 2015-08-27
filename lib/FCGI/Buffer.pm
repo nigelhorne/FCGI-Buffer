@@ -1152,6 +1152,7 @@ sub _check_if_none_match {
 			require Text::Diff;
 			Text::Diff->import();
 
+			$cached_copy = Storable::thaw($cached_copy)->{body};
 			my $diffs = diff(\$self->{body}, \$cached_copy);
 			$self->{logger}->debug('diffs: ', $diffs);
 		} else {
