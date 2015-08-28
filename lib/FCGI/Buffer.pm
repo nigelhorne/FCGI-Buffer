@@ -1145,7 +1145,7 @@ sub _check_if_none_match {
 		}
 		return 1;
 	}
-	if($self->{logger} && $self->{logger}->is_debug()) {
+	if($self->{cache} && $self->{logger} && $self->{logger}->is_debug()) {
 		my $cached_copy = $self->{cache}->get($self->_generate_key());
 
 		if($cached_copy && $self->{body}) {
