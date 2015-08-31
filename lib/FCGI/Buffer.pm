@@ -438,7 +438,7 @@ sub DESTROY {
 				}
 				if(($self->{status} == 200) && $self->{generate_last_modified}) {
 					if($self->{logger}) {
-						$self->{logger}->debug('Set Last-Modified to ' . HTTP::Date::time2str($self->{cobject}->created_at()));
+						$self->{logger}->debug('Set Last-Modified to ', HTTP::Date::time2str($self->{cobject}->created_at()));
 					}
 					push @{$self->{o}}, "Last-Modified: " . HTTP::Date::time2str($self->{cobject}->created_at());
 				}
@@ -483,7 +483,7 @@ sub DESTROY {
 				# if($headers !~ /^Expires: /m))) {
 				# }
 				if($self->{logger}) {
-					$self->{logger}->debug("store $key in the cache, age = " . $self->{cache_age});
+					$self->{logger}->debug("store $key in the cache, age = ", $self->{cache_age});
 				}
 				$self->{cache}->set($key, Storable::freeze($cache_hash), $self->{cache_age});
 				if($self->{generate_last_modified}) {
