@@ -665,7 +665,7 @@ sub _optimise_content {
 	my $self = shift;
 
 	# Regexp::List - wow!
-	$self->{body} =~ s/(?^:(?:(?:\s+|\r)\n|\n(?:\s+|\+)))/\n/g;
+	$self->{body} =~ s/(((\s+|\r)\n|\n(\s+|\+)))/\n/g;
 	# $self->{body} =~ s/\r\n/\n/gs;
 	# $self->{body} =~ s/\s+\n/\n/gs;
 	# $self->{body} =~ s/\n+/\n/gs;
