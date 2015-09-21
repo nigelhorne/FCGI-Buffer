@@ -157,12 +157,13 @@ OUTPUT: {
 		$b->init(optimise_content => 1, compress_content => 0);
 
 		print "Content-type: text/html; charset=ISO-8859-1\n\n";
-		print "<HTML><HEAD><TITLE>\ntest5</TITLE></HEAD><BODY><A HREF=\"http://www.example.com\">Click</A>\n<script>\nalert(foo);\n</script></BODY></HTML>\n";
+		print "<HTML><HEAD><TITLE>\ntest five</TITLE></HEAD><BODY><A HREF=\"http://www.example.com\">Click</A>\n<script>\nalert(foo);\n</script></BODY></HTML>\n";
 	}
 
 	($stdout, $stderr) = capture { test5() };
 
 	ok($stderr eq '');
+diag($stdout);
 	ok($stdout =~ /href="\/"/m);
 	ok($stdout !~ /<script>\s/m);
 
