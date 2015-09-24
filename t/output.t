@@ -163,7 +163,6 @@ OUTPUT: {
 	($stdout, $stderr) = capture { test5() };
 
 	ok($stderr eq '');
-diag($stdout);
 	ok($stdout =~ /href="\/"/m);
 	ok($stdout !~ /<script>\s/m);
 
