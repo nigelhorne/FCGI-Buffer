@@ -17,11 +17,11 @@ FCGI::Buffer - Verify, Cache and Optimise FCGI Output
 
 =head1 VERSION
 
-Version 0.05
+Version 0.06
 
 =cut
 
-our $VERSION = '0.05';
+our $VERSION = '0.06';
 
 =head1 SYNOPSIS
 
@@ -728,7 +728,6 @@ sub _generate_key {
 	my $key = $self->{info}->browser_type() . '::' . $self->{info}->domain_name() . '::' . $self->{info}->script_name() . '::' . $self->{info}->as_string();
 	if($ENV{'HTTP_COOKIE'}) {
 		# Different states of the client are stored in different caches
-		my $cookies = $ENV{'HTTP_COOKIE'};
 		# Don't put different Google Analytics in different caches, and anyway they
 		# would be wrong
 		foreach my $cookie(split(/;/, $ENV{'HTTP_COOKIE'})) {
