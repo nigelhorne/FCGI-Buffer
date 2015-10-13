@@ -2,6 +2,10 @@
 
 # Check FCGI::Buffer correctly sets the Last-Modified header when requested
 
+# Running like this will test this script works without some modules installed
+#	perl -MTest::Without::Module=CHI -w -Iblib/lib t/last_mod.t 
+#	perl -MTest::Without::Module=DateTime::Format::HTTP -w -Iblib/lib t/last_mod.t
+
 use strict;
 use warnings;
 use Test::Most;
@@ -43,7 +47,7 @@ LAST_MODIFIED: {
 	delete $ENV{'NO_STORE'};
 	$ENV{'SERVER_PROTOCOL'} = 'HTTP/1.1';
 
-	my $test_count = 27;
+	my $test_count = 28;
 
 	SKIP: {
 		eval {
@@ -53,10 +57,10 @@ LAST_MODIFIED: {
 		};
 
 		SKIP: {
-			$test_count = 29;
+			$test_count = 30;
 			if($@) {
 				diag('CHI required to test');
-				skip 'CHI required to test', 28;
+				skip 'CHI required to test', 29;
 			}
 
 			my ($stdout, $stderr) = capture { writer() };
@@ -107,10 +111,12 @@ LAST_MODIFIED: {
 			ok($stderr eq '');
 			($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
 			ok($headers !~ /^Status: 304 Not Modified/mi);
+			ok($headers =~ /^Last-Modified:\s+(.+)/m);
+			$date = $1;
 
 			ok($body ne '');
 
-			$ENV{'HTTP_IF_MODIFIED_SINCE'} = DateTime->now();
+			$ENV{'HTTP_IF_MODIFIED_SINCE'} = $date;
 			($stdout, $stderr) = capture { writer() };
 
 			ok($stderr eq '');
@@ -130,6 +136,20 @@ sub new {
 	my $class = ref($proto) || $proto;
 
 	return bless { }, $class;
+}
+
+sub error {
+	my $self = shift;
+	my $message = shift;
+
+	::diag($message);
+}
+
+sub warn {
+	my $self = shift;
+	my $message = shift;
+
+	::diag($message);
 }
 
 sub info {

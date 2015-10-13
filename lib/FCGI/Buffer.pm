@@ -629,7 +629,6 @@ sub _check_modified_since {
 		if($self->{logger}) {
 			$self->{logger}->info("$$params{since} is not a valid date");
 		}
-		# IF_MODIFIED_SINCE isn't a valid data
 		return;
 	}
 
