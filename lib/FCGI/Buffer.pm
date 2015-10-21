@@ -458,7 +458,7 @@ sub DESTROY {
 					# version in the cache
 					my $c;
 					if(defined($headers) && length($headers)) {
-						$c = $headers . "\r\n" . join("\r\n", @{$self->{o}});
+						$c = "$headers\r\n" . join("\r\n", @{$self->{o}});
 					} else {
 						$c = join("\r\n", @{$self->{o}});
 					}
@@ -581,7 +581,7 @@ sub DESTROY {
 				my $i = 1;
 				$self->{logger}->trace('Stack Trace');
 				while((my @call_details = (caller($i++)))) {
-					$self->{logger}->trace($call_details[1] . ':' . $call_details[2] . ' in function ' . $call_details[3]);
+					$self->{logger}->trace($call_details[1], ':', $call_details[2], ' in function ', $call_details[3]);
 				}
 			}
 			CORE::warn(@_);     # call the builtin warn as usual
@@ -593,9 +593,10 @@ sub DESTROY {
 				my $mess = join("\r\n", @{$self->{o}});
 				$mess =~ /[^\x00-\xFF]/;
 				open(my $fout, '>>', '/tmp/NJH');
-				print $fout "$widemess:\n";
-				print $fout $mess;
-				print $fout 'x' x 40 . "\n";
+				print $fout "$widemess:\n",
+					$mess,
+					'x' x 40,
+					"\n";
 				close $fout;
 			}
 		}
@@ -748,7 +749,7 @@ sub _generate_key {
 				foreach my $h2(split(/\r?\n/, $headers)) {
 					my ($h2_name, $h2_value) = split /\:\s*/, $h2, 2;
 					if($h2_name eq $h1_value) {
-						$key .= '::' . $h2_value;
+						$key .= "::$h2_value";
 						last;
 					}
 				}
