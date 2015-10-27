@@ -57,10 +57,10 @@ LAST_MODIFIED: {
 		};
 
 		SKIP: {
-			$test_count = 30;
+			$test_count = 31;
 			if($@) {
 				diag('CHI required to test');
-				skip 'CHI required to test', 29;
+				skip 'CHI required to test', 30;
 			}
 
 			my ($stdout, $stderr) = capture { writer() };
@@ -113,6 +113,7 @@ LAST_MODIFIED: {
 			ok($headers !~ /^Status: 304 Not Modified/mi);
 			ok($headers =~ /^Last-Modified:\s+(.+)/m);
 			$date = $1;
+			ok(defined($date));
 
 			ok($body ne '');
 
@@ -121,6 +122,9 @@ LAST_MODIFIED: {
 
 			ok($stderr eq '');
 			($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
+			if($headers !~ /^Status: 304 Not Modified/mi) {
+				diag("Last-Modified was set to '$date'");
+			}
 			ok($headers =~ /^Status: 304 Not Modified/mi);
 			ok($body eq '');
 		}
