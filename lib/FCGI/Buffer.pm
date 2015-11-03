@@ -483,7 +483,7 @@ sub DESTROY {
 				# if($headers !~ /^Expires: /m))) {
 				# }
 				if($self->{logger}) {
-					$self->{logger}->debug("store $key in the cache, age = ", $self->{cache_age});
+					$self->{logger}->debug("Store $key in the cache, age = ", $self->{cache_age}, ' ', length($cache_hash->{'body'}), ' bytes');
 				}
 				$self->{cache}->set($key, Storable::freeze($cache_hash), $self->{cache_age});
 				if($self->{generate_last_modified}) {
