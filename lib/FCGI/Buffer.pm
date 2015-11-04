@@ -664,6 +664,7 @@ sub _check_modified_since {
 sub _optimise_content {
 	my $self = shift;
 
+	# FIXME: regex bad, HTML parser good
 	# Regexp::List - wow!
 	$self->{body} =~ s/(((\s+|\r)\n|\n(\s+|\+)))/\n/g;
 	# $self->{body} =~ s/\r\n/\n/gs;
