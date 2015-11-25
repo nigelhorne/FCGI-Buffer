@@ -817,6 +817,11 @@ Init allows a reference of the options to be passed. So both of these work:
 Generally speaking, passing by reference is better since it copies less on to
 the stack.
 
+If you give a cache to init() then later give cache => undef,
+the server side cache is no longer used.
+This is useful when you find an error condition when creating your HTML
+and decide that you no longer wish to store the output in the cache.
+
 =cut
 
 sub init {
@@ -859,7 +864,7 @@ sub init {
 			Carp::carp "Too late to call init, $pos characters have been printed";
 		}
 	}
-	if(defined($params{cache}) && $self->can_cache()) {
+	if(exists($params{cache}) && $self->can_cache()) {
 		if(defined($ENV{'HTTP_CACHE_CONTROL'})) {
 			my $control = $ENV{'HTTP_CACHE_CONTROL'};
 			if(defined($self->{logger})) {
@@ -875,7 +880,18 @@ sub init {
 			}
 		}
 		$self->{cache_age} ||= $params{cache_age};
-		$self->{cache} = $params{cache};
+		if((!defined($params{cache})) && defined($self->{cache})) {
+			if(defined($self->{logger})) {
+				if($self->{cache_key}) {
+					$self->{logger}->debug('disabling cache ', $self->{cache_key});
+				} else {
+					$self->{logger}->debug('disabling cache');
+				}
+			}
+			delete $self->{cache};
+		} else {
+			$self->{cache} = $params{cache};
+		}
 		if(defined($params{cache_key})) {
 			$self->{cache_key} = $params{cache_key};
 		}
