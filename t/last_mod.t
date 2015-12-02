@@ -47,7 +47,7 @@ LAST_MODIFIED: {
 	delete $ENV{'NO_STORE'};
 	$ENV{'SERVER_PROTOCOL'} = 'HTTP/1.1';
 
-	my $test_count = 28;
+	my $test_count = 35;
 
 	SKIP: {
 		eval {
@@ -57,10 +57,10 @@ LAST_MODIFIED: {
 		};
 
 		SKIP: {
-			$test_count = 31;
+			$test_count = 38;
 			if($@) {
 				diag('CHI required to test');
-				skip 'CHI required to test', 30;
+				skip 'CHI required to test', 37;
 			}
 
 			my ($stdout, $stderr) = capture { writer() };
@@ -118,6 +118,17 @@ LAST_MODIFIED: {
 			ok($body ne '');
 
 			$ENV{'HTTP_IF_MODIFIED_SINCE'} = $date;
+			($stdout, $stderr) = capture { writer() };
+
+			ok($stderr eq '');
+			($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
+			if($headers !~ /^Status: 304 Not Modified/mi) {
+				diag("Last-Modified was set to '$date'");
+			}
+			ok($headers =~ /^Status: 304 Not Modified/mi);
+			ok($body eq '');
+
+			$ENV{'TZ'} = 'Europe/Berlin';	# RT 110011
 			($stdout, $stderr) = capture { writer() };
 
 			ok($stderr eq '');
