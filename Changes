@@ -1,6 +1,7 @@
 Revision history for FCGI-Buffer
 
-0.07
+0.07	Sat Dec  5 15:03:56 EST 2015
+	Fix RT110011
 	If you give a cache to init() then later give cache => undef,
 		the server side cache is no longer used.
 

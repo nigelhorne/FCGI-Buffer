@@ -209,6 +209,9 @@ OUTPUT: {
 	($stdout, $stderr) = capture { test7() };
 
 	ok($stderr eq '');
+	if($stderr ne '') {
+		diag($stderr);
+	}
 
 	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
 
