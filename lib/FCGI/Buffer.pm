@@ -902,7 +902,7 @@ sub import {
 	# my $class = shift;
 	shift;
 
-	return unless defined(@_);
+	return unless @_;
 
 	init(@_);
 }
