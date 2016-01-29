@@ -132,6 +132,10 @@ sub DESTROY {
 
 	select($self->{old_buf});
 	if(!defined($self->{buf})) {
+		# Unlikely
+		if($self->{'logger'}) {
+			$self->{'logger'}->info('Nothing to send');
+		}
 		return;
 	}
 	my $pos = $self->{buf}->getpos;
@@ -153,7 +157,9 @@ sub DESTROY {
 		$self->{logger}->debug("Generate_last_modified = $self->{generate_last_modified}");
 	}
 	unless($headers || $self->is_cached()) {
-		# There was no output
+		if($self->{'logger'}) {
+			$self->{'logger'}->debug('There was no output');
+		}
 		return;
 	}
 	if($ENV{'REQUEST_METHOD'} && ($ENV{'REQUEST_METHOD'} eq 'HEAD')) {
