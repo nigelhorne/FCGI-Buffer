@@ -1,5 +1,8 @@
 Revision history for FCGI-Buffer
 
+0.08
+	Print stack trace when calling init too late
+
 0.07	Sat Dec  5 15:03:56 EST 2015
 	Fix RT110011
 	If you give a cache to init() then later give cache => undef,
