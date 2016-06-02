@@ -11,12 +11,13 @@
 use strict;
 use warnings;
 
-use Test::Most tests => 231;
+use Test::Most tests => 233;
 use Compress::Zlib;
 use DateTime;
 use Capture::Tiny ':all';
 use CGI::Info;
 use Digest::MD5;
+use Test::HTML::Lint;
 # use Test::NoWarnings;	# HTML::Clean has them
 
 BEGIN {
@@ -125,7 +126,7 @@ OUTPUT: {
 
 		print "Content-type: text/html; charset=ISO-8859-1\n\n";
 		# Put in a large body so that it gzips - small bodies won't
-		print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\n";
+		print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n";
 		print "<HTML><HEAD><TITLE>Hello, world</TITLE></HEAD><BODY><P>The quick brown fox jumped over the lazy dog.</P></BODY></HTML>\n";
 	}
 
@@ -144,6 +145,7 @@ OUTPUT: {
 	$body = Compress::Zlib::memGunzip($body);
 	ok(defined($body));
 	ok($body =~ /<HTML><HEAD><TITLE>Hello, world<\/TITLE><\/HEAD><BODY><P>The quick brown fox jumped over the lazy dog.<\/P><\/BODY><\/HTML>\n$/);
+	html_ok($body, 'HTML:Lint shows no errors');
 
 	#..........................................
 	delete $ENV{'SERVER_PROTOCOL'};
@@ -173,6 +175,7 @@ OUTPUT: {
 
 	ok($body !~ /www.example.com/m);
 	ok(length($body) eq $length);
+	html_ok($body, 'HTML:Lint shows no errors');
 
 	#..........................................
 	sub test6 {
