@@ -28,9 +28,9 @@ our $VERSION = '0.07';
 FCGI::Buffer verifies the HTML that you produce by passing it through
 C<HTML::Lint>.
 
-FCGI::Buffer optimises FCGI programs by compressing output to speed up
-the transmission and by nearly seamlessly making use of client and
-server caches.
+FCGI::Buffer optimises FCGI programs by reducing, filtering and compressing
+output to speed up the transmission and by nearly seamlessly making use of
+client and server caches.
 
 To make use of client caches, that is to say to reduce needless calls
 to your server asking for the same data:
@@ -667,6 +667,7 @@ sub _check_modified_since {
 	}
 }
 
+# Reduce output, e.g. remove superfluous white-space.
 sub _optimise_content {
 	my $self = shift;
 
