@@ -13,6 +13,7 @@ use warnings;
 
 use Test::Most tests => 233;
 use Compress::Zlib;
+use IO::Uncompress::Brotli;
 use DateTime;
 use Capture::Tiny ':all';
 use CGI::Info;
@@ -117,7 +118,7 @@ OUTPUT: {
 
 	$ENV{'SERVER_PROTOCOL'} = 'HTTP/1.1';
 	delete($ENV{'HTTP_ACCEPT_ENCODING'});
-	$ENV{'HTTP_TE'} = 'gzip';
+	$ENV{'HTTP_TE'} = 'br';
 
 	sub test4 {
 		my $b = new_ok('FCGI::Buffer');
@@ -138,18 +139,18 @@ OUTPUT: {
 	ok(defined($length));
 
 	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
-	ok($headers =~ /^Content-Encoding: gzip/m);
+	ok($headers =~ /^Content-Encoding: br/m);
 	ok($headers =~ /ETag: "[A-Za-z0-F0-f]{32}"/m);
 
 	ok(length($body) eq $length);
-	$body = Compress::Zlib::memGunzip($body);
+	$body = unbro($body);
 	ok(defined($body));
 	ok($body =~ /<HTML><HEAD><TITLE>Hello, world<\/TITLE><\/HEAD><BODY><P>The quick brown fox jumped over the lazy dog.<\/P><\/BODY><\/HTML>\n$/);
 	html_ok($body, 'HTML:Lint shows no errors');
 
 	#..........................................
 	delete $ENV{'SERVER_PROTOCOL'};
-	delete $ENV{'HTTP_ACCEPT_ENCODING'};
+	delete $ENV{'HTTP_TE'};
 
 	$ENV{'SERVER_NAME'} = 'www.example.com';
 
@@ -697,8 +698,8 @@ EOF
 
 		$b->init({ optimise_content => 1 });
 
-		print "Content-type: text/html; charset=ISO-8859-1\n\n";
-		print "<HTML><BODY><TABLE><TR><TD ALIGN=\"CENTER\"><A HREF=\"#anchor\"></A></TD><TD>foo</TD>  <TD>bar</TD></TR></TABLE></BODY></HTML>\n";
+		print "Content-type: text/html; charset=ISO-8859-1\n\n",
+			"<HTML><BODY><TABLE><TR><TD ALIGN=\"CENTER\"><A HREF=\"#anchor\"></A></TD><TD>foo</TD>  <TD>bar</TD></TR></TABLE></BODY></HTML>\n";
 	}
 
 	($stdout, $stderr) = capture { test19() };
