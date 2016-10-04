@@ -788,7 +788,7 @@ Set various options and override default values.
 	logger => $self->{logger},
 	lint_content => 0,	# Pass through HTML::Lint
 	generate_304 => 1,	# Generate 304: Not modified
-    );
+    });
 
 If no cache_key is given, one will be generated which may not be unique.
 The cache_key should be a unique value dependent upon the values set by the
