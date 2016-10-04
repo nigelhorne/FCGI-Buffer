@@ -89,7 +89,7 @@ OUTPUT: {
 	ok(defined($body));
 	ok(length($body) eq $length);
 
-	$ENV{'HTTP_ACCEPT_ENCODING'} = 'gzip';
+	$ENV{'HTTP_ACCEPT_ENCODING'} = 'gzip, deflate, sdch, br';
 
 	sub test3 {
 		my $b = new_ok('FCGI::Buffer');
@@ -118,7 +118,7 @@ OUTPUT: {
 
 	$ENV{'SERVER_PROTOCOL'} = 'HTTP/1.1';
 	delete($ENV{'HTTP_ACCEPT_ENCODING'});
-	$ENV{'HTTP_TE'} = 'br';
+	$ENV{'HTTP_TE'} = 'br,gzip';
 
 	sub test4 {
 		my $b = new_ok('FCGI::Buffer');

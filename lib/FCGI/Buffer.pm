@@ -1086,20 +1086,16 @@ sub _should_gzip {
 	}
 
 	if($self->{compress_content} && ($ENV{'HTTP_ACCEPT_ENCODING'} || $ENV{'HTTP_TE'})) {
+		if(defined($self->{content_type})) {
+			my @content_type = @{$self->{content_type}};
+			if($content_type[0] ne 'text') {
+				return '';
+			}
+		}
 		my $accept = lc($ENV{'HTTP_ACCEPT_ENCODING'} ? $ENV{'HTTP_ACCEPT_ENCODING'} : $ENV{'HTTP_TE'});
-		foreach my $encoding ('x-gzip', 'gzip', 'br') {
-			$_ = $accept;
-			if(defined($self->{content_type})) {
-				my @content_type = @{$self->{content_type}};
-				if($content_type[0]) {
-					if (m/$encoding/i && (lc($content_type[0]) eq 'text')) {
-						return $encoding;
-					}
-				} else {
-					if (m/$encoding/i) {
-						return $encoding;
-					}
-				}
+		foreach my $method(split(/,\s?/, $accept)) {
+			if(($method eq 'gzip') || ($method eq 'x-gzip') || ($method eq 'br')) {
+				return $method;
 			}
 		}
 	}
