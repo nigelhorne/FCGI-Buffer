@@ -1,6 +1,6 @@
 Revision history for FCGI-Buffer
 
-0.08
+0.08	Tue Oct  4 10:06:22 EDT 2016
 	Print stack trace when calling init too late
 	Support Brotli
 

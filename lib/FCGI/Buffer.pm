@@ -17,11 +17,11 @@ FCGI::Buffer - Verify, Cache and Optimise FCGI Output
 
 =head1 VERSION
 
-Version 0.07
+Version 0.08
 
 =cut
 
-our $VERSION = '0.07';
+our $VERSION = '0.08';
 
 =head1 SYNOPSIS
 
@@ -555,14 +555,7 @@ sub DESTROY {
 		# FCGI::Buffer
 		unshift @{$self->{o}}, split(/\r\n/, $headers);
 		if($self->{body} && $self->{send_body}) {
-			my $already_done = 0;
-			foreach(@{$self->{o}}) {
-				if(/^Content-Length: /) {
-					$already_done = 1;
-					last;
-				}
-			}
-			unless($already_done) {
+			unless(grep(/^Content-Length: /, $self->{o})) {
 				push @{$self->{o}}, "Content-Length: $body_length";
 			}
 		}
@@ -793,7 +786,7 @@ Set various options and override default values.
 	cache_key => 'string',	# key for the cache
 	cache_age => '10 minutes',	# how long to store responses in the cache
 	logger => $self->{logger},
-	lint->content => 0,	# Pass through HTML::Lint
+	lint_content => 0,	# Pass through HTML::Lint
 	generate_304 => 1,	# Generate 304: Not modified
     );
 
@@ -1300,7 +1293,7 @@ The licence for cgi_buffer is:
 
     This software is provided 'as is' without warranty of any kind."
 
-The rest of the program is Copyright 2015 Nigel Horne,
+The rest of the program is Copyright 2015-2016 Nigel Horne,
 and is released under the following licence: GPL
 
 =cut
