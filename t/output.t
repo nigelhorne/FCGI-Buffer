@@ -133,6 +133,9 @@ OUTPUT: {
 
 	($stdout, $stderr) = capture { test4() };
 
+	if($stderr ne '') {
+		diag($stderr);
+	}
 	ok($stderr eq '');
 	ok($stdout =~ /^Content-Length:\s+(\d+)/m);
 	$length = $1;
