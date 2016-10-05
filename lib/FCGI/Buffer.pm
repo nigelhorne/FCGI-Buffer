@@ -1275,7 +1275,7 @@ L<http://search.cpan.org/dist/FCGI-Buffer/>
 
 =head1 ACKNOWLEDGEMENTS
 
-The inspiration and code for some if this is cgi_buffer by Mark
+The inspiration and code for some io this is cgi_buffer by Mark
 Nottingham: http://www.mnot.net/cgi_buffer.
 
 =head1 LICENSE AND COPYRIGHT

@@ -37,8 +37,8 @@ OUTPUT: {
 		ok($b->can_cache() == 1);
 		ok($b->is_cached() == 0);
 
-		print "Content-type: text/html; charset=ISO-8859-1\n\n";
-		print "<HTML><BODY>   Hello, world</BODY></HTML>\n";
+		print "Content-type: text/html; charset=ISO-8859-1\n\n",
+			"<HTML><BODY>   Hello, world</BODY></HTML>\n";
 
 		ok($b->is_cached() == 0);
 	}
