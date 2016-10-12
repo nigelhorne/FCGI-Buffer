@@ -1153,7 +1153,7 @@ sub _compress()
 			require Encode;
 			$self->{_encode_loaded} = 1;
 		}
-		my $nbody = bro(Encode::encode_utf8($self->{body}));
+		my $nbody = IO::Compress::Brotli::bro(Encode::encode_utf8($self->{body}));
 		if(length($nbody) < length($self->{body})) {
 			$self->{body} = $nbody;
 			push @{$self->{o}}, "Content-Encoding: $encoding";
