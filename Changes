@@ -1,5 +1,13 @@
 Revision history for FCGI-Buffer
 
+0.09
+	Honour the order of HTTP_ACCEPT_ENCODING
+	Improved handling of HTTP status
+
+0.08	Tue Oct  4 10:06:22 EDT 2016
+	Print stack trace when calling init too late
+	Support Brotli
+
 0.07	Sat Dec  5 15:03:56 EST 2015
 	Fix RT110011
 	If you give a cache to init() then later give cache => undef,

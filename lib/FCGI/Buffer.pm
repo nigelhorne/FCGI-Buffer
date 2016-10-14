@@ -17,20 +17,20 @@ FCGI::Buffer - Verify, Cache and Optimise FCGI Output
 
 =head1 VERSION
 
-Version 0.07
+Version 0.08
 
 =cut
 
-our $VERSION = '0.07';
+our $VERSION = '0.08';
 
 =head1 SYNOPSIS
 
 FCGI::Buffer verifies the HTML that you produce by passing it through
 C<HTML::Lint>.
 
-FCGI::Buffer optimises FCGI programs by compressing output to speed up
-the transmission and by nearly seamlessly making use of client and
-server caches.
+FCGI::Buffer optimises FCGI programs by reducing, filtering and compressing
+output to speed up the transmission and by nearly seamlessly making use of
+client and server caches.
 
 To make use of client caches, that is to say to reduce needless calls
 to your server asking for the same data:
@@ -152,9 +152,9 @@ sub DESTROY {
 		if($ENV{'HTTP_IF_MODIFIED_SINCE'}) {
 			$self->{logger}->debug("HTTP_IF_MODIFIED_SINCE: $ENV{HTTP_IF_MODIFIED_SINCE}");
 		}
-		$self->{logger}->debug("Generate_etag = $self->{generate_etag}");
-		$self->{logger}->debug("Generate_304 = $self->{generate_304}");
-		$self->{logger}->debug("Generate_last_modified = $self->{generate_last_modified}");
+		$self->{logger}->debug("Generate_etag = $self->{generate_etag}",
+			"Generate_304 = $self->{generate_304}",
+			"Generate_last_modified = $self->{generate_last_modified}");
 	}
 	unless($headers || $self->is_cached()) {
 		if($self->{'logger'}) {
@@ -333,6 +333,7 @@ sub DESTROY {
 					$self->{body} = substr($self->{body}, 0, $2);
 				}
 				$unzipped_body = $self->{body};
+				$self->{'status'} = 206;
 			}
 		}
 		$self->_compress({ encoding => $encoding });
@@ -555,16 +556,15 @@ sub DESTROY {
 		# FCGI::Buffer
 		unshift @{$self->{o}}, split(/\r\n/, $headers);
 		if($self->{body} && $self->{send_body}) {
-			my $already_done = 0;
-			foreach(@{$self->{o}}) {
-				if(/^Content-Length: /) {
-					$already_done = 1;
-					last;
-				}
-			}
-			unless($already_done) {
+			unless(grep(/^Content-Length: \d/, @{$self->{o}})) {
 				push @{$self->{o}}, "Content-Length: $body_length";
 			}
+		}
+		unless(grep(/^Status: \d/, @{$self->{o}})) {
+			require HTTP::Status;
+			HTTP::Status->import();
+
+			push @{$self->{o}}, 'Status: ' . $self->{status} . ' ' . HTTP::Status::status_message($self->{status});
 		}
 	} else {
 		push @{$self->{o}}, "X-FCGI-Buffer-$VERSION: No headers";
@@ -667,6 +667,7 @@ sub _check_modified_since {
 	}
 }
 
+# Reduce output, e.g. remove superfluous white-space.
 sub _optimise_content {
 	my $self = shift;
 
@@ -792,9 +793,9 @@ Set various options and override default values.
 	cache_key => 'string',	# key for the cache
 	cache_age => '10 minutes',	# how long to store responses in the cache
 	logger => $self->{logger},
-	lint->content => 0,	# Pass through HTML::Lint
+	lint_content => 0,	# Pass through HTML::Lint
 	generate_304 => 1,	# Generate 304: Not modified
-    );
+    });
 
 If no cache_key is given, one will be generated which may not be unique.
 The cache_key should be a unique value dependent upon the values set by the
@@ -1092,20 +1093,16 @@ sub _should_gzip {
 	}
 
 	if($self->{compress_content} && ($ENV{'HTTP_ACCEPT_ENCODING'} || $ENV{'HTTP_TE'})) {
+		if(defined($self->{content_type})) {
+			my @content_type = @{$self->{content_type}};
+			if($content_type[0] ne 'text') {
+				return '';
+			}
+		}
 		my $accept = lc($ENV{'HTTP_ACCEPT_ENCODING'} ? $ENV{'HTTP_ACCEPT_ENCODING'} : $ENV{'HTTP_TE'});
-		foreach my $encoding ('x-gzip', 'gzip') {
-			$_ = $accept;
-			if(defined($self->{content_type})) {
-				my @content_type = @{$self->{content_type}};
-				if($content_type[0]) {
-					if (m/$encoding/i && (lc($content_type[0]) eq 'text')) {
-						return $encoding;
-					}
-				} else {
-					if (m/$encoding/i) {
-						return $encoding;
-					}
-				}
+		foreach my $method(split(/,\s?/, $accept)) {
+			if(($method eq 'gzip') || ($method eq 'x-gzip') || ($method eq 'br')) {
+				return $method;
 			}
 		}
 	}
@@ -1138,19 +1135,37 @@ sub _compress()
 	if((length($encoding) == 0) || (length($self->{body}) < MIN_GZIP_LEN)) {
 		return;
 	}
-	require Compress::Zlib;
-	Compress::Zlib->import;
 
-	# Avoid 'Wide character in memGzip'
-	unless($self->{_encode_loaded}) {
-		require Encode;
-		$self->{_encode_loaded} = 1;
-	}
-	my $nbody = Compress::Zlib::memGzip(\Encode::encode_utf8($self->{body}));
-	if(length($nbody) < length($self->{body})) {
-		$self->{body} = $nbody;
-		push @{$self->{o}}, "Content-Encoding: $encoding";
-		push @{$self->{o}}, "Vary: Accept-Encoding";
+	if($encoding eq 'gzip') {
+		require Compress::Zlib;
+		Compress::Zlib->import;
+
+		# Avoid 'Wide character in memGzip'
+		unless($self->{_encode_loaded}) {
+			require Encode;
+			$self->{_encode_loaded} = 1;
+		}
+		my $nbody = Compress::Zlib::memGzip(\Encode::encode_utf8($self->{body}));
+		if(length($nbody) < length($self->{body})) {
+			$self->{body} = $nbody;
+			push @{$self->{o}}, "Content-Encoding: $encoding";
+			push @{$self->{o}}, "Vary: Accept-Encoding";
+		}
+	} elsif($encoding eq 'br') {
+		require IO::Compress::Brotli;
+		IO::Compress::Brotli->import();
+
+		# Avoid 'Wide character in memGzip'
+		unless($self->{_encode_loaded}) {
+			require Encode;
+			$self->{_encode_loaded} = 1;
+		}
+		my $nbody = IO::Compress::Brotli::bro(Encode::encode_utf8($self->{body}));
+		if(length($nbody) < length($self->{body})) {
+			$self->{body} = $nbody;
+			push @{$self->{o}}, "Content-Encoding: $encoding";
+			push @{$self->{o}}, "Vary: Accept-Encoding";
+		}
 	}
 }
 
@@ -1161,7 +1176,7 @@ sub _check_if_none_match {
 		$self->{logger}->debug("Compare $ENV{HTTP_IF_NONE_MATCH} with $self->{etag}");
 	}
 	if($ENV{'HTTP_IF_NONE_MATCH'} eq $self->{etag}) {
-		push @{$self->{o}}, "Status: 304 Not Modified";
+		push @{$self->{o}}, 'Status: 304 Not Modified';
 		$self->{send_body} = 0;
 		$self->{status} = 304;
 		if($self->{logger}) {
@@ -1267,7 +1282,7 @@ L<http://search.cpan.org/dist/FCGI-Buffer/>
 
 =head1 ACKNOWLEDGEMENTS
 
-The inspiration and code for some if this is cgi_buffer by Mark
+The inspiration and code for some io this is cgi_buffer by Mark
 Nottingham: http://www.mnot.net/cgi_buffer.
 
 =head1 LICENSE AND COPYRIGHT
@@ -1281,7 +1296,7 @@ The licence for cgi_buffer is:
 
     This software is provided 'as is' without warranty of any kind."
 
-The rest of the program is Copyright 2015 Nigel Horne,
+The rest of the program is Copyright 2015-2016 Nigel Horne,
 and is released under the following licence: GPL
 
 =cut

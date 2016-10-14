@@ -50,7 +50,7 @@ CACHED: {
 		my ($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
 
 		ok(length($body) == 0);
-		ok($headers eq 'Content-type: text/html; charset=ISO-8859-1');
+		ok($headers =~ /Content-type: text\/html; charset=ISO-8859-1/m);
 		ok($stderr eq '');
 
 		sub test2 {
@@ -75,7 +75,7 @@ CACHED: {
 		($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
 
 		ok(length($body) == 0);
-		ok($headers eq 'Content-type: text/html; charset=ISO-8859-1');
+		ok($headers =~ /Content-type: text\/html; charset=ISO-8859-1/m);
 		ok($stderr eq '');
 
 		$ENV{'SERVER_PROTOCOL'} = 'HTTP/1.1';

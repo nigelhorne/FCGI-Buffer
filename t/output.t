@@ -11,12 +11,14 @@
 use strict;
 use warnings;
 
-use Test::Most tests => 231;
+use Test::Most tests => 234;
 use Compress::Zlib;
+use IO::Uncompress::Brotli;
 use DateTime;
 use Capture::Tiny ':all';
 use CGI::Info;
 use Digest::MD5;
+use Test::HTML::Lint;
 # use Test::NoWarnings;	# HTML::Clean has them
 
 BEGIN {
@@ -37,8 +39,8 @@ OUTPUT: {
 		ok($b->can_cache() == 1);
 		ok($b->is_cached() == 0);
 
-		print "Content-type: text/html; charset=ISO-8859-1\n\n";
-		print "<HTML><BODY>   Hello, world</BODY></HTML>\n";
+		print "Content-type: text/html; charset=ISO-8859-1\n\n",
+			"<HTML><BODY>   Hello, world</BODY></HTML>\n";
 
 		ok($b->is_cached() == 0);
 	}
@@ -89,7 +91,7 @@ OUTPUT: {
 	ok(defined($body));
 	ok(length($body) eq $length);
 
-	$ENV{'HTTP_ACCEPT_ENCODING'} = 'gzip';
+	$ENV{'HTTP_ACCEPT_ENCODING'} = 'gzip, deflate, sdch, br';
 
 	sub test3 {
 		my $b = new_ok('FCGI::Buffer');
@@ -118,7 +120,7 @@ OUTPUT: {
 
 	$ENV{'SERVER_PROTOCOL'} = 'HTTP/1.1';
 	delete($ENV{'HTTP_ACCEPT_ENCODING'});
-	$ENV{'HTTP_TE'} = 'gzip';
+	$ENV{'HTTP_TE'} = 'br,gzip';
 
 	sub test4 {
 		my $b = new_ok('FCGI::Buffer');
@@ -127,29 +129,33 @@ OUTPUT: {
 
 		print "Content-type: text/html; charset=ISO-8859-1\n\n";
 		# Put in a large body so that it gzips - small bodies won't
-		print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\n";
+		print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n";
 		print "<HTML><HEAD><TITLE>Hello, world</TITLE></HEAD><BODY><P>The quick brown fox jumped over the lazy dog.</P></BODY></HTML>\n";
 	}
 
 	($stdout, $stderr) = capture { test4() };
 
+	if($stderr ne '') {
+		diag($stderr);
+	}
 	ok($stderr eq '');
 	ok($stdout =~ /^Content-Length:\s+(\d+)/m);
 	$length = $1;
 	ok(defined($length));
 
 	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
-	ok($headers =~ /^Content-Encoding: gzip/m);
+	ok($headers =~ /^Content-Encoding: br/m);
 	ok($headers =~ /ETag: "[A-Za-z0-F0-f]{32}"/m);
 
 	ok(length($body) eq $length);
-	$body = Compress::Zlib::memGunzip($body);
+	$body = unbro($body);
 	ok(defined($body));
 	ok($body =~ /<HTML><HEAD><TITLE>Hello, world<\/TITLE><\/HEAD><BODY><P>The quick brown fox jumped over the lazy dog.<\/P><\/BODY><\/HTML>\n$/);
+	html_ok($body, 'HTML:Lint shows no errors');
 
 	#..........................................
 	delete $ENV{'SERVER_PROTOCOL'};
-	delete $ENV{'HTTP_ACCEPT_ENCODING'};
+	delete $ENV{'HTTP_TE'};
 
 	$ENV{'SERVER_NAME'} = 'www.example.com';
 
@@ -175,6 +181,7 @@ OUTPUT: {
 
 	ok($body !~ /www.example.com/m);
 	ok(length($body) eq $length);
+	html_ok($body, 'HTML:Lint shows no errors');
 
 	#..........................................
 	sub test6 {
@@ -379,17 +386,17 @@ OUTPUT: {
 	$ENV{'HTTP_RANGE'} = 'bytes=30-39';
 	($stdout, $stderr) = capture { test12() };
 
+	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
 	ok($stderr eq '');
-	ok($stdout =~ /^Content-Length:\s+(\d+)/m);
+	ok($headers =~ /^Content-Length:\s+(\d+)/m);
 	$length = $1;
 	ok(defined($length));
 	ok($length <= 10);
-
-	ok($stdout =~ /ETag: "([A-Za-z0-F0-f]{32})"/m);
+	ok($headers =~ /^Status: 206 Partial Content/m);
+	ok($headers =~ /ETag: "([A-Za-z0-F0-f]{32})"/m);
 	$etag = $1;
 	ok(defined($etag));
 
-	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
 	ok(length($body) eq $length);
 	ok(length($body) > 0);
 	delete $ENV{'HTTP_RANGE'};
@@ -696,8 +703,8 @@ EOF
 
 		$b->init({ optimise_content => 1 });
 
-		print "Content-type: text/html; charset=ISO-8859-1\n\n";
-		print "<HTML><BODY><TABLE><TR><TD ALIGN=\"CENTER\"><A HREF=\"#anchor\"></A></TD><TD>foo</TD>  <TD>bar</TD></TR></TABLE></BODY></HTML>\n";
+		print "Content-type: text/html; charset=ISO-8859-1\n\n",
+			"<HTML><BODY><TABLE><TR><TD ALIGN=\"CENTER\"><A HREF=\"#anchor\"></A></TD><TD>foo</TD>  <TD>bar</TD></TR></TABLE></BODY></HTML>\n";
 	}
 
 	($stdout, $stderr) = capture { test19() };

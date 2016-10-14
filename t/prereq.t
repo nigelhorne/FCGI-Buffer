@@ -1,6 +1,7 @@
 #!perl -w
 
 use strict;
+
 use Test::Most;
 
 unless($ENV{RELEASE_TESTING}) {
@@ -10,3 +11,4 @@ unless($ENV{RELEASE_TESTING}) {
 eval "use Test::Prereq";
 plan skip_all => "Test::Prereq required to test dependencies" if $@;
 prereq_ok();
+
