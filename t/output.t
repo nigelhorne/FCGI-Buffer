@@ -31,6 +31,8 @@ OUTPUT: {
 	delete $ENV{'SERVER_PROTOCOL'};
 	delete $ENV{'HTTP_RANGE'};
 
+	$ENV{'REQUEST_METHOD'} = 'GET';
+
 	sub test1 {
 		my $b = new_ok('FCGI::Buffer');
 
