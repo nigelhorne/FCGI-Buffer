@@ -333,6 +333,7 @@ sub DESTROY {
 					$self->{body} = substr($self->{body}, 0, $2);
 				}
 				$unzipped_body = $self->{body};
+				$self->{'status'} = 206;
 			}
 		}
 		$self->_compress({ encoding => $encoding });
@@ -555,9 +556,15 @@ sub DESTROY {
 		# FCGI::Buffer
 		unshift @{$self->{o}}, split(/\r\n/, $headers);
 		if($self->{body} && $self->{send_body}) {
-			unless(grep(/^Content-Length: /, $self->{o})) {
+			unless(grep(/^Content-Length: \d/, @{$self->{o}})) {
 				push @{$self->{o}}, "Content-Length: $body_length";
 			}
+		}
+		unless(grep(/^Status: \d/, @{$self->{o}})) {
+			require HTTP::Status;
+			HTTP::Status->import();
+
+			push @{$self->{o}}, 'Status: ' . $self->{status} . ' ' . HTTP::Status::status_message($self->{status});
 		}
 	} else {
 		push @{$self->{o}}, "X-FCGI-Buffer-$VERSION: No headers";
@@ -1169,7 +1176,7 @@ sub _check_if_none_match {
 		$self->{logger}->debug("Compare $ENV{HTTP_IF_NONE_MATCH} with $self->{etag}");
 	}
 	if($ENV{'HTTP_IF_NONE_MATCH'} eq $self->{etag}) {
-		push @{$self->{o}}, "Status: 304 Not Modified";
+		push @{$self->{o}}, 'Status: 304 Not Modified';
 		$self->{send_body} = 0;
 		$self->{status} = 304;
 		if($self->{logger}) {

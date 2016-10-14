@@ -11,7 +11,7 @@
 use strict;
 use warnings;
 
-use Test::Most tests => 233;
+use Test::Most tests => 234;
 use Compress::Zlib;
 use IO::Uncompress::Brotli;
 use DateTime;
@@ -384,17 +384,17 @@ OUTPUT: {
 	$ENV{'HTTP_RANGE'} = 'bytes=30-39';
 	($stdout, $stderr) = capture { test12() };
 
+	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
 	ok($stderr eq '');
-	ok($stdout =~ /^Content-Length:\s+(\d+)/m);
+	ok($headers =~ /^Content-Length:\s+(\d+)/m);
 	$length = $1;
 	ok(defined($length));
 	ok($length <= 10);
-
-	ok($stdout =~ /ETag: "([A-Za-z0-F0-f]{32})"/m);
+	ok($headers =~ /^Status: 206 Partial Content/m);
+	ok($headers =~ /ETag: "([A-Za-z0-F0-f]{32})"/m);
 	$etag = $1;
 	ok(defined($etag));
 
-	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
 	ok(length($body) eq $length);
 	ok(length($body) > 0);
 	delete $ENV{'HTTP_RANGE'};
