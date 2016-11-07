@@ -18,6 +18,7 @@ BEGIN {
 
 NOCACHED: {
 	SKIP: {
+		my $run = 1;
 		if ($@) {
 			eval {
 				require CHI;
@@ -28,8 +29,10 @@ NOCACHED: {
 			unless($@) {
 				diag('Test::Without::Module required for testing when no CHI is installed');
 				skip 'Test::Without::Module required to test', 6;
+				$run = 0;
 			}
-		} else {
+		}
+		if($run) {
 			delete $ENV{'REMOTE_ADDR'};
 			delete $ENV{'HTTP_USER_AGENT'};
 
