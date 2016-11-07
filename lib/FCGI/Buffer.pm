@@ -904,6 +904,8 @@ sub init {
 			$self->{cache_key} = $params{cache_key};
 		}
 	}
+
+	return $self;
 }
 
 sub import {
