@@ -1,12 +1,16 @@
 #!perl -Tw
 
+# FIXME:  create the SQLite database, and remove when done also remove static pages
+
 use strict;
 use warnings;
-use Test::Most tests => 52;
+use Test::Most tests => 74;
 use Storable;
 use Capture::Tiny ':all';
 use CGI::Info;
 use Test::NoWarnings;
+use autodie qw(:all);
+use Test::TempDir::Tiny;
 
 BEGIN {
 	use_ok('FCGI::Buffer');
@@ -53,6 +57,10 @@ CACHED: {
 		ok($headers =~ /Content-type: text\/html; charset=ISO-8859-1/m);
 		ok($stderr eq '');
 
+		$ENV{'GATEWAY_INTERFACE'} = 'CGI/1.1';
+		$ENV{'REQUEST_METHOD'} = 'GET';
+		$ENV{'QUERY_STRING'} = 'FCGI::Buffer=testing';
+
 		sub test2 {
 			my $b = new_ok('FCGI::Buffer');
 
@@ -92,13 +100,12 @@ CACHED: {
 			ok($b->is_cached() == 0);
 			ok($b->can_cache() == 1);
 
-			print "Content-type: text/html; charset=ISO-8859-1\n\n";
-
-			print "<HTML><HEAD></HEAD><BODY>Hello, World</BODY></HTML>\n";
+			print "Content-type: text/html; charset=ISO-8859-1\n\n",
+				"<HTML><HEAD></HEAD><BODY>Hello, World</BODY></HTML>\n";
 		}
 
 		($stdout, $stderr) = capture { test3() };
-		ok($stderr eq '');
+		is($stderr, '', 'nothing on STDERR');
 
 		($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
 
@@ -154,8 +161,8 @@ CACHED: {
 
 			print "Content-type: text/html; charset=ISO-8859-1\n\n";
 
-			print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\n";
-			print "<HTML><HEAD><TITLE>Hello, world</TITLE></HEAD><BODY><P>The quick brown fox jumped over the lazy dog.</P></BODY></HTML>\n";
+			print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\n",
+				"<HTML><HEAD><TITLE>Hello, world</TITLE></HEAD><BODY><P>The quick brown fox jumped over the lazy dog.</P></BODY></HTML>\n";
 		}
 
 		delete $ENV{'HTTP_IF_NONE_MATCH'};
@@ -187,8 +194,8 @@ CACHED: {
 
 			print "Content-type: text/html; charset=ISO-8859-1\n\n";
 
-			print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\n";
-			print "<HTML><HEAD><TITLE>Hello, world</TITLE></HEAD><BODY><P>The quick brown fox jumped over the lazy dog.</P></BODY></HTML>\n";
+			print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\n",
+				"<HTML><HEAD><TITLE>Hello, world</TITLE></HEAD><BODY><P>The quick brown fox jumped over the lazy dog.</P></BODY></HTML>\n";
 
 			ok($b->is_cached() == 1);
 		}
@@ -202,6 +209,68 @@ CACHED: {
 		ok($headers =~ /Content-type: text\/html; charset=ISO-8859-1/mi);
 		ok($headers =~ /^ETag:\s+(.+)/m);
 		ok($1 eq $etag);
+
+		my $saveto = {
+			# directory => $tempdir,
+			directory => '/tmp/njh',	# FIXME
+			ttl => '3600',
+		};
+
+		# Check if static links have been put in
+		delete $ENV{'HTTP_IF_NONE_MATCH'};
+		$ENV{'REQUEST_URI'} = '/cgi-bin/test4.cgi?arg1=a&arg2=b';
+		$ENV{'QUERY_STRING'} = 'arg1=a&arg2=b';
+		delete $ENV{'HTTP_ACCEPT_ENCODING'};
+
+		($stdout, $stderr) = capture { test4a() };
+		ok($stderr eq '');
+
+		($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
+
+		ok($headers =~ /Content-type: text\/html; charset=ISO-8859-1/mi);
+
+		sub test5 {
+			my $b = new_ok('FCGI::Buffer');
+
+			$b->init({
+				cache => $cache,
+				info => new_ok('CGI::Info'),
+				saveto => $saveto
+			});
+
+			ok($b->can_cache() == 1);
+
+			print "Content-type: text/html; charset=ISO-8859-1\n\n";
+
+			print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\n",
+				"<HTML><HEAD><TITLE>Hello, world</TITLE></HEAD>",
+				"<BODY><P>The quick brown fox jumped over the lazy dog.</P>",
+				'<A HREF="/cgi-bin/test4.cgi?arg1=a&arg2=b">link</a>',
+				"</BODY></HTML>\n";
+
+			ok($b->can_cache() == 1);
+		}
+
+		($stdout, $stderr) = capture { test5() };
+		ok($stderr eq '');
+
+		($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
+
+		ok($headers =~ /Content-type: text\/html; charset=ISO-8859-1/mi);
+		ok($headers =~ /^ETag:\s+.+/m);
+		ok($body =~ /\/cgi-bin\/test4.cgi/m);
+
+		($stdout, $stderr) = capture { test5() };
+		ok($stderr eq '');
+
+		($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
+
+		ok($headers =~ /Content-type: text\/html; charset=ISO-8859-1/mi);
+		ok($headers =~ /^ETag:\s+.+/m);
+		ok($body =~ /"\/tmp\/njh\/.+\.html"/m);
+		# diag($body);
+
+		unlink('/tmp/njh/fcgi.buffer.sql');	# TODO: remove when using Test::TempDir::Tiny
 	}
 }
 
@@ -220,6 +289,7 @@ sub debug {
 	my $self = shift;
 	my $message = shift;
 
-	# Enable this for debugging
-	# ::diag($message);
+	if($ENV{'TEST_VERBOSE'}) {
+		::diag($message);
+	}
 }

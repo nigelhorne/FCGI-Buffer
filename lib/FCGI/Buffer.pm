@@ -1,5 +1,7 @@
 package FCGI::Buffer;
 
+# TODO: give the path of the SQLite database and statically stored pages
+
 use strict;
 use warnings;
 
@@ -8,6 +10,7 @@ use IO::String;
 use CGI::Info;
 use Carp;
 use HTTP::Date;
+use DBI;
 
 # TODO: Encapsulate the data
 
@@ -345,9 +348,30 @@ sub DESTROY {
 		my $cache_hash;
 		my $key = $self->_generate_key();
 
+		my $dbh;
+		if(!-r '/tmp/njh/fcgi.buffer.sql') {
+			if(!-d '/tmp/njh') {
+				mkdir '/tmp/njh';
+			}
+			$dbh = DBI->connect("dbi:SQLite:dbname=/tmp/njh/fcgi.buffer.sql", undef, undef);
+			my $query = 'CREATE TABLE fcgi_buffer(key char, path char, creation timestamp)';
+			$dbh->prepare($query)->execute();
+		} else {
+			$dbh = DBI->connect("dbi:SQLite:dbname=/tmp/njh/fcgi.buffer.sql", undef, undef);
+		}
+
+		# CREATE TABLE fcgi_buffer(key char, path char, creation timestamp);
 		# Cache unzipped version
 		if(!defined($self->{body})) {
 			if($self->{send_body}) {
+				my $query = "SELECT DISTINCT path FROM fcgi_buffer WHERE key = '$key' AND creation >= strftime('%s','now') - 3600";
+				my $sth = $dbh->prepare($query);
+				$sth->execute();
+				my $href = $sth->fetchrow_hashref();
+				my $path = $href->{'path'};
+				if($path) {
+					# TODO: replace dynamic links with static links
+				}
 				$self->{cobject} = $self->{cache}->get_object($key);
 				if(defined($self->{cobject})) {
 					$cache_hash = Storable::thaw($self->{cobject}->value());
@@ -389,7 +413,20 @@ sub DESTROY {
 					foreach my $k (keys %{$cache_hash}) {
 						$self->{body} .= "\t$k\n";
 					}
+
+					my $query = "SELECT DISTINCT path FROM fcgi_buffer WHERE key = '$key'";
+					my $sth = $dbh->prepare($query);
+					if($sth->execute()) {
+						my $href = $sth->fetchrow_hashref();
+						my $path = $href->{'path'};
+						unlink($path);
+					}
+					$query = "DELETE FROM fcgi_buffer WHERE KEY = '$key'";
+					$sth = $dbh->prepare($query);
+					$sth->execute();
+
 					$self->{cache}->remove($key);
+
 					if($self->{logger}) {
 						$self->{logger}->error("Can't retrieve body for key $key");
 					} else {
@@ -451,6 +488,19 @@ sub DESTROY {
 				}
 			}
 		} else {
+			if($self->{info} && (my $u = ($ENV{'REQUEST_URI'}))) {
+				# replace dynamic links with static links
+				my $query = "SELECT DISTINCT path FROM fcgi_buffer WHERE key = '$key' AND creation >= strftime('%s','now') - 3600";
+				my $sth = $dbh->prepare($query);
+				$sth->execute();
+				my $href = $sth->fetchrow_hashref();
+				if(my $path = $href->{'path'}) {
+					$u =~ s/\?/\\?/g;
+					if(($unzipped_body =~ s/<a href="$u"/<a href="$path"/gi) >= 0) {
+						$self->{'body'} = $unzipped_body;
+					}
+				}
+			}
 			# Not in the server side cache
 			if($self->{status} == 200) {
 				unless($self->{cache_age}) {
@@ -493,6 +543,33 @@ sub DESTROY {
 					$self->{logger}->debug("Store $key in the cache, age = ", $self->{cache_age}, ' ', length($cache_hash->{'body'}), ' bytes');
 				}
 				$self->{cache}->set($key, Storable::freeze($cache_hash), $self->{cache_age});
+
+				# Create a static page with the information and link to that in the output
+				# HTML
+				# TODO: nothing is configurable yet (paths, TTL - 0 for ever, and enabling this code)
+				#	SQLite database isn't initialized automagically
+				#	pruning of old data
+				#	Note in documentation that this only works when all calls with the
+				#		same argument are guaranteed to respond with the same way,
+				#		i.e. the same rules for enabling generate_304
+				if($self->{info}) {
+					my $path = '/tmp/njh/' . $self->{info}->as_string() . '.html';
+					my $query = "UPDATE fcgi_buffer SET key = '$key', path = '$path', creation = strftime('%s','now') WHERE key = '$key' AND path = '$path'";
+					my $sth = $dbh->prepare($query);
+					if($sth->execute() <= 0) {
+						$query = "INSERT INTO fcgi_buffer(key, path, creation) VALUES('$key', '$path', strftime('%s','now'))";
+						$sth = $dbh->prepare($query);
+						$sth->execute();
+						if(my $u = $ENV{'REQUEST_URI'}) {
+							$u =~ s/\?/\\?/g;
+							my $copy = $unzipped_body;
+							$copy =~ s/<a href="$u"/<a href="$path"/gi;
+							open(my $fout, '>', $path);
+							print $fout $copy;
+							close $fout;
+						}
+					}
+				}
 				if($self->{generate_last_modified}) {
 					$self->{cobject} = $self->{cache}->get_object($key);
 					if(defined($self->{cobject})) {
