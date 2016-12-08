@@ -552,6 +552,8 @@ sub DESTROY {
 				#	Note in documentation that this only works when all calls with the
 				#		same argument are guaranteed to respond with the same way,
 				#		i.e. the same rules for enabling generate_304
+				#	When a page is retrieved from the saveto directory, add an Expires
+				#		header
 				if($self->{info}) {
 					my $path = '/tmp/njh/' . $self->{info}->as_string() . '.html';
 					my $query = "UPDATE fcgi_buffer SET key = '$key', path = '$path', creation = strftime('%s','now') WHERE key = '$key' AND path = '$path'";
