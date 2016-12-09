@@ -1,6 +1,7 @@
 package FCGI::Buffer;
 
-# TODO: give the path of the SQLite database and statically stored pages
+# TODO: Scan all output for links to pages stored in save_to. Currently it only scans
+#	self references
 
 use strict;
 use warnings;
@@ -909,7 +910,8 @@ Set various options and override default values.
 	cache_age => '10 minutes',	# how long to store responses in the cache
 	logger => $self->{logger},
 	lint_content => 0,	# Pass through HTML::Lint
-	generate_304 => 1,	# Generate 304: Not modified
+	generate_304 => 1,	# When appropriate, generate 304: Not modified
+	save_to => { directory => '/var/www/htdocs/save_to', ttl => 600 },
 	lingua => CGI::Lingua->new(),
     });
 
@@ -924,6 +926,12 @@ used as a server-side cache to reduce the need to rerun database accesses.
 Items stay in the server-side cache by default for 10 minutes.
 This can be overridden by the cache_control HTTP header in the request, and
 the default can be changed by the cache_age argument to init().
+
+Save_to is feature which when enabled stores output of dynamic pages to your
+htdocs tree and replaces future links that point to that page with static links
+to avoid going through CGI at all.  Only use where output is guaranteed to
+be the same with a given set of arguments (the same criteria for enabling
+generate_304).
 
 Logger will be an object that understands debug() such as an L<Log::Log4perl>
 object.
