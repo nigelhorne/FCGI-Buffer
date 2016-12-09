@@ -1,10 +1,8 @@
 #!perl -Tw
 
-# FIXME:  create the SQLite database, and remove when done also remove static pages
-
 use strict;
 use warnings;
-use Test::Most tests => 74;
+use Test::Most tests => 76;
 use Storable;
 use Capture::Tiny ':all';
 use CGI::Info;
@@ -259,6 +257,8 @@ CACHED: {
 
 		ok($headers =~ /Content-type: text\/html; charset=ISO-8859-1/mi);
 		ok($headers =~ /^ETag:\s+.+/m);
+		ok($headers =~ /^Expires: /m);
+
 		ok($body =~ /\/cgi-bin\/test4.cgi/m);
 
 		($stdout, $stderr) = capture { test5() };
@@ -268,6 +268,8 @@ CACHED: {
 
 		ok($headers =~ /Content-type: text\/html; charset=ISO-8859-1/mi);
 		ok($headers =~ /^ETag:\s+.+/m);
+		ok($headers =~ /^Expires: /m);
+
 		ok($body =~ /"$tempdir\/.+\.html"/m);
 	}
 }

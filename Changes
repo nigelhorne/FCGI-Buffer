@@ -1,7 +1,7 @@
 Revision history for FCGI-Buffer
 
 0.09
-	Begin code to replace dynamic links to static links
+	Begin code to replace dynamic links to static links on subsequent calls
 		(Highly experimental, and unconfigurable)
 	Honour the order of HTTP_ACCEPT_ENCODING
 	Improved handling of HTTP status

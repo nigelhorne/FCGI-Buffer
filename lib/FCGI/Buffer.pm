@@ -10,6 +10,8 @@ use IO::String;
 use CGI::Info;
 use Carp;
 use HTTP::Date;
+use DateTime;
+use DateTime::Format::HTTP;
 use DBI;
 
 # TODO: Encapsulate the data
@@ -367,8 +369,13 @@ sub DESTROY {
 		# Cache unzipped version
 		if(!defined($self->{body})) {
 			if($self->{send_body}) {
-				my $query = "SELECT DISTINCT path FROM fcgi_buffer WHERE key = '$key' AND creation >= strftime('%s','now') - 3600";
 				if($dbh) {
+					my $query;
+					if($self->{save_to}->{ttl}) {
+						$query = "SELECT DISTINCT path FROM fcgi_buffer WHERE key = '$key' AND creation >= strftime('%s','now') - " . $self->{save_to}->{ttl};
+					} else {
+						$query = "SELECT DISTINCT path FROM fcgi_buffer WHERE key = '$key'";
+					}
 					my $sth = $dbh->prepare($query);
 					$sth->execute();
 					my $href = $sth->fetchrow_hashref();
@@ -497,14 +504,26 @@ sub DESTROY {
 		} else {
 			if($dbh && $self->{info} && (my $u = ($ENV{'REQUEST_URI'}))) {
 				# replace dynamic links with static links
-				my $query = "SELECT DISTINCT path FROM fcgi_buffer WHERE key = '$key' AND creation >= strftime('%s','now') - 3600";
+				my $query;
+				if($self->{save_to}->{ttl}) {
+					$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE key = '$key' AND creation >= strftime('%s','now') - " . $self->{save_to}->{ttl};
+				} else {
+					$query = "SELECT DISTINCT, creation path FROM fcgi_buffer WHERE key = '$key'";
+				}
 				my $sth = $dbh->prepare($query);
 				$sth->execute();
 				my $href = $sth->fetchrow_hashref();
 				if(my $path = $href->{'path'}) {
+					# FIXME: don't do this is we've passed the TTL, and if we are clean
+					#	up the database and remove the static page
 					$u =~ s/\?/\\?/g;
 					if(($unzipped_body =~ s/<a href="$u"/<a href="$path"/gi) >= 0) {
 						$self->{'body'} = $unzipped_body;
+					}
+					if(my $ttl = $self->{save_to}->{ttl}) {
+						my $dt = DateTime->from_epoch(epoch => $href->{creation});
+						$dt->add(seconds => $ttl);
+						push @{$self->{o}}, 'Expires: ' . DateTime::Format::HTTP->format_datetime($dt);
 					}
 				}
 			}
@@ -553,17 +572,18 @@ sub DESTROY {
 
 				# Create a static page with the information and link to that in the output
 				# HTML
-				# TODO: nothing is configurable yet (paths, TTL - 0 for ever, and enabling this code)
-				#	SQLite database isn't initialized automagically
+				# TODO:	SQLite database isn't initialized automagically
 				#	pruning of old data
 				#	Note in documentation that this only works when all calls with the
 				#		same argument are guaranteed to respond with the same way,
 				#		i.e. the same rules for enabling generate_304
-				#	When a page is retrieved from the saveto directory, add an Expires
-				#		header
 				if($dbh && $self->{info} && $self->{save_to}) {
 					my $dir = $self->{save_to}->{directory};
 					my $path = "$dir/" . $self->{info}->as_string() . '.html';
+					if($path =~ /^(.+)$/) {
+						$path = $1; # Untaint
+						$path =~ tr/[\|;]/_/;
+					}
 					my $query = "UPDATE fcgi_buffer SET key = '$key', path = '$path', creation = strftime('%s','now') WHERE key = '$key' AND path = '$path'";
 					my $sth = $dbh->prepare($query);
 					if($sth->execute() <= 0) {
@@ -577,6 +597,11 @@ sub DESTROY {
 							open(my $fout, '>', $path);
 							print $fout $copy;
 							close $fout;
+							if(my $ttl = $self->{save_to}->{ttl}) {
+								my $dt = DateTime->now();
+								$dt->add(seconds => $ttl);
+								push @{$self->{o}}, 'Expires: ' . DateTime::Format::HTTP->format_datetime($dt);
+							}
 						}
 					}
 				}

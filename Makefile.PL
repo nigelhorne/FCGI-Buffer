@@ -40,6 +40,7 @@ WriteMakefile(
 	'HTML::Lint' => 0,
 	'Storable' => 0,
 	'HTTP::Status' => 0,
+	'DateTime::Format::HTTP' => 0,
     },
     dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
     clean               => { FILES => 'FCGI-Buffer-*' },
