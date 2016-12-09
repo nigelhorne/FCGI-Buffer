@@ -25,9 +25,12 @@ CACHED: {
 			CHI->import;
 		};
 
-		skip 'CHI not installed', 50 if $@;
-
-		diag("Using CHI $CHI::VERSION");
+		if($@) {
+			skip 'CHI not installed', 74;
+			diag('CHI required to test caching');
+		} else {
+			diag("Using CHI $CHI::VERSION");
+		}
 
 		my $cache = CHI->new(driver => 'Memory', datastore => {});
 
