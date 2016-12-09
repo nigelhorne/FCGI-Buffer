@@ -524,8 +524,11 @@ sub DESTROY {
 						}
 					}
 				};
-				# FIXME, if creation is before now, garbage collect the data and save_to files
 				if($changes && ((!defined($creation)) || ($creation <= time))) {
+					if($self->{logger}) {
+						# $self->{logger}->debug("$changes links now point to static pages");
+						$self->{logger}->info("$changes links now point to static pages");
+					}
 					$unzipped_body = $copy;
 					$self->{'body'} = $unzipped_body;
 					if(my $ttl = $self->{save_to}->{ttl}) {
@@ -534,6 +537,9 @@ sub DESTROY {
 						push @{$self->{o}}, 'Expires: ' . DateTime::Format::HTTP->format_datetime($dt);
 					}
 				} else {
+					# if(defined($creation) && ($creation > time)) {
+						# TODO garbage collect the data and save_to files
+					# }
 					if($self->{save_to}->{ttl}) {
 						$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE key = '$key' AND creation >= strftime('%s','now') - " . $self->{save_to}->{ttl};
 					} else {
