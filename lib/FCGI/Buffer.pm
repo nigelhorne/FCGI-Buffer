@@ -349,15 +349,18 @@ sub DESTROY {
 		my $key = $self->_generate_key();
 
 		my $dbh;
-		if(!-r '/tmp/njh/fcgi.buffer.sql') {
-			if(!-d '/tmp/njh') {
-				mkdir '/tmp/njh';
+		if(my $save_to = $self->{save_to}) {
+			my $sqlite_file = $save_to->{directory} . '/fcgi.buffer.sql';
+			if(!-r $sqlite_file) {
+				if(!-d $save_to->{directory}) {
+					mkdir $save_to->{directory};
+				}
+				$dbh = DBI->connect("dbi:SQLite:dbname=$sqlite_file", undef, undef);
+				my $query = 'CREATE TABLE fcgi_buffer(key char, path char, creation timestamp)';
+				$dbh->prepare($query)->execute();
+			} else {
+				$dbh = DBI->connect("dbi:SQLite:dbname=$sqlite_file", undef, undef);
 			}
-			$dbh = DBI->connect("dbi:SQLite:dbname=/tmp/njh/fcgi.buffer.sql", undef, undef);
-			my $query = 'CREATE TABLE fcgi_buffer(key char, path char, creation timestamp)';
-			$dbh->prepare($query)->execute();
-		} else {
-			$dbh = DBI->connect("dbi:SQLite:dbname=/tmp/njh/fcgi.buffer.sql", undef, undef);
 		}
 
 		# CREATE TABLE fcgi_buffer(key char, path char, creation timestamp);
@@ -365,12 +368,14 @@ sub DESTROY {
 		if(!defined($self->{body})) {
 			if($self->{send_body}) {
 				my $query = "SELECT DISTINCT path FROM fcgi_buffer WHERE key = '$key' AND creation >= strftime('%s','now') - 3600";
-				my $sth = $dbh->prepare($query);
-				$sth->execute();
-				my $href = $sth->fetchrow_hashref();
-				my $path = $href->{'path'};
-				if($path) {
-					# TODO: replace dynamic links with static links
+				if($dbh) {
+					my $sth = $dbh->prepare($query);
+					$sth->execute();
+					my $href = $sth->fetchrow_hashref();
+					my $path = $href->{'path'};
+					if($path) {
+						# TODO: replace dynamic links with static links
+					}
 				}
 				$self->{cobject} = $self->{cache}->get_object($key);
 				if(defined($self->{cobject})) {
@@ -414,16 +419,18 @@ sub DESTROY {
 						$self->{body} .= "\t$k\n";
 					}
 
-					my $query = "SELECT DISTINCT path FROM fcgi_buffer WHERE key = '$key'";
-					my $sth = $dbh->prepare($query);
-					if($sth->execute()) {
-						my $href = $sth->fetchrow_hashref();
-						my $path = $href->{'path'};
-						unlink($path);
+					if($dbh) {
+						my $query = "SELECT DISTINCT path FROM fcgi_buffer WHERE key = '$key'";
+						my $sth = $dbh->prepare($query);
+						if($sth->execute()) {
+							my $href = $sth->fetchrow_hashref();
+							my $path = $href->{'path'};
+							unlink($path);
+						}
+						$query = "DELETE FROM fcgi_buffer WHERE KEY = '$key'";
+						$sth = $dbh->prepare($query);
+						$sth->execute();
 					}
-					$query = "DELETE FROM fcgi_buffer WHERE KEY = '$key'";
-					$sth = $dbh->prepare($query);
-					$sth->execute();
 
 					$self->{cache}->remove($key);
 
@@ -488,7 +495,7 @@ sub DESTROY {
 				}
 			}
 		} else {
-			if($self->{info} && (my $u = ($ENV{'REQUEST_URI'}))) {
+			if($dbh && $self->{info} && (my $u = ($ENV{'REQUEST_URI'}))) {
 				# replace dynamic links with static links
 				my $query = "SELECT DISTINCT path FROM fcgi_buffer WHERE key = '$key' AND creation >= strftime('%s','now') - 3600";
 				my $sth = $dbh->prepare($query);
@@ -554,8 +561,9 @@ sub DESTROY {
 				#		i.e. the same rules for enabling generate_304
 				#	When a page is retrieved from the saveto directory, add an Expires
 				#		header
-				if($self->{info}) {
-					my $path = '/tmp/njh/' . $self->{info}->as_string() . '.html';
+				if($dbh && $self->{info} && $self->{save_to}) {
+					my $dir = $self->{save_to}->{directory};
+					my $path = "$dir/" . $self->{info}->as_string() . '.html';
 					my $query = "UPDATE fcgi_buffer SET key = '$key', path = '$path', creation = strftime('%s','now') WHERE key = '$key' AND path = '$path'";
 					my $sth = $dbh->prepare($query);
 					if($sth->execute() <= 0) {
@@ -669,7 +677,7 @@ sub DESTROY {
 					$self->{logger}->trace($call_details[1], ':', $call_details[2], ' in function ', $call_details[3]);
 				}
 			}
-			CORE::warn(@_);     # call the builtin warn as usual
+			CORE::warn(@_);	# call the builtin warn as usual
 		};
 
 		if(scalar @{$self->{o}}) {
@@ -762,7 +770,7 @@ sub _optimise_content {
 	# $self->{body} =~ s/\<div\>\s+/\<div\>/gis;	# Remove spaces after <div>
 	$self->{body} =~ s/(<div>\s+|\s+<div>)/<div>/gis;
 	$self->{body} =~ s/\s+<\/div\>/\<\/div\>/gis;	# Remove spaces before </div>
-	$self->{body} =~ s/\s+\<p\>|\<p\>\s+/\<p\>/im;  # TODO <p class=
+	$self->{body} =~ s/\s+\<p\>|\<p\>\s+/\<p\>/im;	# TODO <p class=
 	$self->{body} =~ s/\s+\<\/p\>|\<\/p\>\s+/\<\/p\>/gis;
 	$self->{body} =~ s/<html>\s+<head>/<html><head>/is;
 	$self->{body} =~ s/\s*<\/head>\s+<body>\s*/<\/head><body>/is;
@@ -942,6 +950,9 @@ sub init {
 	}
 	if(defined($params{generate_304})) {
 		$self->{generate_304} = $params{generate_304};
+	}
+	if(defined($params{save_to})) {
+		$self->{save_to} = $params{save_to};
 	}
 	if(defined($params{info}) && (!defined($self->{info}))) {
 		$self->{info} = $params{info};

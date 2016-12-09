@@ -210,9 +210,10 @@ CACHED: {
 		ok($headers =~ /^ETag:\s+(.+)/m);
 		ok($1 eq $etag);
 
-		my $saveto = {
-			# directory => $tempdir,
-			directory => '/tmp/njh',	# FIXME
+		my $tempdir = tempdir();
+		my $save_to = {
+			directory => $tempdir,
+			# directory => '/tmp/njh',	# FIXME
 			ttl => '3600',
 		};
 
@@ -235,7 +236,7 @@ CACHED: {
 			$b->init({
 				cache => $cache,
 				info => new_ok('CGI::Info'),
-				saveto => $saveto
+				save_to => $save_to
 			});
 
 			ok($b->can_cache() == 1);
@@ -267,10 +268,7 @@ CACHED: {
 
 		ok($headers =~ /Content-type: text\/html; charset=ISO-8859-1/mi);
 		ok($headers =~ /^ETag:\s+.+/m);
-		ok($body =~ /"\/tmp\/njh\/.+\.html"/m);
-		# diag($body);
-
-		unlink('/tmp/njh/fcgi.buffer.sql');	# TODO: remove when using Test::TempDir::Tiny
+		ok($body =~ /"$tempdir\/.+\.html"/m);
 	}
 }
 
