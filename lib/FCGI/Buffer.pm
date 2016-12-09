@@ -340,26 +340,26 @@ sub DESTROY {
 		$self->_compress({ encoding => $encoding });
 	}
 
+	my $dbh;
+	if(my $save_to = $self->{save_to}) {
+		my $sqlite_file = $save_to->{directory} . '/fcgi.buffer.sql';
+		if(!-r $sqlite_file) {
+			if(!-d $save_to->{directory}) {
+				mkdir $save_to->{directory};
+			}
+			$dbh = DBI->connect("dbi:SQLite:dbname=$sqlite_file", undef, undef);
+			my $query = 'CREATE TABLE fcgi_buffer(key char, path char, uri char, creation timestamp)';
+			$dbh->prepare($query)->execute();
+		} else {
+			$dbh = DBI->connect("dbi:SQLite:dbname=$sqlite_file", undef, undef);
+		}
+	}
+
 	if($self->{cache}) {
 		require Storable;
 
 		my $cache_hash;
 		my $key = $self->_generate_key();
-
-		my $dbh;
-		if(my $save_to = $self->{save_to}) {
-			my $sqlite_file = $save_to->{directory} . '/fcgi.buffer.sql';
-			if(!-r $sqlite_file) {
-				if(!-d $save_to->{directory}) {
-					mkdir $save_to->{directory};
-				}
-				$dbh = DBI->connect("dbi:SQLite:dbname=$sqlite_file", undef, undef);
-				my $query = 'CREATE TABLE fcgi_buffer(key char, path char, uri char, creation timestamp)';
-				$dbh->prepare($query)->execute();
-			} else {
-				$dbh = DBI->connect("dbi:SQLite:dbname=$sqlite_file", undef, undef);
-			}
-		}
 
 		# CREATE TABLE fcgi_buffer(key char, path char, creation timestamp);
 		# Cache unzipped version
@@ -498,71 +498,8 @@ sub DESTROY {
 				}
 			}
 		} else {
-			if($dbh && $self->{info} && (my $request_uri = ($ENV{'REQUEST_URI'}))) {
-				# replace dynamic links with static links
-				my $query;
-				my $copy = $unzipped_body;
-				my $changes = 0;
-				my $creation;
-				while($unzipped_body =~ /<a\shref="(.+?)"/gis) {
-					my $link = $1;
-					$link =~ tr/[\|;]/_/;
-					if($self->{save_to}->{ttl}) {
-						$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE uri = '$link' AND creation >= strftime('%s','now') - " . $self->{save_to}->{ttl};
-					} else {
-						$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE key = '$link'";
-					}
-					my $sth = $dbh->prepare($query);
-					$sth->execute();
-					my $href = $sth->fetchrow_hashref();
-					if(my $path = $href->{'path'}) {
-						$link =~ s/\?/\\?/g;
-						$changes += ($copy =~ s/<a\shref="$link">/<a href="$path">/gis);
-						# Find the first link that will expire and use that
-						if((!defined($creation)) || ($href->{'creation'} < $creation)) {
-							$creation = $href->{'creation'};
-						}
-					}
-				};
-				if($changes && ((!defined($creation)) || ($creation <= time))) {
-					if($self->{logger}) {
-						# $self->{logger}->debug("$changes links now point to static pages");
-						$self->{logger}->info("$changes links now point to static pages");
-					}
-					$unzipped_body = $copy;
-					$self->{'body'} = $unzipped_body;
-					if(my $ttl = $self->{save_to}->{ttl}) {
-						my $dt = DateTime->from_epoch(epoch => $creation);
-						$dt->add(seconds => $ttl);
-						push @{$self->{o}}, 'Expires: ' . DateTime::Format::HTTP->format_datetime($dt);
-					}
-				} else {
-					# if(defined($creation) && ($creation > time)) {
-						# TODO garbage collect the data and save_to files
-					# }
-					if($self->{save_to}->{ttl}) {
-						$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE key = '$key' AND creation >= strftime('%s','now') - " . $self->{save_to}->{ttl};
-					} else {
-						$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE key = '$key'";
-					}
-					my $sth = $dbh->prepare($query);
-					$sth->execute();
-					my $href = $sth->fetchrow_hashref();
-					if(my $path = $href->{'path'}) {
-						# FIXME: don't do this is we've passed the TTL, and if we are clean
-						#	up the database and remove the static page
-						$request_uri =~ s/\?/\\?/g;
-						if(($unzipped_body =~ s/<a href="$request_uri"/<a href="$path"/gi) > 0) {
-							$self->{'body'} = $unzipped_body;
-							if(my $ttl = $self->{save_to}->{ttl}) {
-								my $dt = DateTime->from_epoch(epoch => $href->{creation});
-								$dt->add(seconds => $ttl);
-								push @{$self->{o}}, 'Expires: ' . DateTime::Format::HTTP->format_datetime($dt);
-							}
-						}
-					}
-				}
-			}
+			$self->_save_to($unzipped_body, $dbh, $key);
+
 			# Not in the server side cache
 			if($self->{status} == 200) {
 				unless($self->{cache_age}) {
@@ -673,6 +610,7 @@ sub DESTROY {
 	} elsif($self->{info}) {
 		my $host_name = $self->{info}->host_name();
 		push @{$self->{o}}, ("X-Cache: MISS from $host_name", "X-Cache-Lookup: MISS from $host_name");
+		$self->_save_to($unzipped_body, $dbh, $self->_generate_key());
 	} else {
 		push @{$self->{o}}, ('X-Cache: MISS', 'X-Cache-Lookup: MISS');
 	}
@@ -1367,6 +1305,76 @@ sub _check_if_none_match {
 		}
 	}
 	return 0;
+}
+
+sub _save_to {
+	my ($self, $unzipped_body, $dbh, $key) = @_;
+
+	if($dbh && $self->{info} && (my $request_uri = ($ENV{'REQUEST_URI'}))) {
+		# replace dynamic links with static links
+		my $query;
+		my $copy = $unzipped_body;
+		my $changes = 0;
+		my $creation;
+		while($unzipped_body =~ /<a\shref="(.+?)"/gis) {
+			my $link = $1;
+			$link =~ tr/[\|;]/_/;
+			if($self->{save_to}->{ttl}) {
+				$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE uri = '$link' AND creation >= strftime('%s','now') - " . $self->{save_to}->{ttl};
+			} else {
+				$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE key = '$link'";
+			}
+			my $sth = $dbh->prepare($query);
+			$sth->execute();
+			my $href = $sth->fetchrow_hashref();
+			if(my $path = $href->{'path'}) {
+				$link =~ s/\?/\\?/g;
+				$changes += ($copy =~ s/<a\shref="$link">/<a href="$path">/gis);
+				# Find the first link that will expire and use that
+				if((!defined($creation)) || ($href->{'creation'} < $creation)) {
+					$creation = $href->{'creation'};
+				}
+			}
+		};
+		if($changes && ((!defined($creation)) || ($creation <= time))) {
+			if($self->{logger}) {
+				# $self->{logger}->debug("$changes links now point to static pages");
+				$self->{logger}->info("$changes links now point to static pages");
+			}
+			$unzipped_body = $copy;
+			$self->{'body'} = $unzipped_body;
+			if(my $ttl = $self->{save_to}->{ttl}) {
+				my $dt = DateTime->from_epoch(epoch => $creation);
+				$dt->add(seconds => $ttl);
+				push @{$self->{o}}, 'Expires: ' . DateTime::Format::HTTP->format_datetime($dt);
+			}
+		} else {
+			# if(defined($creation) && ($creation > time)) {
+				# TODO garbage collect the data and save_to files
+			# }
+			if($self->{save_to}->{ttl}) {
+				$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE key = '$key' AND creation >= strftime('%s','now') - " . $self->{save_to}->{ttl};
+			} else {
+				$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE key = '$key'";
+			}
+			my $sth = $dbh->prepare($query);
+			$sth->execute();
+			my $href = $sth->fetchrow_hashref();
+			if(my $path = $href->{'path'}) {
+				# FIXME: don't do this is we've passed the TTL, and if we are clean
+				#	up the database and remove the static page
+				$request_uri =~ s/\?/\\?/g;
+				if(($unzipped_body =~ s/<a href="$request_uri"/<a href="$path"/gi) > 0) {
+					$self->{'body'} = $unzipped_body;
+					if(my $ttl = $self->{save_to}->{ttl}) {
+						my $dt = DateTime->from_epoch(epoch => $href->{creation});
+						$dt->add(seconds => $ttl);
+						push @{$self->{o}}, 'Expires: ' . DateTime::Format::HTTP->format_datetime($dt);
+					}
+				}
+			}
+		}
+	}
 }
 
 =head1 AUTHOR

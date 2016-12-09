@@ -2,7 +2,7 @@
 
 use strict;
 use warnings;
-use Test::Most tests => 85;
+use Test::Most tests => 97;
 use Storable;
 use Capture::Tiny ':all';
 use CGI::Info;
@@ -26,7 +26,7 @@ CACHED: {
 		};
 
 		if($@) {
-			skip 'CHI not installed', 83;
+			skip 'CHI not installed', 95;
 			diag('CHI required to test caching');
 		} else {
 			diag("Using CHI $CHI::VERSION");
@@ -286,6 +286,44 @@ CACHED: {
 		ok($headers =~ /^Expires: /m);
 
 		ok($body =~ /"$tempdir\/.+\.html"/m);
+
+		# no cache argument to init()
+		sub test5a {
+			my $b = new_ok('FCGI::Buffer');
+
+			$b->init({
+				info => new_ok('CGI::Info'),
+				save_to => $save_to
+			});
+
+			ok($b->can_cache() == 1);
+
+			print "Content-type: text/html; charset=ISO-8859-1\n\n";
+
+			print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\n",
+				"<HTML><HEAD><TITLE>Hello, world</TITLE></HEAD>",
+				"<BODY><P>The quick brown fox jumped over the lazy dog.</P>",
+				'<A HREF="/cgi-bin/test4.cgi?arg1=a&arg2=b">link</a>',
+				"</BODY></HTML>\n";
+
+			ok($b->can_cache() == 1);
+		}
+
+		($stdout, $stderr) = capture { test5a() };
+		ok($stderr eq '');
+
+		($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
+
+		ok($headers =~ /Content-type: text\/html; charset=ISO-8859-1/mi);
+		ok($headers =~ /^ETag:\s+.+/m);
+		ok($headers =~ /^Expires: /m);
+
+		ok($body =~ /"$tempdir\/.+\.html"/m);
+
+		ok($headers =~ /^Content-Length:\s+(\d+)/m);
+		my $length = $1;
+		ok(defined($length));
+		ok(length($body) eq $length);
 	}
 }
 

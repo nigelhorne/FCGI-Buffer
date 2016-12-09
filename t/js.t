@@ -59,6 +59,10 @@ OUTPUT: {
 	delete $ENV{'HTTP_ACCEPT_ENCODING'};
 	delete $ENV{'SERVER_PROTOCOL'};
 
+	$ENV{'GATEWAY_INTERFACE'} = 'CGI/1.1';
+	$ENV{'REQUEST_METHOD'} = 'GET';
+	$ENV{'QUERY_STRING'} = 'FCGI::Buffer=testing';
+
 	my ($stdout, $stderr) = capture { writer() };
 
 	ok($stderr eq '');
