@@ -1,8 +1,5 @@
 package FCGI::Buffer;
 
-# TODO: Scan all output for links to pages stored in save_to. Currently it only scans
-#	self references
-
 use strict;
 use warnings;
 
@@ -14,8 +11,6 @@ use HTTP::Date;
 use DateTime;
 use DateTime::Format::HTTP;
 use DBI;
-
-# TODO: Encapsulate the data
 
 =head1 NAME
 
@@ -359,7 +354,7 @@ sub DESTROY {
 					mkdir $save_to->{directory};
 				}
 				$dbh = DBI->connect("dbi:SQLite:dbname=$sqlite_file", undef, undef);
-				my $query = 'CREATE TABLE fcgi_buffer(key char, path char, creation timestamp)';
+				my $query = 'CREATE TABLE fcgi_buffer(key char, path char, uri char, creation timestamp)';
 				$dbh->prepare($query)->execute();
 			} else {
 				$dbh = DBI->connect("dbi:SQLite:dbname=$sqlite_file", undef, undef);
@@ -503,28 +498,62 @@ sub DESTROY {
 				}
 			}
 		} else {
-			if($dbh && $self->{info} && (my $u = ($ENV{'REQUEST_URI'}))) {
+			if($dbh && $self->{info} && (my $request_uri = ($ENV{'REQUEST_URI'}))) {
 				# replace dynamic links with static links
 				my $query;
-				if($self->{save_to}->{ttl}) {
-					$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE key = '$key' AND creation >= strftime('%s','now') - " . $self->{save_to}->{ttl};
-				} else {
-					$query = "SELECT DISTINCT, creation path FROM fcgi_buffer WHERE key = '$key'";
-				}
-				my $sth = $dbh->prepare($query);
-				$sth->execute();
-				my $href = $sth->fetchrow_hashref();
-				if(my $path = $href->{'path'}) {
-					# FIXME: don't do this is we've passed the TTL, and if we are clean
-					#	up the database and remove the static page
-					$u =~ s/\?/\\?/g;
-					if(($unzipped_body =~ s/<a href="$u"/<a href="$path"/gi) >= 0) {
-						$self->{'body'} = $unzipped_body;
+				my $copy = $unzipped_body;
+				my $changes = 0;
+				my $creation;
+				while($unzipped_body =~ /<a\shref="(.+?)"/gis) {
+					my $link = $1;
+					$link =~ tr/[\|;]/_/;
+					if($self->{save_to}->{ttl}) {
+						$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE uri = '$link' AND creation >= strftime('%s','now') - " . $self->{save_to}->{ttl};
+					} else {
+						$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE key = '$link'";
 					}
+					my $sth = $dbh->prepare($query);
+					$sth->execute();
+					my $href = $sth->fetchrow_hashref();
+					if(my $path = $href->{'path'}) {
+						$link =~ s/\?/\\?/g;
+						$changes += ($copy =~ s/<a\shref="$link">/<a href="$path">/gis);
+						# Find the first link that will expire and use that
+						if((!defined($creation)) || ($href->{'creation'} < $creation)) {
+							$creation = $href->{'creation'};
+						}
+					}
+				};
+				# FIXME, if creation is before now, garbage collect the data and save_to files
+				if($changes && ((!defined($creation)) || ($creation <= time))) {
+					$unzipped_body = $copy;
+					$self->{'body'} = $unzipped_body;
 					if(my $ttl = $self->{save_to}->{ttl}) {
-						my $dt = DateTime->from_epoch(epoch => $href->{creation});
+						my $dt = DateTime->from_epoch(epoch => $creation);
 						$dt->add(seconds => $ttl);
 						push @{$self->{o}}, 'Expires: ' . DateTime::Format::HTTP->format_datetime($dt);
+					}
+				} else {
+					if($self->{save_to}->{ttl}) {
+						$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE key = '$key' AND creation >= strftime('%s','now') - " . $self->{save_to}->{ttl};
+					} else {
+						$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE key = '$key'";
+					}
+					my $sth = $dbh->prepare($query);
+					$sth->execute();
+					my $href = $sth->fetchrow_hashref();
+					if(my $path = $href->{'path'}) {
+						# FIXME: don't do this is we've passed the TTL, and if we are clean
+						#	up the database and remove the static page
+						$request_uri =~ s/\?/\\?/g;
+						if(($unzipped_body =~ s/<a href="$request_uri"/<a href="$path"/gi) > 0) {
+							$self->{'body'} = $unzipped_body;
+							if(my $ttl = $self->{save_to}->{ttl}) {
+								my $dt = DateTime->from_epoch(epoch => $href->{creation});
+								$dt->add(seconds => $ttl);
+								push @{$self->{o}}, 'Expires: ' . DateTime::Format::HTTP->format_datetime($dt);
+							}
+						}
 					}
 				}
 			}
@@ -573,12 +602,11 @@ sub DESTROY {
 
 				# Create a static page with the information and link to that in the output
 				# HTML
-				# TODO:	SQLite database isn't initialized automagically
-				#	pruning of old data
+				# TODO:	pruning of old data
 				#	Note in documentation that this only works when all calls with the
 				#		same argument are guaranteed to respond with the same way,
 				#		i.e. the same rules for enabling generate_304
-				if($dbh && $self->{info} && $self->{save_to}) {
+				if($dbh && $self->{info} && $self->{save_to} && (my $request_uri = $ENV{'REQUEST_URI'})) {
 					my $dir = $self->{save_to}->{directory};
 					my $path = "$dir/" . $self->{info}->as_string() . '.html';
 					if($path =~ /^(.+)$/) {
@@ -588,21 +616,21 @@ sub DESTROY {
 					my $query = "UPDATE fcgi_buffer SET key = '$key', path = '$path', creation = strftime('%s','now') WHERE key = '$key' AND path = '$path'";
 					my $sth = $dbh->prepare($query);
 					if($sth->execute() <= 0) {
-						$query = "INSERT INTO fcgi_buffer(key, path, creation) VALUES('$key', '$path', strftime('%s','now'))";
+						$query = "INSERT INTO fcgi_buffer(key, path, uri, creation) VALUES('$key', '$path', '$request_uri', strftime('%s','now'))";
 						$sth = $dbh->prepare($query);
 						$sth->execute();
-						if(my $u = $ENV{'REQUEST_URI'}) {
-							$u =~ s/\?/\\?/g;
-							my $copy = $unzipped_body;
-							$copy =~ s/<a href="$u"/<a href="$path"/gi;
-							open(my $fout, '>', $path);
-							print $fout $copy;
-							close $fout;
-							if(my $ttl = $self->{save_to}->{ttl}) {
-								my $dt = DateTime->now();
-								$dt->add(seconds => $ttl);
-								push @{$self->{o}}, 'Expires: ' . DateTime::Format::HTTP->format_datetime($dt);
-							}
+
+						my $u = $request_uri;
+						$u =~ s/\?/\\?/g;
+						my $copy = $unzipped_body;
+						$copy =~ s/<a href="$u"/<a href="$path"/gi;
+						open(my $fout, '>', $path);
+						print $fout $copy;
+						close $fout;
+						if(my $ttl = $self->{save_to}->{ttl}) {
+							my $dt = DateTime->now();
+							$dt->add(seconds => $ttl);
+							push @{$self->{o}}, 'Expires: ' . DateTime::Format::HTTP->format_datetime($dt);
 						}
 					}
 				}

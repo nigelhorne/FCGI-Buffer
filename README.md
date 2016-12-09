@@ -1,8 +1,9 @@
 [![Linux Build Status](https://travis-ci.org/nigelhorne/FCGI-Buffer.svg?branch=master)](https://travis-ci.org/nigelhorne/FCGI-Buffer)
 [![Windows build status](https://ci.appveyor.com/api/projects/status/vd5loxl1k3dq7ad3?svg=true)](https://ci.appveyor.com/project/nigelhorne/fcgi-buffer)
 [![Dependency Status](https://dependencyci.com/github/nigelhorne/FCGI-Buffer/badge)](https://dependencyci.com/github/nigelhorne/FCGI-Buffer)
+[![Coverage Status](https://coveralls.io/repos/github/nigelhorne/FCGI-Buffer/badge.svg?branch=master)](https://coveralls.io/github/nigelhorne/FCGI-Buffer?branch=master)
 
-# FCGI-Buffer
+# FCGI::Buffer
 
 Verify, Cache and Optimise FCGI Output
 
@@ -96,7 +97,9 @@ Set various options and override default values.
         cache_age => '10 minutes',      # how long to store responses in the cache
         logger => $self->{logger},
         lint_content => 0,      # Pass through HTML::Lint
-        generate_304 => 1,      # Generate 304: Not modified
+        generate_304 => 1,      # When appropriate, generate 304: Not modified
+        save_to => { directory => '/var/www/htdocs/save_to', ttl => 600 },
+        lingua => CGI::Lingua->new(),
     });
 
 If no cache\_key is given, one will be generated which may not be unique.
@@ -110,6 +113,12 @@ used as a server-side cache to reduce the need to rerun database accesses.
 Items stay in the server-side cache by default for 10 minutes.
 This can be overridden by the cache\_control HTTP header in the request, and
 the default can be changed by the cache\_age argument to init().
+
+Save\_to is feature which when enabled stores output of dynamic pages to your
+htdocs tree and replaces future links that point to that page with static links
+to avoid going through CGI at all.  Only use where output is guaranteed to
+be the same with a given set of arguments (the same criteria for enabling
+generate\_304).
 
 Logger will be an object that understands debug() such as an [Log::Log4perl](https://metacpan.org/pod/Log::Log4perl)
 object.
@@ -253,7 +262,7 @@ You can also look for information at:
 
 # ACKNOWLEDGEMENTS
 
-The inspiration and code for some if this is cgi\_buffer by Mark
+The inspiration and code for some of this is cgi\_buffer by Mark
 Nottingham: http://www.mnot.net/cgi\_buffer.
 
 # LICENSE AND COPYRIGHT

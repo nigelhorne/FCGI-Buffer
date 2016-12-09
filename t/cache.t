@@ -2,7 +2,7 @@
 
 use strict;
 use warnings;
-use Test::Most tests => 76;
+use Test::Most tests => 85;
 use Storable;
 use Capture::Tiny ':all';
 use CGI::Info;
@@ -264,6 +264,18 @@ CACHED: {
 
 		ok($body =~ /\/cgi-bin\/test4.cgi/m);
 
+		($stdout, $stderr) = capture { test5() };
+		ok($stderr eq '');
+
+		($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
+
+		ok($headers =~ /Content-type: text\/html; charset=ISO-8859-1/mi);
+		ok($headers =~ /^ETag:\s+.+/m);
+		ok($headers =~ /^Expires: /m);
+
+		ok($body =~ /"$tempdir\/.+\.html"/m);
+
+		$ENV{'REQUEST_URI'} = '/cgi-bin/test5.cgi?fred=wilma';
 		($stdout, $stderr) = capture { test5() };
 		ok($stderr eq '');
 
