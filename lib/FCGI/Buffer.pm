@@ -1325,9 +1325,9 @@ sub _save_to {
 								#	Though optimise_content fixes that
 			$link =~ tr/[\|;]/_/;
 			if($self->{save_to}->{ttl}) {
-				$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE uri = '?' AND creation >= strftime('\%s','now') - " . $self->{save_to}->{ttl};
+				$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE uri = ? AND creation >= strftime('\%s','now') - " . $self->{save_to}->{ttl};
 			} else {
-				$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE key = '?";
+				$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE uri = ?";
 			}
 			my $sth = $dbh->prepare($query);
 			if(!defined($sth)) {
