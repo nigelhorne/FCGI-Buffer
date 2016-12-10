@@ -360,7 +360,6 @@ sub DESTROY {
 		my $cache_hash;
 		my $key = $self->_generate_key();
 
-		# CREATE TABLE fcgi_buffer(key char, path char, creation timestamp);
 		# Cache unzipped version
 		if(!defined($self->{body})) {
 			if($self->{send_body}) {
@@ -1322,7 +1321,8 @@ sub _save_to {
 			next if($link =~ /.html?$/);
 			next if($link =~ /.jpg?$/);
 			next if($link =~ /.gif?$/);
-			# TODO: next if $link is a remote URL
+			next if($link =~ /^https?:\/\//);	# FIXME: skips full URLs to ourself
+								#	Though optimise_content fixes that
 			$link =~ tr/[\|;]/_/;
 			if($self->{save_to}->{ttl}) {
 				$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE uri = '$link' AND creation >= strftime('\%s','now') - " . $self->{save_to}->{ttl};
