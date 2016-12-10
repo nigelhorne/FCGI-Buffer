@@ -1347,7 +1347,13 @@ sub _save_to {
 				}
 			}
 		};
-		if($changes && ((!defined($creation)) || ($creation <= time))) {
+		my $expiration = 0;
+		if(defined($creation) && (my $ttl = $self->{save_to}->{ttl})) {
+			my $dt = DateTime->from_epoch(epoch => $creation);
+			$dt->add(seconds => $ttl);
+			$expiration = $dt->epoch();
+		}
+		if($changes && (($expiration == 0) || ($expiration >= time))) {
 			if($self->{logger}) {
 				# $self->{logger}->debug("$changes links now point to static pages");
 				$self->{logger}->info("$changes links now point to static pages");
@@ -1359,7 +1365,7 @@ sub _save_to {
 				$dt->add(seconds => $ttl);
 				push @{$self->{o}}, 'Expires: ' . DateTime::Format::HTTP->format_datetime($dt);
 			}
-		} elsif(defined($creation) && ($creation > time)) {
+		} elsif($expiration && ($expiration < time)) {
 			if($self->{save_to}->{ttl}) {
 				$query = "DELETE FROM fcgi_buffer WHERE creation >= strftime('\%s','now') - " . $self->{save_to}->{ttl};
 			} else {
@@ -1368,31 +1374,28 @@ sub _save_to {
 			$dbh->prepare($query)->execute();
 			# TODO delete the save_to files
 		} else {
-			# It's possible that this code can no longer be executed
-			if($self->{logger}) {
-				$self->{logger}->info("Entry through dead code, don't delete");
-			}
-			if($self->{save_to}->{ttl}) {
-				$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE key = '$key' AND creation >= strftime('\%s','now') - " . $self->{save_to}->{ttl};
-			} else {
-				$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE key = '$key'";
-			}
-			my $sth = $dbh->prepare($query);
-			$sth->execute();
-			my $href = $sth->fetchrow_hashref();
-			if(my $path = $href->{'path'}) {
-				# FIXME: don't do this is we've passed the TTL, and if we are clean
-				#	up the database and remove the static page
-				$request_uri =~ s/\?/\\?/g;
-				if(($unzipped_body =~ s/<a href="$request_uri"/<a href="$path"/gi) > 0) {
-					$self->{'body'} = $unzipped_body;
-					if(my $ttl = $self->{save_to}->{ttl}) {
-						my $dt = DateTime->from_epoch(epoch => $href->{creation});
-						$dt->add(seconds => $ttl);
-						push @{$self->{o}}, 'Expires: ' . DateTime::Format::HTTP->format_datetime($dt);
-					}
-				}
-			}
+			# Old code
+			# if($self->{save_to}->{ttl}) {
+				# $query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE key = '$key' AND creation >= strftime('\%s','now') - " . $self->{save_to}->{ttl};
+			# } else {
+				# $query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE key = '$key'";
+			# }
+			# my $sth = $dbh->prepare($query);
+			# $sth->execute();
+			# my $href = $sth->fetchrow_hashref();
+			# if(my $path = $href->{'path'}) {
+				# # FIXME: don't do this if we've passed the TTL, and if we are clean
+				# #	up the database and remove the static page
+				# $request_uri =~ s/\?/\\?/g;
+				# if(($unzipped_body =~ s/<a href="$request_uri"/<a href="$path"/gi) > 0) {
+					# $self->{'body'} = $unzipped_body;
+					# if(my $ttl = $self->{save_to}->{ttl}) {
+						# my $dt = DateTime->from_epoch(epoch => $href->{creation});
+						# $dt->add(seconds => $ttl);
+						# push @{$self->{o}}, 'Expires: ' . DateTime::Format::HTTP->format_datetime($dt);
+					# }
+				# }
+			# }
 		}
 	}
 }
