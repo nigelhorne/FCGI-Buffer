@@ -348,8 +348,7 @@ sub DESTROY {
 				mkdir $save_to->{directory};
 			}
 			$dbh = DBI->connect("dbi:SQLite:dbname=$sqlite_file", undef, undef);
-			my $query = 'CREATE TABLE fcgi_buffer(key char, path char, uri char, creation timestamp)';
-			$dbh->prepare($query)->execute();
+			$dbh->prepare('CREATE TABLE fcgi_buffer(key char, path char, uri char, creation timestamp)')->execute();
 		} else {
 			$dbh = DBI->connect("dbi:SQLite:dbname=$sqlite_file", undef, undef);
 		}
@@ -430,9 +429,8 @@ sub DESTROY {
 							my $path = $href->{'path'};
 							unlink($path);
 						}
-						$query = "DELETE FROM fcgi_buffer WHERE KEY = '$key'";
-						$sth = $dbh->prepare($query);
-						$sth->execute();
+						$query = "DELETE FROM fcgi_buffer WHERE key = '$key'";
+						$dbh->prepare($query)->execute();
 					}
 
 					$self->{cache}->remove($key);
@@ -560,8 +558,7 @@ sub DESTROY {
 					my $sth = $dbh->prepare($query);
 					if($sth->execute() <= 0) {
 						$query = "INSERT INTO fcgi_buffer(key, path, uri, creation) VALUES('$key', '$path', '$request_uri', strftime('\%s','now'))";
-						$sth = $dbh->prepare($query);
-						$sth->execute();
+						$dbh->prepare($query)->execute();
 
 						my $u = $request_uri;
 						$u =~ s/\?/\\?/g;
@@ -904,6 +901,7 @@ htdocs tree and replaces future links that point to that page with static links
 to avoid going through CGI at all.
 Ttl is set to the number of seconds that the static pages are deemed to
 be live for, the default is 10 minutes.
+If set to 0, the page is live forever.
 Only use where output is guaranteed to be the same with a given set of arguments
 (the same criteria for enabling generate_304).
 
@@ -960,6 +958,9 @@ sub init {
 	}
 	if(defined($params{save_to})) {
 		$self->{save_to} = $params{save_to};
+		if(!exists($params{save_to})) {
+			$self->{save_to} = 600;
+		}
 	}
 	if(defined($params{info}) && (!defined($self->{info}))) {
 		$self->{info} = $params{info};
@@ -1307,11 +1308,11 @@ sub _check_if_none_match {
 	return 0;
 }
 
+# replace dynamic links with static links
 sub _save_to {
 	my ($self, $unzipped_body, $dbh, $key) = @_;
 
 	if($dbh && $self->{info} && (my $request_uri = ($ENV{'REQUEST_URI'}))) {
-		# replace dynamic links with static links
 		my $query;
 		my $copy = $unzipped_body;
 		my $changes = 0;
@@ -1321,6 +1322,7 @@ sub _save_to {
 			next if($link =~ /.html?$/);
 			next if($link =~ /.jpg?$/);
 			next if($link =~ /.gif?$/);
+			# TODO: next if $link is a remote URL
 			$link =~ tr/[\|;]/_/;
 			if($self->{save_to}->{ttl}) {
 				$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE uri = '$link' AND creation >= strftime('\%s','now') - " . $self->{save_to}->{ttl};
@@ -1354,10 +1356,19 @@ sub _save_to {
 				$dt->add(seconds => $ttl);
 				push @{$self->{o}}, 'Expires: ' . DateTime::Format::HTTP->format_datetime($dt);
 			}
+		} elsif(defined($creation) && ($creation > time)) {
+			if($self->{save_to}->{ttl}) {
+				$query = "DELETE FROM fcgi_buffer WHERE creation >= strftime('\%s','now') - " . $self->{save_to}->{ttl};
+			} else {
+				$query = 'DELETE FROM fcgi_buffer';	# Hmm, I suspect this is overkill
+			}
+			$dbh->prepare($query)->execute();
+			# TODO delete the save_to files
 		} else {
-			# if(defined($creation) && ($creation > time)) {
-				# TODO garbage collect the data and save_to files
-			# }
+			# It's possible that this code can no longer be executed
+			if($self->{logger}) {
+				$self->{logger}->info("Entry through dead code, don't delete");
+			}
 			if($self->{save_to}->{ttl}) {
 				$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE key = '$key' AND creation >= strftime('\%s','now') - " . $self->{save_to}->{ttl};
 			} else {
