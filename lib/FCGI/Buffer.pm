@@ -1318,6 +1318,9 @@ sub _save_to {
 		my $creation;
 		while($unzipped_body =~ /<a\shref="(.+?)"/gis) {
 			my $link = $1;
+			next if($link =~ /.html?$/);
+			next if($link =~ /.jpg?$/);
+			next if($link =~ /.gif?$/);
 			$link =~ tr/[\|;]/_/;
 			if($self->{save_to}->{ttl}) {
 				$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE uri = '$link' AND creation >= strftime('\%s','now') - " . $self->{save_to}->{ttl};
