@@ -1325,9 +1325,9 @@ sub _save_to {
 								#	Though optimise_content fixes that
 			$link =~ tr/[\|;]/_/;
 			if($self->{save_to}->{ttl}) {
-				$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE uri = '$link' AND creation >= strftime('\%s','now') - " . $self->{save_to}->{ttl};
+				$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE uri = '?' AND creation >= strftime('\%s','now') - " . $self->{save_to}->{ttl};
 			} else {
-				$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE key = '$link'";
+				$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE key = '?";
 			}
 			my $sth = $dbh->prepare($query);
 			if(!defined($sth)) {
@@ -1335,7 +1335,7 @@ sub _save_to {
 					$self->{logger}->warn("failed to prepare '$query'");
 				}
 			} else {
-				$sth->execute();
+				$sth->execute($link);
 				my $href = $sth->fetchrow_hashref();
 				if(my $path = $href->{'path'}) {
 					$link =~ s/\?/\\?/g;
