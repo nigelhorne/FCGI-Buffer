@@ -1319,8 +1319,8 @@ sub _save_to {
 		while($unzipped_body =~ /<a\shref="(.+?)"/gis) {
 			my $link = $1;
 			next if($link =~ /.html?$/);
-			next if($link =~ /.jpg?$/);
-			next if($link =~ /.gif?$/);
+			next if($link =~ /.jpg$/);
+			next if($link =~ /.gif$/);
 			next if($link =~ /^https?:\/\//);	# FIXME: skips full URLs to ourself
 								#	Though optimise_content fixes that
 			$link =~ tr/[\|;]/_/;
