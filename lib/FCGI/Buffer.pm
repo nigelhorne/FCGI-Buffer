@@ -1329,18 +1329,21 @@ sub _save_to {
 			} else {
 				$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE key = '$link'";
 			}
-			if($self->{logger}) {
-				$self->{logger}->warn($query);
-			}
 			my $sth = $dbh->prepare($query);
-			$sth->execute();
-			my $href = $sth->fetchrow_hashref();
-			if(my $path = $href->{'path'}) {
-				$link =~ s/\?/\\?/g;
-				$changes += ($copy =~ s/<a\shref="$link">/<a href="$path">/gis);
-				# Find the first link that will expire and use that
-				if((!defined($creation)) || ($href->{'creation'} < $creation)) {
-					$creation = $href->{'creation'};
+			if(!defined($sth)) {
+				if($self->{logger}) {
+					$self->{logger}->warn("failed to prepare '$query'");
+				}
+			} else {
+				$sth->execute();
+				my $href = $sth->fetchrow_hashref();
+				if(my $path = $href->{'path'}) {
+					$link =~ s/\?/\\?/g;
+					$changes += ($copy =~ s/<a\shref="$link">/<a href="$path">/gis);
+					# Find the first link that will expire and use that
+					if((!defined($creation)) || ($href->{'creation'} < $creation)) {
+						$creation = $href->{'creation'};
+					}
 				}
 			}
 		};
