@@ -368,7 +368,7 @@ sub DESTROY {
 				if($dbh) {
 					my $query;
 					if($self->{save_to}->{ttl}) {
-						$query = "SELECT DISTINCT path FROM fcgi_buffer WHERE key = '$key' AND creation >= strftime('%s','now') - " . $self->{save_to}->{ttl};
+						$query = "SELECT DISTINCT path FROM fcgi_buffer WHERE key = '$key' AND creation >= strftime('\%s','now') - " . $self->{save_to}->{ttl};
 					} else {
 						$query = "SELECT DISTINCT path FROM fcgi_buffer WHERE key = '$key'";
 					}
@@ -556,10 +556,10 @@ sub DESTROY {
 						$path = $1; # Untaint
 						$path =~ tr/[\|;]/_/;
 					}
-					my $query = "UPDATE fcgi_buffer SET key = '$key', path = '$path', creation = strftime('%s','now') WHERE key = '$key' AND path = '$path'";
+					my $query = "UPDATE fcgi_buffer SET key = '$key', path = '$path', creation = strftime('\%s','now') WHERE key = '$key' AND path = '$path'";
 					my $sth = $dbh->prepare($query);
 					if($sth->execute() <= 0) {
-						$query = "INSERT INTO fcgi_buffer(key, path, uri, creation) VALUES('$key', '$path', '$request_uri', strftime('%s','now'))";
+						$query = "INSERT INTO fcgi_buffer(key, path, uri, creation) VALUES('$key', '$path', '$request_uri', strftime('\%s','now'))";
 						$sth = $dbh->prepare($query);
 						$sth->execute();
 
@@ -1320,9 +1320,12 @@ sub _save_to {
 			my $link = $1;
 			$link =~ tr/[\|;]/_/;
 			if($self->{save_to}->{ttl}) {
-				$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE uri = '$link' AND creation >= strftime('%s','now') - " . $self->{save_to}->{ttl};
+				$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE uri = '$link' AND creation >= strftime('\%s','now') - " . $self->{save_to}->{ttl};
 			} else {
 				$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE key = '$link'";
+			}
+			if($self->{logger}) {
+				$self->{logger}->warn($query);
 			}
 			my $sth = $dbh->prepare($query);
 			$sth->execute();
@@ -1353,7 +1356,7 @@ sub _save_to {
 				# TODO garbage collect the data and save_to files
 			# }
 			if($self->{save_to}->{ttl}) {
-				$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE key = '$key' AND creation >= strftime('%s','now') - " . $self->{save_to}->{ttl};
+				$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE key = '$key' AND creation >= strftime('\%s','now') - " . $self->{save_to}->{ttl};
 			} else {
 				$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE key = '$key'";
 			}
