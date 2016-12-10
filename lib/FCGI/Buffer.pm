@@ -498,10 +498,10 @@ sub DESTROY {
 				}
 			}
 		} else {
-			$self->_save_to($unzipped_body, $dbh, $key);
-
 			# Not in the server side cache
 			if($self->{status} == 200) {
+				$self->_save_to($unzipped_body, $dbh, $key);
+
 				unless($self->{cache_age}) {
 					# It would be great if CHI::set()
 					# allowed the time to be 'lru' for least
