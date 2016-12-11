@@ -1345,7 +1345,7 @@ sub _save_to {
 				$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE uri = ?";
 			}
 			if($self->{logger}) {
-				$self->{logger}->debug($query);
+				$self->{logger}->debug("$query: $link");
 			}
 			my $sth = $dbh->prepare($query);
 			if(!defined($sth)) {
