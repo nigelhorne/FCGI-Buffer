@@ -1346,13 +1346,19 @@ sub _save_to {
 			next if($link =~ /^https?:\/\//);	# FIXME: skips full URLs to ourself
 								#	Though optimise_content fixes that
 			$link =~ tr/[\|;]/_/;
+
+			my $search_uri = $link;
+			if($search_uri =~ /^\?/) {
+				# CGI script has called itself
+				$search_uri = "${request_uri}${link}";
+			}
 			if($self->{save_to}->{ttl}) {
 				$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE uri = ? AND creation >= strftime('\%s','now') - " . $self->{save_to}->{ttl};
 			} else {
 				$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE uri = ?";
 			}
 			if($self->{logger}) {
-				$self->{logger}->debug("$query: $link");
+				$self->{logger}->debug("$query: $search_uri");
 			}
 			my $sth = $dbh->prepare($query);
 			if(!defined($sth)) {
