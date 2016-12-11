@@ -559,7 +559,7 @@ sub DESTROY {
 					my $query = "SELECT DISTINCT creation FROM fcgi_buffer WHERE key = ?";
 					my $sth = $dbh->prepare($query);
 					if($self->{logger}) {
-						$self->{logger}->debug($query);
+						$self->{logger}->debug("$query: $key");
 					}
 					$sth->execute($key);
 					if(my $href = $sth->fetchrow_hashref()) {
