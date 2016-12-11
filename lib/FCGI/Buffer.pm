@@ -1343,7 +1343,7 @@ sub _save_to {
 			$link =~ tr/[\|;]/_/;
 
 			my $search_uri = $link;
-			if($search_uri =~ /^\?/) {
+			if($request_uri =~ /^\?/) {
 				# CGI script has called itself
 				$search_uri = "${request_uri}${link}";
 			} else {
