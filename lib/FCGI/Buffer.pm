@@ -348,7 +348,7 @@ sub DESTROY {
 				mkdir $save_to->{directory};
 			}
 			$dbh = DBI->connect("dbi:SQLite:dbname=$sqlite_file", undef, undef);
-			$dbh->prepare('CREATE TABLE fcgi_buffer(key char, path char, uri char, creation timestamp)')->execute();
+			$dbh->prepare('CREATE TABLE fcgi_buffer(key char PRIMARY KEY, path char NOT NULL, uri char NOT NULL, creation timestamp NOT NULL)')->execute();
 		} else {
 			$dbh = DBI->connect("dbi:SQLite:dbname=$sqlite_file", undef, undef);
 		}
@@ -375,10 +375,11 @@ sub DESTROY {
 					}
 					my $sth = $dbh->prepare($query);
 					$sth->execute();
-					my $href = $sth->fetchrow_hashref();
-					my $path = $href->{'path'};
-					if($path) {
-						# TODO: replace dynamic links with static links
+					if(my $href = $sth->fetchrow_hashref()) {
+						my $path = $href->{'path'};
+						if($path) {
+							# TODO: replace dynamic links with static links
+						}
 					}
 				}
 				$self->{cobject} = $self->{cache}->get_object($key);
@@ -429,10 +430,9 @@ sub DESTROY {
 						if($self->{logger}) {
 							$self->{logger}->debug($query);
 						}
-						if($sth->execute()) {
-							my $href = $sth->fetchrow_hashref();
+						if($sth->execute() && (my $href = $sth->fetchrow_hashref())) {
 							my $path = $href->{'path'};
-							unlink($path);
+							unlink($path) if($path);
 						}
 						$query = "DELETE FROM fcgi_buffer WHERE key = '$key'";
 						$dbh->prepare($query)->execute();
@@ -556,18 +556,25 @@ sub DESTROY {
 				#		same argument are guaranteed to respond with the same way,
 				#		i.e. the same rules for enabling generate_304
 				if($dbh && $self->{info} && $self->{save_to} && (my $request_uri = $ENV{'REQUEST_URI'})) {
-					my $dir = $self->{save_to}->{directory};
-					my $path = "$dir/" . $self->{info}->as_string() . '.html';
-					if($path =~ /^(.+)$/) {
-						$path = $1; # Untaint
-						$path =~ tr/[\|;]/_/;
-					}
-					my $query = "UPDATE fcgi_buffer SET key = '$key', path = '$path', creation = strftime('\%s','now') WHERE key = '$key' AND path = '$path'";
+					my $query = "SELECT DISTINCT creation FROM fcgi_buffer WHERE key = ?";
 					my $sth = $dbh->prepare($query);
 					if($self->{logger}) {
 						$self->{logger}->debug($query);
 					}
-					if($sth->execute() <= 0) {
+					$sth->execute($key);
+					if(my $href = $sth->fetchrow_hashref()) {
+						if(my $ttl = $self->{save_to}->{ttl}) {
+							my $dt = DateTime->from_epoch(epoch => $href->{'creation'});
+							$dt->add(seconds => $ttl);
+							push @{$self->{o}}, 'Expires: ' . DateTime::Format::HTTP->format_datetime($dt);
+						}
+					} else {
+						my $dir = $self->{save_to}->{directory};
+						my $path = "$dir/" . $self->{info}->as_string() . '.html';
+						if($path =~ /^(.+)$/) {
+							$path = $1; # Untaint
+							$path =~ tr/[\|;]/_/;
+						}
 						$query = "INSERT INTO fcgi_buffer(key, path, uri, creation) VALUES('$key', '$path', '$request_uri', strftime('\%s','now'))";
 						$dbh->prepare($query)->execute();
 						if($self->{logger}) {
@@ -1354,13 +1361,14 @@ sub _save_to {
 				}
 			} else {
 				$sth->execute($link);
-				my $href = $sth->fetchrow_hashref();
-				if(my $path = $href->{'path'}) {
-					$link =~ s/\?/\\?/g;
-					$changes += ($copy =~ s/<a\shref="$link">/<a href="$path">/gis);
-					# Find the first link that will expire and use that
-					if((!defined($creation)) || ($href->{'creation'} < $creation)) {
-						$creation = $href->{'creation'};
+				if(my $href = $sth->fetchrow_hashref()) {
+					if(my $path = $href->{'path'}) {
+						$link =~ s/\?/\\?/g;
+						$changes += ($copy =~ s/<a\shref="$link">/<a href="$path">/gis);
+						# Find the first link that will expire and use that
+						if((!defined($creation)) || ($href->{'creation'} < $creation)) {
+							$creation = $href->{'creation'};
+						}
 					}
 				}
 			}
