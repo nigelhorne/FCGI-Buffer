@@ -370,6 +370,9 @@ sub DESTROY {
 					} else {
 						$query = "SELECT DISTINCT path FROM fcgi_buffer WHERE key = '$key'";
 					}
+					if($self->{logger}) {
+						$self->{logger}->debug($query);
+					}
 					my $sth = $dbh->prepare($query);
 					$sth->execute();
 					my $href = $sth->fetchrow_hashref();
@@ -423,6 +426,9 @@ sub DESTROY {
 					if($dbh) {
 						my $query = "SELECT DISTINCT path FROM fcgi_buffer WHERE key = '$key'";
 						my $sth = $dbh->prepare($query);
+						if($self->{logger}) {
+							$self->{logger}->debug($query);
+						}
 						if($sth->execute()) {
 							my $href = $sth->fetchrow_hashref();
 							my $path = $href->{'path'};
@@ -430,6 +436,9 @@ sub DESTROY {
 						}
 						$query = "DELETE FROM fcgi_buffer WHERE key = '$key'";
 						$dbh->prepare($query)->execute();
+						if($self->{logger}) {
+							$self->{logger}->debug($query);
+						}
 					}
 
 					$self->{cache}->remove($key);
@@ -555,9 +564,15 @@ sub DESTROY {
 					}
 					my $query = "UPDATE fcgi_buffer SET key = '$key', path = '$path', creation = strftime('\%s','now') WHERE key = '$key' AND path = '$path'";
 					my $sth = $dbh->prepare($query);
+					if($self->{logger}) {
+						$self->{logger}->debug($query);
+					}
 					if($sth->execute() <= 0) {
 						$query = "INSERT INTO fcgi_buffer(key, path, uri, creation) VALUES('$key', '$path', '$request_uri', strftime('\%s','now'))";
 						$dbh->prepare($query)->execute();
+						if($self->{logger}) {
+							$self->{logger}->debug($query);
+						}
 
 						my $u = $request_uri;
 						$u =~ s/\?/\\?/g;
@@ -1328,6 +1343,9 @@ sub _save_to {
 				$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE uri = ? AND creation >= strftime('\%s','now') - " . $self->{save_to}->{ttl};
 			} else {
 				$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE uri = ?";
+			}
+			if($self->{logger}) {
+				$self->{logger}->debug($query);
 			}
 			my $sth = $dbh->prepare($query);
 			if(!defined($sth)) {
