@@ -1340,17 +1340,18 @@ sub _save_to {
 		my $creation;
 		while($unzipped_body =~ /<a\shref="(.+?)"/gis) {
 			my $link = $1;
-			next if($link =~ /.html?$/);
-			next if($link =~ /.jpg$/);
-			next if($link =~ /.gif$/);
-			next if($link =~ /^https?:\/\//);	# FIXME: skips full URLs to ourself
-								#	Though optimise_content fixes that
 			$link =~ tr/[\|;]/_/;
 
 			my $search_uri = $link;
 			if($search_uri =~ /^\?/) {
 				# CGI script has called itself
 				$search_uri = "${request_uri}${link}";
+			} else {
+				next if($link =~ /^https?:\/\//);	# FIXME: skips full URLs to ourself
+									#	Though optimise_content fixes that
+				next if($link =~ /.html?$/);
+				next if($link =~ /.jpg$/);
+				next if($link =~ /.gif$/);
 			}
 			if($self->{save_to}->{ttl}) {
 				$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE uri = ? AND creation >= strftime('\%s','now') - " . $self->{save_to}->{ttl};
