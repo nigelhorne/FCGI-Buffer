@@ -20,7 +20,7 @@ WriteMakefile(
 	# 'Test::Kwalitee' => 0,
 	'autodie' => 0,
 	'IPC::System::Simple' => 0,
-	'Test::TempDir::Tiny' => 0,
+	'Test::TempDir::Tiny' => 0.016,
 	'CGI::Lingua' => 0,
     },
     PREREQ_PM => {
