@@ -1343,8 +1343,8 @@ sub _save_to {
 			$link =~ tr/[\|;]/_/;
 
 			my $search_uri = $link;
-			if($request_uri =~ /^\?/) {
-				# CGI script has called itself
+			if($search_uri =~ /^\?/) {
+				# CGI script has links to itself
 				$search_uri = "${request_uri}${link}";
 			} else {
 				next if($link =~ /^https?:\/\//);	# FIXME: skips full URLs to ourself
