@@ -584,11 +584,11 @@ sub DESTROY {
 						my $u = $request_uri;
 						$u =~ s/\?/\\?/g;
 						my $copy = $unzipped_body;
-						$copy =~ s/<a href="$u"/<a href="$path"/gi;
+						my $changes = ($copy =~ s/<a href="$u"/<a href="$path"/gi);;
 						open(my $fout, '>', $path);
 						print $fout $copy;
 						close $fout;
-						if(my $ttl = $self->{save_to}->{ttl}) {
+						if($changes && (my $ttl = $self->{save_to}->{ttl})) {
 							my $dt = DateTime->now();
 							$dt->add(seconds => $ttl);
 							push @{$self->{o}}, 'Expires: ' . DateTime::Format::HTTP->format_datetime($dt);
