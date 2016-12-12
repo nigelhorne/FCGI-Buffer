@@ -6,6 +6,7 @@ use Test::Most tests => 109;
 use Storable;
 use Capture::Tiny ':all';
 use CGI::Info;
+use CGI::Lingua;
 use Test::NoWarnings;
 use autodie qw(:all);
 use Test::TempDir::Tiny;
@@ -212,6 +213,14 @@ CACHED: {
 		ok($1 eq $etag);
 
 		my $tempdir = tempdir();
+		delete $ENV{'LANGUAGE'};
+		delete $ENV{'LC_ALL'};
+		delete $ENV{'LC_MESSAGES'};
+		delete $ENV{'LANG'};
+		if($^O eq 'MSWin32') {
+			$ENV{'IGNORE_WIN32_LOCALE'} = 1;
+		}
+		$ENV{'HTTP_ACCEPT_LANGUAGE'} = 'en-gb,en;q=0.5';
 		my $save_to = {
 			directory => $tempdir,
 			# directory => '/tmp/njh',	# FIXME
@@ -237,6 +246,10 @@ CACHED: {
 			$b->init({
 				cache => $cache,
 				info => new_ok('CGI::Info'),
+				lingua => CGI::Lingua->new(
+					supported => ['en'],
+					dont_use_ip => 1,
+				),
 				save_to => $save_to
 			});
 
@@ -293,6 +306,10 @@ CACHED: {
 
 			$b->init({
 				info => new_ok('CGI::Info'),
+				lingua => CGI::Lingua->new(
+					supported => ['en'],
+					dont_use_ip => 1,
+				),
 				save_to => $save_to
 			});
 
@@ -332,6 +349,10 @@ CACHED: {
 
 			$b->init({
 				info => new_ok('CGI::Info'),
+				lingua => CGI::Lingua->new(
+					supported => ['en'],
+					dont_use_ip => 1,
+				),
 				save_to => $save_to
 			});
 
@@ -346,6 +367,10 @@ CACHED: {
 				"</BODY></HTML>\n";
 
 			ok($b->can_cache() == 1);
+				lingua => CGI::Lingua->new(
+					supported => ['en'],
+					dont_use_ip => 1,
+				),
 		}
 
 		($stdout, $stderr) = capture { test5b() };

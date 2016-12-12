@@ -348,7 +348,7 @@ sub DESTROY {
 				mkdir $save_to->{directory};
 			}
 			$dbh = DBI->connect("dbi:SQLite:dbname=$sqlite_file", undef, undef);
-			$dbh->prepare('CREATE TABLE fcgi_buffer(key char PRIMARY KEY, path char NOT NULL, uri char NOT NULL, creation timestamp NOT NULL)')->execute();
+			$dbh->prepare('CREATE TABLE fcgi_buffer(key char PRIMARY KEY, language char, browser_type char, path char NOT NULL, uri char NOT NULL, creation timestamp NOT NULL)')->execute();
 		} else {
 			$dbh = DBI->connect("dbi:SQLite:dbname=$sqlite_file", undef, undef);
 		}
@@ -570,12 +570,30 @@ sub DESTROY {
 						}
 					} else {
 						my $dir = $self->{save_to}->{directory};
-						my $path = "$dir/" . $self->{info}->as_string() . '.html';
+						my $browser_type = $self->{info}->browser_type();
+						my $language = $self->{lingua}->language();
+						my $bdir = "$dir/$browser_type";
+						if($bdir =~ /^(.+)$/) {
+							$bdir = $1; # Untaint
+						}
+						my $ldir = "$bdir/$language";
+						my $sdir = "$ldir/" . $self->{info}->script_name();
+						if(!-d $bdir) {
+							mkdir $bdir;
+							mkdir $ldir;
+							mkdir $sdir;
+						} elsif(!-d $ldir) {
+							mkdir $ldir;
+							mkdir $sdir;
+						} elsif(!-d $sdir) {
+							mkdir $sdir;
+						}
+						my $path = "$sdir/" . $self->{info}->as_string() . '.html';
 						if($path =~ /^(.+)$/) {
 							$path = $1; # Untaint
 							$path =~ tr/[\|;]/_/;
 						}
-						$query = "INSERT INTO fcgi_buffer(key, path, uri, creation) VALUES('$key', '$path', '$request_uri', strftime('\%s','now'))";
+						$query = "INSERT INTO fcgi_buffer(key, language, browser_type, path, uri, creation) VALUES('$key', '$language', '$browser_type', '$path', '$request_uri', strftime('\%s','now'))";
 						$dbh->prepare($query)->execute();
 						if($self->{logger}) {
 							$self->{logger}->debug($query);
@@ -837,8 +855,8 @@ sub _generate_key {
 
 	my $key = $self->{info}->browser_type() . '::' . $self->{info}->domain_name() . '::' . $self->{info}->script_name() . '::' . $self->{info}->as_string();
 
-	if($self->{_lingua}) {
-		$key .= '::' . $self->{_lingua}->language();
+	if($self->{lingua}) {
+		$key .= '::' . $self->{lingua}->language();
 	}
 	if($ENV{'HTTP_COOKIE'}) {
 		# Different states of the client are stored in different caches
@@ -902,6 +920,7 @@ Set various options and override default values.
 	lint_content => 0,	# Pass through HTML::Lint
 	generate_304 => 1,	# When appropriate, generate 304: Not modified
 	save_to => { directory => '/var/www/htdocs/save_to', ttl => 600 },
+	info => CGI::Info->new(),
 	lingua => CGI::Lingua->new(),
     });
 
@@ -923,8 +942,12 @@ to avoid going through CGI at all.
 Ttl is set to the number of seconds that the static pages are deemed to
 be live for, the default is 10 minutes.
 If set to 0, the page is live forever.
+To enable save_to, a info and lingua arguments must also be given.
 Only use where output is guaranteed to be the same with a given set of arguments
 (the same criteria for enabling generate_304).
+
+Info is an optional argument to give information about the FCGI environment, e.g.
+a L<CGI::Info> object.
 
 Logger will be an object that understands debug() such as an L<Log::Log4perl>
 object.
@@ -972,16 +995,16 @@ sub init {
 		$self->{logger} = $params{logger};
 	}
 	if(defined($params{lingua})) {
-		$self->{_lingua} = $params{lingua};
+		$self->{lingua} = $params{lingua};
+		if(defined($params{save_to})) {
+			$self->{save_to} = $params{save_to};
+			if(!exists($params{save_to})) {
+				$self->{save_to} = 600;
+			}
+		}
 	}
 	if(defined($params{generate_304})) {
 		$self->{generate_304} = $params{generate_304};
-	}
-	if(defined($params{save_to})) {
-		$self->{save_to} = $params{save_to};
-		if(!exists($params{save_to})) {
-			$self->{save_to} = 600;
-		}
 	}
 	if(defined($params{info}) && (!defined($self->{info}))) {
 		$self->{info} = $params{info};
@@ -1357,9 +1380,9 @@ sub _save_to {
 				next if($link =~ /.gif$/);
 			}
 			if($self->{save_to}->{ttl}) {
-				$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE uri = ? AND creation >= strftime('\%s','now') - " . $self->{save_to}->{ttl};
+				$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE uri = ? AND language = ? AND browser_type = ? AND creation >= strftime('\%s','now') - " . $self->{save_to}->{ttl};
 			} else {
-				$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE uri = ?";
+				$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE uri = ? AND language = ? AND browser_type = ?";
 			}
 			if($self->{logger}) {
 				$self->{logger}->debug("$query: $search_uri");
@@ -1370,7 +1393,7 @@ sub _save_to {
 					$self->{logger}->warn("failed to prepare '$query'");
 				}
 			} else {
-				$sth->execute($search_uri);
+				$sth->execute($search_uri, $self->{lingua}->language(), $self->{info}->browser_type());
 				if(my $href = $sth->fetchrow_hashref()) {
 					if(my $path = $href->{'path'}) {
 						$link =~ s/\?/\\?/g;
