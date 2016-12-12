@@ -1333,7 +1333,7 @@ sub _check_if_none_match {
 sub _save_to {
 	my ($self, $unzipped_body, $dbh, $key) = @_;
 
-	if($dbh && $self->{info} && (my $request_uri = ($ENV{'REQUEST_URI'}))) {
+	if($dbh && $self->{info} && (my $request_uri = $ENV{'REQUEST_URI'})) {
 		my $query;
 		my $copy = $unzipped_body;
 		my $changes = 0;
@@ -1345,7 +1345,10 @@ sub _save_to {
 			my $search_uri = $link;
 			if($search_uri =~ /^\?/) {
 				# CGI script has links to itself
-				$search_uri = "${request_uri}${link}";
+				# $search_uri = "${request_uri}${link}";
+				my $r = $request_uri;
+				$r =~ s/\?.*$//;
+				$search_uri = "${r}$link";
 			} else {
 				next if($link =~ /^https?:\/\//);	# FIXME: skips full URLs to ourself
 									#	Though optimise_content fixes that
@@ -1367,7 +1370,7 @@ sub _save_to {
 					$self->{logger}->warn("failed to prepare '$query'");
 				}
 			} else {
-				$sth->execute($link);
+				$sth->execute($search_uri);
 				if(my $href = $sth->fetchrow_hashref()) {
 					if(my $path = $href->{'path'}) {
 						$link =~ s/\?/\\?/g;
