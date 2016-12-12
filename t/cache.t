@@ -271,11 +271,11 @@ CACHED: {
 
 		($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
 
-		ok($headers =~ /Content-type: text\/html; charset=ISO-8859-1/mi);
-		ok($headers =~ /^ETag:\s+.+/m);
-		ok($headers =~ /^Expires: /m);
+		like($headers, qr/Content-type: text\/html; charset=ISO-8859-1/mi, 'HTML output');
+		like($headers, qr/^ETag:\s+.+/m, 'ETag header is present');
+		like($headers, qr/^Expires: /m, 'Expires header is present');
 
-		ok($body =~ /\/cgi-bin\/test4.cgi/m);
+		like($body, qr/\/cgi-bin\/test4.cgi/m, 'Nothing to optimise on first pass');
 
 		($stdout, $stderr) = capture { test5() };
 		ok($stderr eq '');
