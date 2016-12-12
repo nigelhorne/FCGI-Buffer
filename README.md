@@ -99,6 +99,7 @@ Set various options and override default values.
         lint_content => 0,      # Pass through HTML::Lint
         generate_304 => 1,      # When appropriate, generate 304: Not modified
         save_to => { directory => '/var/www/htdocs/save_to', ttl => 600 },
+        info => CGI::Info->new(),
         lingua => CGI::Lingua->new(),
     });
 
@@ -114,11 +115,18 @@ Items stay in the server-side cache by default for 10 minutes.
 This can be overridden by the cache\_control HTTP header in the request, and
 the default can be changed by the cache\_age argument to init().
 
-Save\_to is feature which when enabled stores output of dynamic pages to your
+Save\_to is feature which stores output of dynamic pages to your
 htdocs tree and replaces future links that point to that page with static links
-to avoid going through CGI at all.  Only use where output is guaranteed to
-be the same with a given set of arguments (the same criteria for enabling
-generate\_304).
+to avoid going through CGI at all.
+Ttl is set to the number of seconds that the static pages are deemed to
+be live for, the default is 10 minutes.
+If set to 0, the page is live forever.
+To enable save\_to, a info and lingua arguments must also be given.
+Only use where output is guaranteed to be the same with a given set of arguments
+(the same criteria for enabling generate\_304).
+
+Info is an optional argument to give information about the FCGI environment, e.g.
+a [CGI::Info](https://metacpan.org/pod/CGI::Info) object.
 
 Logger will be an object that understands debug() such as an [Log::Log4perl](https://metacpan.org/pod/Log::Log4perl)
 object.
