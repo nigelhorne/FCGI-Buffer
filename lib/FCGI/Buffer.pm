@@ -607,9 +607,7 @@ sub DESTROY {
 						print $fout $copy;
 						close $fout;
 						if($changes && (my $ttl = $self->{save_to}->{ttl})) {
-							my $dt = DateTime->now();
-							$dt->add(seconds => $ttl);
-							push @{$self->{o}}, 'Expires: ' . DateTime::Format::HTTP->format_datetime($dt);
+							push @{$self->{o}}, 'Expires: ' . DateTime::Format::HTTP->format_datetime(DateTime->now() + DateTime::Duration->new(seconds => $ttl));
 						}
 					}
 				}
