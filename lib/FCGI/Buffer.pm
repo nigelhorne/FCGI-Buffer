@@ -1361,8 +1361,11 @@ sub _save_to {
 		my $copy = $unzipped_body;
 		my $changes = 0;
 		my $creation;
+		my %seen_links;
 		while($unzipped_body =~ /<a\shref="(.+?)"/gis) {
 			my $link = $1;
+			next if($seen_links{$link});	# Already updated in the copy
+			$seen_links{$link} = 1;
 			$link =~ tr/[\|;]/_/;
 
 			my $search_uri = $link;
