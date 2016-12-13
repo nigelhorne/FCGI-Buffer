@@ -358,7 +358,8 @@ CACHED: {
 					dont_use_ip => 1,
 					info => $info,
 				),
-				save_to => $save_to
+				save_to => $save_to,
+				logger => MyLogger->new()
 			});
 
 			ok($b->can_cache() == 1);
@@ -404,6 +405,15 @@ sub new {
 	my $class = ref($proto) || $proto;
 
 	return bless { }, $class;
+}
+
+sub info {
+	my $self = shift;
+	my $message = shift;
+
+	if($ENV{'TEST_VERBOSE'}) {
+		::diag($message);
+	}
 }
 
 sub debug {

@@ -1356,109 +1356,127 @@ sub _check_if_none_match {
 sub _save_to {
 	my ($self, $unzipped_body, $dbh) = @_;
 
-	if($dbh && $self->{info} && (my $request_uri = $ENV{'REQUEST_URI'})) {
-		my $query;
-		my $copy = $unzipped_body;
-		my $changes = 0;
-		my $creation;
-		my %seen_links;
-		while($unzipped_body =~ /<a\shref="(.+?)"/gis) {
-			my $link = $1;
-			next if($seen_links{$link});	# Already updated in the copy
-			$seen_links{$link} = 1;
-			$link =~ tr/[\|;]/_/;
+	return unless($dbh && $self->{info} && (my $request_uri = $ENV{'REQUEST_URI'}));
 
-			my $search_uri = $link;
-			if($search_uri =~ /^\?/) {
-				# CGI script has links to itself
-				# $search_uri = "${request_uri}${link}";
-				my $r = $request_uri;
-				$r =~ s/\?.*$//;
-				$search_uri = "${r}$link";
-			} else {
-				next if($link =~ /^https?:\/\//);	# FIXME: skips full URLs to ourself
-									#	Though optimise_content fixes that
-				next if($link =~ /.html?$/);
-				next if($link =~ /.jpg$/);
-				next if($link =~ /.gif$/);
-			}
-			if($self->{save_to}->{ttl}) {
-				$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE uri = ? AND language = ? AND browser_type = ? AND creation >= strftime('\%s','now') - " . $self->{save_to}->{ttl};
-			} else {
-				$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE uri = ? AND language = ? AND browser_type = ?";
-			}
+	my $query;
+	my $copy = $unzipped_body;
+	my $changes = 0;
+	my $creation;
+	my %seen_links;
+	while($unzipped_body =~ /<a\shref="(.+?)"/gis) {
+		my $link = $1;
+		next if($seen_links{$link});	# Already updated in the copy
+		$seen_links{$link} = 1;
+		$link =~ tr/[\|;]/_/;
+
+		my $search_uri = $link;
+		if($search_uri =~ /^\?/) {
+			# CGI script has links to itself
+			# $search_uri = "${request_uri}${link}";
+			my $r = $request_uri;
+			$r =~ s/\?.*$//;
+			$search_uri = "${r}$link";
+		} else {
+			next if($link =~ /^https?:\/\//);	# FIXME: skips full URLs to ourself
+								#	Though optimise_content fixes that
+			next if($link =~ /.html?$/);
+			next if($link =~ /.jpg$/);
+			next if($link =~ /.gif$/);
+		}
+		if($self->{save_to}->{ttl}) {
+			$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE uri = ? AND language = ? AND browser_type = ? AND creation >= strftime('\%s','now') - " . $self->{save_to}->{ttl};
+		} else {
+			$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE uri = ? AND language = ? AND browser_type = ?";
+		}
+		if($self->{logger}) {
+			$self->{logger}->debug("$query: $search_uri");
+		}
+		my $sth = $dbh->prepare($query);
+		if(!defined($sth)) {
 			if($self->{logger}) {
-				$self->{logger}->debug("$query: $search_uri");
+				$self->{logger}->warn("failed to prepare '$query'");
 			}
-			my $sth = $dbh->prepare($query);
-			if(!defined($sth)) {
-				if($self->{logger}) {
-					$self->{logger}->warn("failed to prepare '$query'");
-				}
-			} else {
-				$sth->execute($search_uri, $self->{lingua}->language(), $self->{info}->browser_type());
-				if(my $href = $sth->fetchrow_hashref()) {
-					if(my $path = $href->{'path'}) {
-						$link =~ s/\?/\\?/g;
-						$changes += ($copy =~ s/<a\shref="$link">/<a href="$path">/gis);
-						# Find the first link that will expire and use that
-						if((!defined($creation)) || ($href->{'creation'} < $creation)) {
-							$creation = $href->{'creation'};
-						}
+		} else {
+			$sth->execute($search_uri, $self->{lingua}->language(), $self->{info}->browser_type());
+			if(my $href = $sth->fetchrow_hashref()) {
+				if(my $path = $href->{'path'}) {
+					$link =~ s/\?/\\?/g;
+					$changes += ($copy =~ s/<a\shref="$link">/<a href="$path">/gis);
+					# Find the first link that will expire and use that
+					if((!defined($creation)) || ($href->{'creation'} < $creation)) {
+						$creation = $href->{'creation'};
 					}
 				}
 			}
-		};
-		my $expiration = 0;
-		if(defined($creation) && (my $ttl = $self->{save_to}->{ttl})) {
+		}
+	};
+	my $expiration = 0;
+	if(defined($creation) && (my $ttl = $self->{save_to}->{ttl})) {
+		my $dt = DateTime->from_epoch(epoch => $creation);
+		$dt->add(seconds => $ttl);
+		$expiration = $dt->epoch();
+	}
+	if($changes && (($expiration == 0) || ($expiration >= time))) {
+		if($self->{logger}) {
+			# $self->{logger}->debug("$changes links now point to static pages");
+			$self->{logger}->info("$changes links now point to static pages");
+		}
+		$unzipped_body = $copy;
+		$self->{'body'} = $unzipped_body;
+		if(my $ttl = $self->{save_to}->{ttl}) {
 			my $dt = DateTime->from_epoch(epoch => $creation);
 			$dt->add(seconds => $ttl);
-			$expiration = $dt->epoch();
+			push @{$self->{o}}, 'Expires: ' . DateTime::Format::HTTP->format_datetime($dt);
 		}
-		if($changes && (($expiration == 0) || ($expiration >= time))) {
-			if($self->{logger}) {
-				# $self->{logger}->debug("$changes links now point to static pages");
-				$self->{logger}->info("$changes links now point to static pages");
+	} elsif($expiration && ($expiration < time)) {
+		# Delete the save_to files
+		if($self->{save_to}->{ttl}) {
+			$query = "SELECT FROM fcgi_buffer WHERE creation >= strftime('\%s','now') - " . $self->{save_to}->{ttl};
+		} else {
+			$query = 'SELECT FROM fcgi_buffer';	# Hmm, I suspect this is overkill
+		}
+		my $sth = $dbh->prepare($query);
+		$sth->execute();
+		while(my $href = $sth->fetchrow_hashref()) {
+			if(my $path = $href->{'path'}) {
+				if($self->{logger}) {
+					$self->{logger}->debug("remove $path");
+				}
+				unlink $path;
 			}
-			$unzipped_body = $copy;
-			$self->{'body'} = $unzipped_body;
-			if(my $ttl = $self->{save_to}->{ttl}) {
-				my $dt = DateTime->from_epoch(epoch => $creation);
-				$dt->add(seconds => $ttl);
-				push @{$self->{o}}, 'Expires: ' . DateTime::Format::HTTP->format_datetime($dt);
-			}
-		} elsif($expiration && ($expiration < time)) {
-			if($self->{save_to}->{ttl}) {
-				$query = "DELETE FROM fcgi_buffer WHERE creation >= strftime('\%s','now') - " . $self->{save_to}->{ttl};
-			} else {
-				$query = 'DELETE FROM fcgi_buffer';	# Hmm, I suspect this is overkill
-			}
-			$dbh->prepare($query)->execute();
-			# TODO delete the save_to files
+		}
+		if($self->{save_to}->{ttl}) {
+			$query = "DELETE FROM fcgi_buffer WHERE creation >= strftime('\%s','now') - " . $self->{save_to}->{ttl};
+		} else {
+			$query = 'DELETE FROM fcgi_buffer';	# Hmm, I suspect this is overkill
+		}
+		if($self->{logger}) {
+			$self->{logger}->debug($query);
+		}
+		$dbh->prepare($query)->execute();
+	# } else {
+		# Old code
+		# if($self->{save_to}->{ttl}) {
+			# $query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE key = '$key' AND creation >= strftime('\%s','now') - " . $self->{save_to}->{ttl};
 		# } else {
-			# Old code
-			# if($self->{save_to}->{ttl}) {
-				# $query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE key = '$key' AND creation >= strftime('\%s','now') - " . $self->{save_to}->{ttl};
-			# } else {
-				# $query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE key = '$key'";
-			# }
-			# my $sth = $dbh->prepare($query);
-			# $sth->execute();
-			# my $href = $sth->fetchrow_hashref();
-			# if(my $path = $href->{'path'}) {
-				# # FIXME: don't do this if we've passed the TTL, and if we are clean
-				# #	up the database and remove the static page
-				# $request_uri =~ s/\?/\\?/g;
-				# if(($unzipped_body =~ s/<a href="$request_uri"/<a href="$path"/gi) > 0) {
-					# $self->{'body'} = $unzipped_body;
-					# if(my $ttl = $self->{save_to}->{ttl}) {
-						# my $dt = DateTime->from_epoch(epoch => $href->{creation});
-						# $dt->add(seconds => $ttl);
-						# push @{$self->{o}}, 'Expires: ' . DateTime::Format::HTTP->format_datetime($dt);
-					# }
+			# $query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE key = '$key'";
+		# }
+		# my $sth = $dbh->prepare($query);
+		# $sth->execute();
+		# my $href = $sth->fetchrow_hashref();
+		# if(my $path = $href->{'path'}) {
+			# # FIXME: don't do this if we've passed the TTL, and if we are clean
+			# #	up the database and remove the static page
+			# $request_uri =~ s/\?/\\?/g;
+			# if(($unzipped_body =~ s/<a href="$request_uri"/<a href="$path"/gi) > 0) {
+				# $self->{'body'} = $unzipped_body;
+				# if(my $ttl = $self->{save_to}->{ttl}) {
+					# my $dt = DateTime->from_epoch(epoch => $href->{creation});
+					# $dt->add(seconds => $ttl);
+					# push @{$self->{o}}, 'Expires: ' . DateTime::Format::HTTP->format_datetime($dt);
 				# }
 			# }
-		}
+		# }
 	}
 }
 
