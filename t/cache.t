@@ -411,3 +411,10 @@ sub debug {
 		::diag($message);
 	}
 }
+
+sub AUTOLOAD {
+	our $AUTOLOAD;
+	my $param = $AUTOLOAD;
+
+	::diag("Need to define $param");
+}
