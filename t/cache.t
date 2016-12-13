@@ -2,7 +2,7 @@
 
 use strict;
 use warnings;
-use Test::Most tests => 109;
+use Test::Most tests => 112;
 use Storable;
 use Capture::Tiny ':all';
 use CGI::Info;
@@ -27,8 +27,8 @@ CACHED: {
 		};
 
 		if($@) {
-			skip 'CHI not installed', 107;
 			diag('CHI required to test caching');
+			skip 'CHI not installed', 110;
 		} else {
 			diag("Using CHI $CHI::VERSION");
 		}
@@ -242,14 +242,16 @@ CACHED: {
 
 		sub test5 {
 			my $b = new_ok('FCGI::Buffer');
+			my $info = new_ok('CGI::Info');
 
 			$b->init({
 				cache => $cache,
-				info => new_ok('CGI::Info'),
-				lingua => CGI::Lingua->new(
+				info => $info,
+				lingua => new_ok('CGI::Lingua' => [
 					supported => ['en'],
 					dont_use_ip => 1,
-				),
+					info => $info,
+				]),
 				save_to => $save_to
 			});
 
@@ -262,8 +264,6 @@ CACHED: {
 				"<BODY><P>The quick brown fox jumped over the lazy dog.</P>",
 				'<A HREF="/cgi-bin/test4.cgi?arg1=a&arg2=b">link</a>',
 				"</BODY></HTML>\n";
-
-			ok($b->can_cache() == 1);
 		}
 
 		($stdout, $stderr) = capture { test5() };
@@ -276,6 +276,10 @@ CACHED: {
 		like($headers, qr/^Expires: /m, 'Expires header is present');
 
 		like($body, qr/\/cgi-bin\/test4.cgi/m, 'Nothing to optimise on first pass');
+		ok($headers =~ /^Content-Length:\s+(\d+)/m);
+		my $length = $1;
+		ok(defined($length));
+		ok(length($body) eq $length);
 
 		($stdout, $stderr) = capture { test5() };
 		ok($stderr eq '');
@@ -322,8 +326,6 @@ CACHED: {
 				"<BODY><P>The quick brown fox jumped over the lazy dog.</P>",
 				'<A HREF="/cgi-bin/test4.cgi?arg1=a&arg2=b">link</a>',
 				"</BODY></HTML>\n";
-
-			ok($b->can_cache() == 1);
 		}
 
 		($stdout, $stderr) = capture { test5a() };
@@ -336,9 +338,10 @@ CACHED: {
 		ok($headers =~ /^Expires: /m);
 
 		ok($body =~ /"$tempdir\/.+\.html"/m);
+		ok($body !~ /"\?arg1=a/m);
 
 		ok($headers =~ /^Content-Length:\s+(\d+)/m);
-		my $length = $1;
+		$length = $1;
 		ok(defined($length));
 		ok(length($body) eq $length);
 
@@ -346,12 +349,14 @@ CACHED: {
 		$ENV{'REQUEST_URI'} = '/cgi-bin/test4.cgi?arg3=c';
 		sub test5b {
 			my $b = new_ok('FCGI::Buffer');
+			my $info = new_ok('CGI::Info');
 
 			$b->init({
-				info => new_ok('CGI::Info'),
+				info => $info,
 				lingua => CGI::Lingua->new(
 					supported => ['en'],
 					dont_use_ip => 1,
+					info => $info,
 				),
 				save_to => $save_to
 			});
@@ -364,13 +369,8 @@ CACHED: {
 				"<HTML><HEAD><TITLE>Hello, world</TITLE></HEAD>",
 				"<BODY><P>The quick brown fox jumped over the lazy dog.</P>",
 				'<A HREF="?arg1=a&arg2=b">link</a>',
+				'<A HREF="?arg1=a&arg2=b">link</a>',
 				"</BODY></HTML>\n";
-
-			ok($b->can_cache() == 1);
-				lingua => CGI::Lingua->new(
-					supported => ['en'],
-					dont_use_ip => 1,
-				),
 		}
 
 		($stdout, $stderr) = capture { test5b() };
@@ -383,6 +383,7 @@ CACHED: {
 		ok($headers =~ /^Expires: /m);
 
 		ok($body =~ /"$tempdir\/.+\.html"/m);
+		ok($body !~ /"\?arg1=a/m);
 
 		ok($headers =~ /^Content-Length:\s+(\d+)/m);
 		$length = $1;
