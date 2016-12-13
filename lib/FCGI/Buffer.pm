@@ -506,7 +506,7 @@ sub DESTROY {
 		} else {
 			# Not in the server side cache
 			if($self->{status} == 200) {
-				$self->_save_to($unzipped_body, $dbh, $key);
+				$self->_save_to($unzipped_body, $dbh);
 
 				unless($self->{cache_age}) {
 					# It would be great if CHI::set()
@@ -646,7 +646,7 @@ sub DESTROY {
 	} elsif($self->{info}) {
 		my $host_name = $self->{info}->host_name();
 		push @{$self->{o}}, ("X-Cache: MISS from $host_name", "X-Cache-Lookup: MISS from $host_name");
-		$self->_save_to($unzipped_body, $dbh, $self->_generate_key());
+		$self->_save_to($unzipped_body, $dbh);
 	} else {
 		push @{$self->{o}}, ('X-Cache: MISS', 'X-Cache-Lookup: MISS');
 	}
@@ -1061,7 +1061,7 @@ sub import {
 	# my $class = shift;
 	shift;
 
-	return unless @_;
+	return unless scalar(@_);
 
 	init(@_);
 }
@@ -1354,7 +1354,7 @@ sub _check_if_none_match {
 
 # replace dynamic links with static links
 sub _save_to {
-	my ($self, $unzipped_body, $dbh, $key) = @_;
+	my ($self, $unzipped_body, $dbh) = @_;
 
 	if($dbh && $self->{info} && (my $request_uri = $ENV{'REQUEST_URI'})) {
 		my $query;
@@ -1435,7 +1435,7 @@ sub _save_to {
 			}
 			$dbh->prepare($query)->execute();
 			# TODO delete the save_to files
-		} else {
+		# } else {
 			# Old code
 			# if($self->{save_to}->{ttl}) {
 				# $query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE key = '$key' AND creation >= strftime('\%s','now') - " . $self->{save_to}->{ttl};

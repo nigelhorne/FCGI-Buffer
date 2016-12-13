@@ -2,7 +2,7 @@
 
 use strict;
 use warnings;
-use Test::Most tests => 112;
+use Test::Most tests => 114;
 use Storable;
 use Capture::Tiny ':all';
 use CGI::Info;
@@ -28,7 +28,7 @@ CACHED: {
 
 		if($@) {
 			diag('CHI required to test caching');
-			skip 'CHI not installed', 110;
+			skip 'CHI not installed', 112;
 		} else {
 			diag("Using CHI $CHI::VERSION");
 		}
@@ -390,6 +390,8 @@ CACHED: {
 		ok(defined($length));
 		ok(length($body) eq $length);
 
+		ok(-r "$tempdir/fcgi.buffer.sql");
+		ok(-d "$tempdir/web/English");
 	}
 }
 

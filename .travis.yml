@@ -19,4 +19,4 @@ install:
   - cpanm -v --installdeps --notest .
 
 script:
-  env && perl Makefile.PL && make && cover -test -report coveralls
+  perl Makefile.PL && make && cover -test -report coveralls
