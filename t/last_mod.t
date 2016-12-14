@@ -104,7 +104,6 @@ LAST_MODIFIED: {
 				ok($dt <= DateTime->now());
 			}
 
-
 			$ENV{'HTTP_IF_MODIFIED_SINCE'} = 'Mon, 13 Jul 2015 15:09:08 GMT';
 			($stdout, $stderr) = capture { writer() };
 

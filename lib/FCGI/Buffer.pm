@@ -8,8 +8,6 @@ use IO::String;
 use CGI::Info;
 use Carp;
 use HTTP::Date;
-use DateTime;
-use DateTime::Format::HTTP;
 use DBI;
 
 =head1 NAME
@@ -565,9 +563,7 @@ sub DESTROY {
 					if(my $href = $sth->fetchrow_hashref()) {
 						if(my $ttl = $self->{save_to}->{ttl}) {
 							push @{$self->{o}}, 'Expires: ' .
-								DateTime::Format::HTTP
-									->format_datetime(DateTime->from_epoch(epoch => $href->{'creation'})
-									->add(seconds => $ttl));
+								HTTP::Date::time2str($href->{'creation'} + $ttl);
 						}
 					} else {
 						my $dir = $self->{save_to}->{directory};
@@ -608,7 +604,7 @@ sub DESTROY {
 						print $fout $copy;
 						close $fout;
 						if($changes && (my $ttl = $self->{save_to}->{ttl})) {
-							push @{$self->{o}}, 'Expires: ' . DateTime::Format::HTTP->format_datetime(DateTime->now()->add(seconds => $ttl));
+							push @{$self->{o}}, 'Expires: ' . HTTP::Date::time2str(time + $ttl);
 						}
 					}
 				}
@@ -1411,7 +1407,7 @@ sub _save_to {
 	};
 	my $expiration = 0;
 	if(defined($creation) && (my $ttl = $self->{save_to}->{ttl})) {
-		$expiration = DateTime->from_epoch(epoch => $creation)->add(seconds => $ttl)->epoch();
+		$expiration = $creation + $ttl;
 	}
 	if($changes && (($expiration == 0) || ($expiration >= time))) {
 		if($self->{logger}) {
@@ -1421,9 +1417,7 @@ sub _save_to {
 		$unzipped_body = $copy;
 		$self->{'body'} = $unzipped_body;
 		if(my $ttl = $self->{save_to}->{ttl}) {
-			push @{$self->{o}}, 'Expires: ' .
-				DateTime::Format::HTTP->format_datetime(DateTime->from_epoch(epoch => $creation)
-					->add(seconds => $ttl));
+			push @{$self->{o}}, 'Expires: ' . HTTP::Date::time2str($creation + $ttl);
 		}
 	} elsif($expiration && ($expiration < time)) {
 		# Delete the save_to files
@@ -1468,9 +1462,7 @@ sub _save_to {
 			# if(($unzipped_body =~ s/<a href="$request_uri"/<a href="$path"/gi) > 0) {
 				# $self->{'body'} = $unzipped_body;
 				# if(my $ttl = $self->{save_to}->{ttl}) {
-					# my $dt = DateTime->from_epoch(epoch => $href->{creation});
-					# $dt->add(seconds => $ttl);
-					# push @{$self->{o}}, 'Expires: ' . DateTime::Format::HTTP->format_datetime($dt);
+					# push @{$self->{o}}, 'Expires: ' . HTTP::Date::time2str($href->{creation} + $ttl);
 				# }
 			# }
 		# }
