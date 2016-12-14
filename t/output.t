@@ -12,7 +12,6 @@ use strict;
 use warnings;
 
 use Test::Most tests => 234;
-use Compress::Zlib;
 use IO::Uncompress::Brotli;
 use DateTime;
 use Capture::Tiny ':all';

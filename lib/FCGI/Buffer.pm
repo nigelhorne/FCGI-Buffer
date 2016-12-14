@@ -1,5 +1,7 @@
 package FCGI::Buffer;
 
+# FIXME: save_to breaks encoding with gzip and others because it doesn't recompress the output
+
 use strict;
 use warnings;
 
@@ -315,6 +317,20 @@ sub DESTROY {
 		}
 	}
 
+	my $dbh;
+	if(my $save_to = $self->{save_to}) {
+		my $sqlite_file = $save_to->{directory} . '/fcgi.buffer.sql';
+		if(!-r $sqlite_file) {
+			if(!-d $save_to->{directory}) {
+				mkdir $save_to->{directory};
+			}
+			$dbh = DBI->connect("dbi:SQLite:dbname=$sqlite_file", undef, undef);
+			$dbh->prepare('CREATE TABLE fcgi_buffer(key char PRIMARY KEY, language char, browser_type char, path char NOT NULL, uri char NOT NULL, creation timestamp NOT NULL)')->execute();
+		} else {
+			$dbh = DBI->connect("dbi:SQLite:dbname=$sqlite_file", undef, undef);
+		}
+	}
+
 	my $encoding = $self->_should_gzip();
 	my $unzipped_body = $self->{body};
 
@@ -336,20 +352,6 @@ sub DESTROY {
 			}
 		}
 		$self->_compress({ encoding => $encoding });
-	}
-
-	my $dbh;
-	if(my $save_to = $self->{save_to}) {
-		my $sqlite_file = $save_to->{directory} . '/fcgi.buffer.sql';
-		if(!-r $sqlite_file) {
-			if(!-d $save_to->{directory}) {
-				mkdir $save_to->{directory};
-			}
-			$dbh = DBI->connect("dbi:SQLite:dbname=$sqlite_file", undef, undef);
-			$dbh->prepare('CREATE TABLE fcgi_buffer(key char PRIMARY KEY, language char, browser_type char, path char NOT NULL, uri char NOT NULL, creation timestamp NOT NULL)')->execute();
-		} else {
-			$dbh = DBI->connect("dbi:SQLite:dbname=$sqlite_file", undef, undef);
-		}
 	}
 
 	if($self->{cache}) {
@@ -599,7 +601,7 @@ sub DESTROY {
 						my $u = $request_uri;
 						$u =~ s/\?/\\?/g;
 						my $copy = $unzipped_body;
-						my $changes = ($copy =~ s/<a href="$u"/<a href="$path"/gi);;
+						my $changes = ($copy =~ s/<a href="$u"/<a href="$path"/gi);
 						open(my $fout, '>', $path);
 						print $fout $copy;
 						close $fout;
@@ -1351,7 +1353,7 @@ sub _check_if_none_match {
 sub _save_to {
 	my ($self, $unzipped_body, $dbh) = @_;
 
-	return unless($dbh && $self->{info} && (my $request_uri = $ENV{'REQUEST_URI'}));
+	return 0 unless($dbh && $self->{info} && (my $request_uri = $ENV{'REQUEST_URI'}));
 
 	my $query;
 	my $copy = $unzipped_body;
@@ -1467,6 +1469,7 @@ sub _save_to {
 			# }
 		# }
 	}
+	return $changes;
 }
 
 =head1 AUTHOR

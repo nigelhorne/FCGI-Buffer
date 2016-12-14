@@ -2,7 +2,7 @@
 
 use strict;
 use warnings;
-use Test::Most tests => 114;
+use Test::Most tests => 116;
 use Storable;
 use Capture::Tiny ':all';
 use CGI::Info;
@@ -10,6 +10,7 @@ use CGI::Lingua;
 use Test::NoWarnings;
 use autodie qw(:all);
 use Test::TempDir::Tiny;
+use Compress::Zlib;
 
 BEGIN {
 	use_ok('FCGI::Buffer');
@@ -180,6 +181,8 @@ CACHED: {
 		$etag = $1;
 		ok(defined($etag));
 		$etag =~ s/\r//;
+
+		ok(Compress::Zlib::memGunzip($body) =~ /<HTML><HEAD><TITLE>Hello, world<\/TITLE><\/HEAD><BODY><P>The quick brown fox jumped over the lazy dog.<\/P><\/BODY><\/HTML>/m);
 
 		$ENV{'HTTP_IF_NONE_MATCH'} = $etag;
 		sub test4a {
@@ -382,6 +385,7 @@ CACHED: {
 		ok($headers =~ /Content-type: text\/html; charset=ISO-8859-1/mi);
 		ok($headers =~ /^ETag:\s+.+/m);
 		ok($headers =~ /^Expires: /m);
+		ok($headers !~ /^Content-Encoding: gzip/m);
 
 		ok($body =~ /"$tempdir\/.+\.html"/m);
 		ok($body !~ /"\?arg1=a/m);
