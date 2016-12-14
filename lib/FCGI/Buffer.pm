@@ -902,8 +902,8 @@ Set various options and override default values.
     # optimise_content and lint_content are OFF.  Set optimise_content to 2 to
     # do aggressive JavaScript optimisations which may fail.
     use FCGI::Buffer;
-    my $buffer = FCGI::Buffer->new();
-    $buffer->init({
+
+    my $buffer = FCGI::Buffer->new()->init({
 	generate_etag => 1,	# make good use of client's cache
 	generate_last_modified => 1,	# more use of client's cache
 	compress_content => 1,	# if gzip the output
