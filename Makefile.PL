@@ -23,6 +23,8 @@ WriteMakefile(
 	'IPC::System::Simple' => 0,
 	'Test::TempDir::Tiny' => 0.016,
 	'CGI::Lingua' => 0,
+	'HTTP::Response' => 0,
+	'HTTP::Headers' => 0,
     },
     PREREQ_PM => {
 	'Carp' => 0,

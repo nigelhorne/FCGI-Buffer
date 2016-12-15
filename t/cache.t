@@ -2,15 +2,16 @@
 
 use strict;
 use warnings;
-use Test::Most tests => 129;
+use Test::Most tests => 130;
 use Storable;
 use Capture::Tiny ':all';
 use CGI::Info;
 use CGI::Lingua;
 use Test::NoWarnings;
 use Test::TempDir::Tiny;
-use Compress::Zlib;
 use autodie qw(:all);
+use HTTP::Response;
+use HTTP::Headers;
 
 BEGIN {
 	use_ok('FCGI::Buffer');
@@ -29,7 +30,7 @@ CACHED: {
 
 		if($@) {
 			diag('CHI required to test caching');
-			skip 'CHI not installed', 127;
+			skip 'CHI not installed', 128;
 		} else {
 			diag("Using CHI $CHI::VERSION");
 		}
@@ -412,7 +413,15 @@ CACHED: {
 		ok(defined($length));
 		ok(length($body) eq $length);
 
-		$body = Compress::Zlib::memGunzip($body);
+		my $h = HTTP::Headers->new();
+		foreach my $header(split(/\r?\n/, $headers)) {
+			my ($key, $value) = split(/:\s?/, $header, 2);
+			$h->header($key => $value);
+		}
+		my $r = HTTP::Response->new(200, 'OK', $h, $body);
+		ok($h->content_encoding() eq 'gzip');
+
+		$body = $r->decoded_content();
 		ok($body =~ /"$tempdir\/.+\.html"/m);
 		ok($body !~ /"\?arg1=a/m);
 
