@@ -2,15 +2,15 @@
 
 use strict;
 use warnings;
-use Test::Most tests => 116;
+use Test::Most tests => 129;
 use Storable;
 use Capture::Tiny ':all';
 use CGI::Info;
 use CGI::Lingua;
 use Test::NoWarnings;
-use autodie qw(:all);
 use Test::TempDir::Tiny;
 use Compress::Zlib;
+use autodie qw(:all);
 
 BEGIN {
 	use_ok('FCGI::Buffer');
@@ -29,7 +29,7 @@ CACHED: {
 
 		if($@) {
 			diag('CHI required to test caching');
-			skip 'CHI not installed', 112;
+			skip 'CHI not installed', 127;
 		} else {
 			diag("Using CHI $CHI::VERSION");
 		}
@@ -394,6 +394,27 @@ CACHED: {
 		$length = $1;
 		ok(defined($length));
 		ok(length($body) eq $length);
+
+		# Check zipping returns save_to correctly
+		$ENV{'HTTP_ACCEPT_ENCODING'} = 'gzip';
+		($stdout, $stderr) = capture { test5b() };
+		ok($stderr eq '');
+
+		($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
+
+		ok($headers =~ /Content-type: text\/html; charset=ISO-8859-1/mi);
+		ok($headers =~ /^ETag:\s+.+/m);
+		ok($headers =~ /^Expires: /m);
+		ok($headers =~ /^Content-Encoding: gzip/m);
+
+		ok($headers =~ /^Content-Length:\s+(\d+)/m);
+		$length = $1;
+		ok(defined($length));
+		ok(length($body) eq $length);
+
+		$body = Compress::Zlib::memGunzip($body);
+		ok($body =~ /"$tempdir\/.+\.html"/m);
+		ok($body !~ /"\?arg1=a/m);
 
 		ok(-r "$tempdir/fcgi.buffer.sql");
 		ok(-d "$tempdir/web/English");

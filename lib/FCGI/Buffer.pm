@@ -1,7 +1,5 @@
 package FCGI::Buffer;
 
-# FIXME: save_to breaks encoding with gzip and others because it doesn't recompress the output
-
 use strict;
 use warnings;
 
@@ -506,7 +504,7 @@ sub DESTROY {
 		} else {
 			# Not in the server side cache
 			if($self->{status} == 200) {
-				$self->_save_to($unzipped_body, $dbh);
+				my $changes = $self->_save_to($unzipped_body, $dbh);
 
 				unless($self->{cache_age}) {
 					# It would be great if CHI::set()
@@ -515,6 +513,9 @@ sub DESTROY {
 					$self->{cache_age} = '10 minutes';
 				}
 				$cache_hash->{'body'} = $unzipped_body;
+				if($changes && $encoding) {
+					$self->_compress({ encoding => $encoding });
+				}
 				if($self->{o} && scalar(@{$self->{o}})) {
 					# Remember, we're storing the UNzipped
 					# version in the cache
@@ -643,7 +644,9 @@ sub DESTROY {
 	} elsif($self->{info}) {
 		my $host_name = $self->{info}->host_name();
 		push @{$self->{o}}, ("X-Cache: MISS from $host_name", "X-Cache-Lookup: MISS from $host_name");
-		$self->_save_to($unzipped_body, $dbh);
+		if($self->_save_to($unzipped_body, $dbh) && $encoding) {
+			$self->_compress({ encoding => $encoding });
+		}
 	} else {
 		push @{$self->{o}}, ('X-Cache: MISS', 'X-Cache-Lookup: MISS');
 	}
