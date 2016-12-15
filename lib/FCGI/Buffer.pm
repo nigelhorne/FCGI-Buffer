@@ -996,7 +996,7 @@ sub init {
 	}
 	if(defined($params{lingua})) {
 		$self->{lingua} = $params{lingua};
-		if(defined($params{save_to})) {
+		if(defined($params{save_to}) && $self->can_cache()) {
 			$self->{save_to} = $params{save_to};
 			if(!exists($params{save_to})) {
 				$self->{save_to} = 600;
