@@ -1239,10 +1239,6 @@ sub _my_age {
 sub _should_gzip {
 	my $self = shift;
 
-	if(defined($self->{send_body}) && ($self->{send_body} == 0)) {
-		return '';
-	}
-
 	if($self->{compress_content} && ($ENV{'HTTP_ACCEPT_ENCODING'} || $ENV{'HTTP_TE'})) {
 		if(defined($self->{content_type})) {
 			my @content_type = @{$self->{content_type}};

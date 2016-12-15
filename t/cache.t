@@ -2,7 +2,7 @@
 
 use strict;
 use warnings;
-use Test::Most tests => 130;
+use Test::Most tests => 139;
 use Storable;
 use Capture::Tiny ':all';
 use CGI::Info;
@@ -30,7 +30,7 @@ CACHED: {
 
 		if($@) {
 			diag('CHI required to test caching');
-			skip 'CHI not installed', 128;
+			skip 'CHI not installed', 137;
 		} else {
 			diag("Using CHI $CHI::VERSION");
 		}
@@ -424,6 +424,20 @@ CACHED: {
 		$body = $r->decoded_content();
 		ok($body =~ /"$tempdir\/.+\.html"/m);
 		ok($body !~ /"\?arg1=a/m);
+
+		$ENV{'REQUEST_METHOD'} = 'HEAD';
+		$ENV{'HTTP_ACCEPT_ENCODING'} = 'gzip';
+		($stdout, $stderr) = capture { test5b() };
+		ok($stderr eq '');
+
+		($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
+
+		ok($headers =~ /Content-type: text\/html; charset=ISO-8859-1/mi);
+		ok($headers =~ /^ETag:\s+.+/m);
+		ok($headers =~ /^Expires: /m);
+		ok($headers =~ /^Content-Encoding: gzip/m);
+
+		ok($body eq '');
 
 		ok(-r "$tempdir/fcgi.buffer.sql");
 		ok(-d "$tempdir/web/English");
