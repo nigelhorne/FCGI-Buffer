@@ -217,6 +217,8 @@ CACHED: {
 		ok($1 eq $etag);
 
 		my $tempdir = tempdir();
+		$ENV{'DOCUMENT_ROOT'} = $tempdir;
+
 		delete $ENV{'LANGUAGE'};
 		delete $ENV{'LC_ALL'};
 		delete $ENV{'LC_MESSAGES'};
@@ -294,7 +296,7 @@ CACHED: {
 		ok($headers =~ /^ETag:\s+.+/m);
 		ok($headers =~ /^Expires: /m);
 
-		ok($body =~ /"$tempdir\/.+\.html"/m);
+		ok($body =~ /"\/web\/English\/cache.t\/.+\.html"/m);
 
 		$ENV{'REQUEST_URI'} = '/cgi-bin/test5.cgi?fred=wilma';
 		($stdout, $stderr) = capture { test5() };
@@ -306,7 +308,7 @@ CACHED: {
 		ok($headers =~ /^ETag:\s+.+/m);
 		ok($headers =~ /^Expires: /m);
 
-		ok($body =~ /"$tempdir\/.+\.html"/m);
+		ok($body =~ /"\/web\/English\/cache.t\/.+\.html"/m);
 
 		# no cache argument to init()
 		sub test5a {
@@ -341,7 +343,7 @@ CACHED: {
 		ok($headers =~ /^ETag:\s+.+/m);
 		ok($headers =~ /^Expires: /m);
 
-		ok($body =~ /"$tempdir\/.+\.html"/m);
+		ok($body =~ /"\/web\/English\/cache.t\/.+\.html"/m);
 		ok($body !~ /"\?arg1=a/m);
 
 		ok($headers =~ /^Content-Length:\s+(\d+)/m);
@@ -388,7 +390,7 @@ CACHED: {
 		ok($headers =~ /^Expires: /m);
 		ok($headers !~ /^Content-Encoding: gzip/m);
 
-		ok($body =~ /"$tempdir\/.+\.html"/m);
+		ok($body =~ /"\/web\/English\/cache.t\/.+\.html"/m);
 		ok($body !~ /"\?arg1=a/m);
 
 		ok($headers =~ /^Content-Length:\s+(\d+)/m);
@@ -422,7 +424,7 @@ CACHED: {
 		ok($h->content_encoding() eq 'gzip');
 
 		$body = $r->decoded_content();
-		ok($body =~ /"$tempdir\/.+\.html"/m);
+		ok($body =~ /"\/web\/English\/cache.t\/.+\.html"/m);
 		ok($body !~ /"\?arg1=a/m);
 
 		$ENV{'REQUEST_METHOD'} = 'HEAD';

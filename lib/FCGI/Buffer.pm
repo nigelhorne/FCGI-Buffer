@@ -1404,6 +1404,8 @@ sub _save_to {
 			if(my $href = $sth->fetchrow_hashref()) {
 				if(my $path = $href->{'path'}) {
 					$link =~ s/\?/\\?/g;
+					my $rootdir = $self->{info}->rootdir();
+					$path =~ s/^$rootdir//;
 					$changes += ($copy =~ s/<a\shref="$link">/<a href="$path">/gis);
 					# Find the first link that will expire and use that
 					if((!defined($creation)) || ($href->{'creation'} < $creation)) {
