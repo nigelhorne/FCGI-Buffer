@@ -406,7 +406,7 @@ CACHED: {
 		ok($headers =~ /Content-type: text\/html; charset=ISO-8859-1/mi);
 		ok($headers =~ /^ETag:\s+.+/m);
 		ok($headers =~ /^Expires: /m);
-		ok($headers =~ /^Content-Encoding: gzip/m);
+		like($headers, qr/^Content-Encoding:\sgzip\r?$/m, 'Contains content-encoding gzip header');
 
 		ok($headers =~ /^Content-Length:\s+(\d+)/m);
 		$length = $1;
@@ -435,7 +435,7 @@ CACHED: {
 		ok($headers =~ /Content-type: text\/html; charset=ISO-8859-1/mi);
 		ok($headers =~ /^ETag:\s+.+/m);
 		ok($headers =~ /^Expires: /m);
-		ok($headers =~ /^Content-Encoding: gzip/m);
+		like($headers, qr/^Content-Encoding:\sgzip\r?$/m, 'Contains content-encoding gzip header');
 
 		ok($body eq '');
 
