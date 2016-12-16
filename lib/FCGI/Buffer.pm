@@ -603,6 +603,7 @@ sub DESTROY {
 						my $copy = $unzipped_body;
 						my $changes = ($copy =~ s/<a\s+href="$u"/<a href="$path"/gi);
 						# handle <a href="?arg3=4">Call self with different args</a>
+						$script_name = $ENV{'SCRIPT_NAME'};
 						$copy =~ s/<a\s+href="(\\?.+?)"/<a href="$script_name$1"/gi;
 						open(my $fout, '>', $path);
 						print $fout $copy;

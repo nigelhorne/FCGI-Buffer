@@ -12,6 +12,7 @@ use Test::TempDir::Tiny;
 use autodie qw(:all);
 use HTTP::Response;
 use HTTP::Headers;
+use Cwd;
 
 BEGIN {
 	use_ok('FCGI::Buffer');
@@ -186,6 +187,7 @@ CACHED: {
 		ok(Compress::Zlib::memGunzip($body) =~ /<HTML><HEAD><TITLE>Hello, world<\/TITLE><\/HEAD><BODY><P>The quick brown fox jumped over the lazy dog.<\/P><\/BODY><\/HTML>/m);
 
 		$ENV{'HTTP_IF_NONE_MATCH'} = $etag;
+		$ENV{'SCRIPT_FILENAME'} = Cwd::abs_path($0);
 		sub test4a {
 			my $b = new_ok('FCGI::Buffer');
 
@@ -236,6 +238,7 @@ CACHED: {
 		# Check if static links have been put in
 		delete $ENV{'HTTP_IF_NONE_MATCH'};
 		$ENV{'REQUEST_URI'} = '/cgi-bin/test4.cgi?arg1=a&arg2=b';
+		$ENV{'SCRIPT_NAME'} = '/cgi-bin/test4.cgi';
 		$ENV{'QUERY_STRING'} = 'arg1=a&arg2=b';
 		delete $ENV{'HTTP_ACCEPT_ENCODING'};
 
@@ -296,8 +299,9 @@ CACHED: {
 		ok($headers =~ /^ETag:\s+.+/m);
 		ok($headers =~ /^Expires: /m);
 
-		ok($body =~ /"\/web\/English\/cache.t\/.+\.html"/m);
+		ok($body =~ /"\/web\/English\/test4.cgi\/.+\.html"/m);
 
+		$ENV{'SCRIPT_NAME'} = '/cgi-bin/test5.cgi';
 		$ENV{'REQUEST_URI'} = '/cgi-bin/test5.cgi?fred=wilma';
 		($stdout, $stderr) = capture { test5() };
 		ok($stderr eq '');
@@ -308,7 +312,7 @@ CACHED: {
 		ok($headers =~ /^ETag:\s+.+/m);
 		ok($headers =~ /^Expires: /m);
 
-		ok($body =~ /"\/web\/English\/cache.t\/.+\.html"/m);
+		ok($body =~ /"\/web\/English\/test4.cgi\/.+\.html"/m);
 
 		# no cache argument to init()
 		sub test5a {
@@ -343,7 +347,7 @@ CACHED: {
 		ok($headers =~ /^ETag:\s+.+/m);
 		ok($headers =~ /^Expires: /m);
 
-		ok($body =~ /"\/web\/English\/cache.t\/.+\.html"/m);
+		ok($body =~ /"\/web\/English\/test4.cgi\/.+\.html"/m);
 		ok($body !~ /"\?arg1=a/m);
 
 		ok($headers =~ /^Content-Length:\s+(\d+)/m);
@@ -352,6 +356,7 @@ CACHED: {
 		ok(length($body) eq $length);
 
 		# Calling self
+		$ENV{'SCRIPT_NAME'} = '/cgi-bin/test4.cgi';
 		$ENV{'REQUEST_URI'} = '/cgi-bin/test4.cgi?arg3=c';
 		sub test5b {
 			my $b = new_ok('FCGI::Buffer');
@@ -390,7 +395,7 @@ CACHED: {
 		ok($headers =~ /^Expires: /m);
 		ok($headers !~ /^Content-Encoding: gzip/m);
 
-		ok($body =~ /"\/web\/English\/cache.t\/.+\.html"/m);
+		ok($body =~ /"\/web\/English\/test4.cgi\/.+\.html"/m);
 		ok($body !~ /"\?arg1=a/m);
 
 		ok($headers =~ /^Content-Length:\s+(\d+)/m);
@@ -424,7 +429,7 @@ CACHED: {
 		ok($h->content_encoding() eq 'gzip');
 
 		$body = $r->decoded_content();
-		ok($body =~ /"\/web\/English\/cache.t\/.+\.html"/m);
+		ok($body =~ /"\/web\/English\/test4.cgi\/.+\.html"/m);
 		ok($body !~ /"\?arg1=a/m);
 
 		$ENV{'REQUEST_METHOD'} = 'HEAD';
