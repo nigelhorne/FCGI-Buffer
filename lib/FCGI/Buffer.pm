@@ -1434,7 +1434,7 @@ sub _save_to {
 	} elsif($expiration && ($expiration < time)) {
 		# Delete the save_to files
 		if($self->{save_to}->{ttl}) {
-			$query = "SELECT FROM fcgi_buffer WHERE creation >= strftime('\%s','now') - " . $self->{save_to}->{ttl};
+			$query = "SELECT FROM fcgi_buffer WHERE creation < strftime('\%s','now') - " . $self->{save_to}->{ttl};
 		} else {
 			$query = 'SELECT FROM fcgi_buffer';	# Hmm, I suspect this is overkill
 		}
@@ -1449,7 +1449,7 @@ sub _save_to {
 			}
 		}
 		if($self->{save_to}->{ttl}) {
-			$query = "DELETE FROM fcgi_buffer WHERE creation >= strftime('\%s','now') - " . $self->{save_to}->{ttl};
+			$query = "DELETE FROM fcgi_buffer WHERE creation < strftime('\%s','now') - " . $self->{save_to}->{ttl};
 		} else {
 			$query = 'DELETE FROM fcgi_buffer';	# Hmm, I suspect this is overkill
 		}
