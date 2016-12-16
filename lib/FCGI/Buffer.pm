@@ -3,6 +3,8 @@ package FCGI::Buffer;
 use strict;
 use warnings;
 
+# FIXME: save_to treats ?arg1=a&arg2=b and ?arg2=b&arg1=a as different
+
 use Digest::MD5;
 use IO::String;
 use CGI::Info;
@@ -602,10 +604,10 @@ sub DESTROY {
 						my $u = $request_uri;
 						$u =~ s/\?/\\?/g;
 						my $copy = $unzipped_body;
-						my $changes = ($copy =~ s/<a href="$u"/<a href="$path"/gi);
+						my $changes = ($copy =~ s/<a\s+href="$u"/<a href="$path"/gi);
 						# handle <a href="?arg3=4">Call self with different args</a>
 						my $script_name = $self->{info}->script_name();
-						$copy =~ s/<a href="(\\?.+?)"/<a href="$script_name$1"/gi;
+						$copy =~ s/<a\s+href="(\\?.+?)"/<a href="$script_name$1"/gi;
 						open(my $fout, '>', $path);
 						print $fout $copy;
 						close $fout;
@@ -1409,7 +1411,7 @@ sub _save_to {
 					$link =~ s/\?/\\?/g;
 					my $rootdir = $self->{info}->rootdir();
 					$path =~ s/^$rootdir//;
-					$changes += ($copy =~ s/<a\shref="$link">/<a href="$path">/gis);
+					$changes += ($copy =~ s/<a\s+href="$link">/<a href="$path">/gis);
 					# Find the first link that will expire and use that
 					if((!defined($creation)) || ($href->{'creation'} < $creation)) {
 						$creation = $href->{'creation'};
