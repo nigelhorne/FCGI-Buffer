@@ -554,10 +554,6 @@ sub DESTROY {
 
 				# Create a static page with the information and link to that in the output
 				# HTML
-				# TODO:	pruning of old data
-				#	Note in documentation that this only works when all calls with the
-				#		same argument are guaranteed to respond with the same way,
-				#		i.e. the same rules for enabling generate_304
 				if($dbh && $self->{info} && $self->{save_to} && (my $request_uri = $ENV{'REQUEST_URI'})) {
 					my $query = "SELECT DISTINCT creation FROM fcgi_buffer WHERE key = ?";
 					my $sth = $dbh->prepare($query);
@@ -579,7 +575,8 @@ sub DESTROY {
 							$bdir = $1; # Untaint
 						}
 						my $ldir = "$bdir/$language";
-						my $sdir = "$ldir/" . $self->{info}->script_name();
+						my $script_name = $self->{info}->script_name();
+						my $sdir = "$ldir/$script_name";
 						if(!-d $bdir) {
 							mkdir $bdir;
 							mkdir $ldir;
@@ -606,7 +603,6 @@ sub DESTROY {
 						my $copy = $unzipped_body;
 						my $changes = ($copy =~ s/<a\s+href="$u"/<a href="$path"/gi);
 						# handle <a href="?arg3=4">Call self with different args</a>
-						my $script_name = $self->{info}->script_name();
 						$copy =~ s/<a\s+href="(\\?.+?)"/<a href="$script_name$1"/gi;
 						open(my $fout, '>', $path);
 						print $fout $copy;
