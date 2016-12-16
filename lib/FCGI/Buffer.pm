@@ -601,6 +601,10 @@ sub DESTROY {
 
 						my $u = $request_uri;
 						$u =~ s/\?/\\?/g;
+						# handle <a href="?arg3=4">Call self with different args</a>
+						if($request_uri =~ /^\?/) {
+							$path = $self->{info}->script_name . $path;
+						}
 						my $copy = $unzipped_body;
 						my $changes = ($copy =~ s/<a href="$u"/<a href="$path"/gi);
 						open(my $fout, '>', $path);
