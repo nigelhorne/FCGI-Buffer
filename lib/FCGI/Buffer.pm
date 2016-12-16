@@ -605,7 +605,7 @@ sub DESTROY {
 						my $changes = ($copy =~ s/<a href="$u"/<a href="$path"/gi);
 						# handle <a href="?arg3=4">Call self with different args</a>
 						my $script_name = $self->{info}->script_name();
-						$copy =~ s/<a href="(\\?.+?)"/<a href="$script_name$1">/gi;
+						$copy =~ s/<a href="(\\?.+?)"/<a href="$script_name$1"/gi;
 						open(my $fout, '>', $path);
 						print $fout $copy;
 						close $fout;
