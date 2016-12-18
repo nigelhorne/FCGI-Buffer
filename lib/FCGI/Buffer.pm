@@ -228,6 +228,15 @@ sub DESTROY {
 				$self->{body} =~ s/<a\s+?href="$protocol:\/\/$href"/<a href="\/"/gim;
 				$self->{body} =~ s/<a\s+?href="$protocol:\/\/$href/<a href="/gim;
 
+				# If we're in "/cgi-bin/foo.cgi?arg1=a" replace
+				# "/cgi-bin/foo.cgi?arg2=b" with "?arg2=b"
+
+				if(my $script_name = $ENV{'SCRIPT_NAME'}) {
+					if($script_name =~ /^\//) {
+						$self->{body} =~ s/<a\s+?href="$script_name(\?.+)?"/<a href="$1"/gim;
+					}
+				}
+
 				# TODO use URI->path_segments to change links in
 				# /aa/bb/cc/dd.htm which point to /aa/bb/ff.htm to
 				# ../ff.htm

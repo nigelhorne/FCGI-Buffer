@@ -11,7 +11,7 @@
 use strict;
 use warnings;
 
-use Test::Most tests => 234;
+use Test::Most tests => 243;
 use IO::Uncompress::Brotli;
 use DateTime;
 use Capture::Tiny ':all';
@@ -289,6 +289,32 @@ OUTPUT: {
 	ok(length($body) eq $length);
 	ok($headers !~ /^Status: 500/m);
 	ok($body =~ /<hr>A Line<hr>Foo/);
+	ok($body =~ /<A HREF="\/foo\.htm">Click<\/a>/i);
+
+	# Optimise to self referring CGIs
+	#..........................................
+	$ENV{'SCRIPT_NAME'} = '/cgi-bin/foo.fcgi';
+	sub test9a {
+		my $b = new_ok('FCGI::Buffer');
+
+		$b->init(optimise_content => 1);
+
+		print "Content-type: text/html; charset=ISO-8859-1\n\n";
+		print "<HTML><BODY><A HREF=\"http://www.example.com/cgi-bin/foo.fcgi?arg2=b\">Click</a> <hr> A Line \n<HR>\r\n Foo</BODY></HTML>\n";
+	}
+
+	($stdout, $stderr) = capture { test9a() };
+
+	ok($stderr eq '');
+
+	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
+	ok($headers =~ /^Content-Length:\s+(\d+)/m);
+	$length = $1;
+	ok(defined($length));
+	ok(length($body) eq $length);
+	ok($headers !~ /^Status: 500/m);
+	ok($body =~ /<hr>A Line<hr>Foo/);
+	ok($body =~ /<A HREF="\?arg2=b">Click<\/a>/i);
 
 	#..........................................
 	# Space left intact after </em>
