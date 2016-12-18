@@ -1524,6 +1524,10 @@ L<Log::Log4Perl>, if you're using that, so that any messages it
 produces are printed after the HTTP headers have been sent by
 FCGI::Buffer;
 
+Save_to doesn't understand links in JavaScript, which means that if you use self-calling
+CGIs which are loaded as a static page they may point to the wrong place.
+The workaround is to avoid self-calling CGIs in JavaScript
+
 Please report any bugs or feature requests to C<bug-fcgi-buffer at rt.cpan.org>,
 or through the web interface at L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=FCGI-Buffer>.
 I will be notified, and then you'll automatically be notified of progress on
