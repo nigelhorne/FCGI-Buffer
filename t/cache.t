@@ -2,7 +2,7 @@
 
 use strict;
 use warnings;
-use Test::Most tests => 139;
+use Test::Most tests => 145;
 use Storable;
 use Capture::Tiny ':all';
 use CGI::Info;
@@ -31,7 +31,7 @@ CACHED: {
 
 		if($@) {
 			diag('CHI required to test caching');
-			skip 'CHI not installed', 137;
+			skip 'CHI not installed', 143;
 		} else {
 			diag("Using CHI $CHI::VERSION");
 		}
@@ -447,7 +447,48 @@ CACHED: {
 		ok($body eq '');
 
 		ok(-r "$tempdir/fcgi.buffer.sql");
-		ok(-d "$tempdir/web/English");
+		ok(-d "$tempdir/web/English/test4.cgi");
+		ok(-d "$tempdir/web/English/test5.cgi");
+
+		# ...............................
+		$ENV{'SCRIPT_NAME'} = '/cgi-bin/foo.cgi';
+		$ENV{'REQUEST_URI'} = '/cgi-bin/foo.cgi?arg1=a';
+		$ENV{'REQUEST_METHOD'} = 'GET';
+		delete $ENV{'HTTP_ACCEPT_ENCODING'};
+
+		sub test6 {
+			my $b = new_ok('FCGI::Buffer');
+			my $info = new_ok('CGI::Info');
+
+			$b->init({
+				info => $info,
+				lingua => CGI::Lingua->new(
+					supported => ['en'],
+					dont_use_ip => 1,
+					info => $info,
+				),
+				save_to => $save_to,
+				logger => MyLogger->new(),
+				optimise_content => 1,
+			});
+
+			ok($b->can_cache() == 1);
+
+			print "Content-type: text/html; charset=ISO-8859-1\n\n";
+
+			print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\n",
+				"<HTML><HEAD><TITLE>Hello, world</TITLE></HEAD>",
+				"<BODY>",
+				'<A HREF="/cgi-bin/foo.cgi?arg2=b">link</a>',
+				"</BODY></HTML>\n";
+		}
+
+		($stdout, $stderr) = capture { test6() };
+		ok($stderr eq '');
+
+		($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
+
+		ok($body =~ /<a href="\?arg2=b">link<\/a>/mi);
 	}
 }
 
@@ -463,6 +504,15 @@ sub new {
 }
 
 sub info {
+	my $self = shift;
+	my $message = shift;
+
+	if($ENV{'TEST_VERBOSE'}) {
+		::diag($message);
+	}
+}
+
+sub trace {
 	my $self = shift;
 	my $message = shift;
 

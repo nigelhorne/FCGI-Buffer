@@ -601,24 +601,29 @@ sub DESTROY {
 							$path = $1; # Untaint
 							$path =~ tr/[\|;]/_/;
 						}
-						$query = "INSERT INTO fcgi_buffer(key, language, browser_type, path, uri, creation) VALUES('$key', '$language', '$browser_type', '$path', '$request_uri', strftime('\%s','now'))";
-						$dbh->prepare($query)->execute();
-						if($self->{logger}) {
-							$self->{logger}->debug($query);
-						}
+						if(open(my $fout, '>', $path)) {
+							my $u = $request_uri;
+							$u =~ s/\?/\\?/g;
+							my $copy = $unzipped_body;
+							my $changes = ($copy =~ s/<a\s+href="$u"/<a href="$path"/gi);
 
-						my $u = $request_uri;
-						$u =~ s/\?/\\?/g;
-						my $copy = $unzipped_body;
-						my $changes = ($copy =~ s/<a\s+href="$u"/<a href="$path"/gi);
-						# handle <a href="?arg3=4">Call self with different args</a>
-						$script_name = $ENV{'SCRIPT_NAME'};
-						$copy =~ s/<a\s+href="(\\?.+?)"/<a href="$script_name$1"/gi;
-						open(my $fout, '>', $path);
-						print $fout $copy;
-						close $fout;
-						if($changes && (my $ttl = $self->{save_to}->{ttl})) {
-							push @{$self->{o}}, 'Expires: ' . HTTP::Date::time2str(time + $ttl);
+							# handle <a href="?arg3=4">Call self with different args</a>
+							$script_name = $ENV{'SCRIPT_NAME'};
+							$copy =~ s/<a\s+href="(\\?.+?)"/<a href="$script_name$1"/gi;
+
+							print $fout $copy;
+							close $fout;
+							$query = "INSERT INTO fcgi_buffer(key, language, browser_type, path, uri, creation) VALUES('$key', '$language', '$browser_type', '$path', '$request_uri', strftime('\%s','now'))";
+							$dbh->prepare($query)->execute();
+							if($self->{logger}) {
+								$self->{logger}->debug($query);
+							}
+
+							if($changes && (my $ttl = $self->{save_to}->{ttl})) {
+								push @{$self->{o}}, 'Expires: ' . HTTP::Date::time2str(time + $ttl);
+							}
+						} elsif($self->{logger}) {
+							$self->{logger}->warn("Can't create $path");
 						}
 					}
 				}

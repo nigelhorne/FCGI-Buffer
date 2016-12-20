@@ -4,7 +4,7 @@ Revision history for FCGI-Buffer
 	Seplace dynamic links to static links on subsequent calls
 		(Highly experimental, and unconfigurable)
 	In /cgi-bin/foo.fcgi?arg1=a replace references to
-		/cgi-bin/foo.fcgi?arg2=b to arg2=b
+		/cgi-bin/foo.fcgi?arg2=b to ?arg2=b
 	Honour the order of HTTP_ACCEPT_ENCODING
 	Improved handling of HTTP status
 	init() returns the object itself so you can now chain messages
