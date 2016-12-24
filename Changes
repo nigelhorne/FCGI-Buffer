@@ -1,7 +1,7 @@
 Revision history for FCGI-Buffer
 
 0.09
-	Seplace dynamic links to static links on subsequent calls
+	Replace dynamic links to static links on subsequent calls
 		(Highly experimental, and unconfigurable)
 	In /cgi-bin/foo.fcgi?arg1=a replace references to
 		/cgi-bin/foo.fcgi?arg2=b to ?arg2=b
@@ -9,6 +9,7 @@ Revision history for FCGI-Buffer
 	Improved handling of HTTP status
 	init() returns the object itself so you can now chain messages
 	Put different languages in different caches
+	On HTTP sites, replace href=http://www.example.com with href=www.example.com
 
 0.08	Tue Oct  4 10:06:22 EDT 2016
 	Print stack trace when calling init too late

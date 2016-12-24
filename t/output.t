@@ -11,7 +11,7 @@
 use strict;
 use warnings;
 
-use Test::Most tests => 243;
+use Test::Most tests => 255;
 use IO::Uncompress::Brotli;
 use DateTime;
 use Capture::Tiny ':all';
@@ -752,4 +752,47 @@ EOF
 	ok(length($body) > 0);
 
 	ok($etag eq Digest::MD5->new()->add($body)->hexdigest());
+
+
+	#..........................................
+	# Check removal of protocol
+
+	sub test20 {
+		my $b = new_ok('FCGI::Buffer');
+
+		$b->set_options({ optimise_content => 1, generate_etag => 0 });
+
+		print "Content-type: text/html; charset=ISO-8859-1\n\n";
+		print << 'EOF';
+<HTML>
+	<HEAD>
+	</HEAD>
+	<BODY>
+		 <a href="http://www.example.com">example</a> 
+		 <a href="https://www.nigelhorne.com">nigelhorne</a> 
+	</BODY>
+</HTML>
+EOF
+	}
+
+	($stdout, $stderr) = capture { test20() };
+
+	ok($stderr eq '');
+	ok(defined($stdout));
+	ok($stdout !~ /ETag: "([A-Za-z0-F0-f]{32})"/m);
+	ok($stdout !~ /^Status: 304 Not Modified/mi);
+
+	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
+
+	ok($headers =~ /^Content-Length:\s+(\d+)/m);
+	$length = $1;
+	ok($headers =~ /MISS/m);
+
+	ok(length($body) != 0);
+	ok(defined($length));
+	ok(length($body) == $length);
+
+	ok($body =~ /<a href="\/\/www.example.com"/);
+	ok($body !~ /<a href="\/\/www.nigelhorne.com"/);
+
 }

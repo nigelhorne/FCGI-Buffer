@@ -227,6 +227,7 @@ sub DESTROY {
 
 				$self->{body} =~ s/<a\s+?href="$protocol:\/\/$href"/<a href="\/"/gim;
 				$self->{body} =~ s/<a\s+?href="$protocol:\/\/$href/<a href="/gim;
+				$self->{body} =~ s/<a\s+?href="$protocol:\/\//<a href="\/\//gim;
 
 				# If we're in "/cgi-bin/foo.cgi?arg1=a" replace
 				# "/cgi-bin/foo.cgi?arg2=b" with "?arg2=b"
