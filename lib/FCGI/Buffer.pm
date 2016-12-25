@@ -1449,16 +1449,16 @@ sub _save_to {
 	} elsif($expiration && ($expiration < time)) {
 		# Delete the save_to files
 		if($self->{save_to}->{ttl}) {
-			$query = "SELECT FROM fcgi_buffer WHERE creation < strftime('\%s','now') - " . $self->{save_to}->{ttl};
+			$query = "SELECT path FROM fcgi_buffer WHERE creation < strftime('\%s','now') - " . $self->{save_to}->{ttl};
 		} else {
-			$query = 'SELECT FROM fcgi_buffer';	# Hmm, I suspect this is overkill
+			$query = 'SELECT path FROM fcgi_buffer';	# Hmm, I suspect this is overkill
 		}
 		my $sth = $dbh->prepare($query);
 		$sth->execute();
 		while(my $href = $sth->fetchrow_hashref()) {
 			if(my $path = $href->{'path'}) {
 				if($self->{logger}) {
-					$self->{logger}->debug("remove $path");
+					$self->{logger}->debug("unlink $path");
 				}
 				unlink $path;
 			}
