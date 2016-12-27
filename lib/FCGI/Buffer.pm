@@ -1420,13 +1420,21 @@ sub _save_to {
 			$sth->execute($search_uri, $self->{lingua}->language(), $self->{info}->browser_type());
 			if(my $href = $sth->fetchrow_hashref()) {
 				if(my $path = $href->{'path'}) {
-					$link =~ s/\?/\\?/g;
-					my $rootdir = $self->{info}->rootdir();
-					$path =~ s/^$rootdir//;
-					$changes += ($copy =~ s/<a\s+href="$link">/<a href="$path">/gis);
-					# Find the first link that will expire and use that
-					if((!defined($creation)) || ($href->{'creation'} < $creation)) {
-						$creation = $href->{'creation'};
+					if(-r $path) {
+						$link =~ s/\?/\\?/g;
+						my $rootdir = $self->{info}->rootdir();
+						$path =~ s/^$rootdir//;
+						$changes += ($copy =~ s/<a\s+href="$link">/<a href="$path">/gis);
+						# Find the first link that will expire and use that
+						if((!defined($creation)) || ($href->{'creation'} < $creation)) {
+							$creation = $href->{'creation'};
+						}
+					} else {
+						$query = "DELETE FROM fcgi_buffer WHERE path = ?";
+						$dbh->prepare($query)->execute($path);
+						if($self->{logger}) {
+							$self->{logger}->warn("Remove entry for non-existant file $path");
+						}
 					}
 				}
 			}
