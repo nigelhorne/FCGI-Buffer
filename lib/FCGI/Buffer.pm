@@ -287,6 +287,7 @@ sub DESTROY {
 				}
 				my $lint = HTML::Lint->new();
 				$lint->parse($self->{body});
+				$lint->eof();
 
 				if($lint->errors) {
 					$headers = 'Status: 500 Internal Server Error';

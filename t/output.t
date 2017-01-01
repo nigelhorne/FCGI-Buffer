@@ -212,8 +212,8 @@ OUTPUT: {
 
 		$b->init(optimise_content => 1, lint_content => 1);
 
-		print "Content-type: text/html; charset=ISO-8859-1\n\n";
-		print "<HTML><BODY><A HREF= \n\"http://www.example.com/foo.htm\">Click</A></BODY></HTML>\n";
+		print "Content-type: text/html; charset=ISO-8859-1\n\n",
+			"<HTML><HEAD><TITLE>Test</TITLE></HEAD><BODY><A HREF= \n\"http://www.example.com/foo.htm\">Click</A></BODY></HTML>\n";
 	}
 
 	($stdout, $stderr) = capture { test7() };
@@ -252,6 +252,9 @@ OUTPUT: {
 	($stdout, $stderr) = capture { test8() };
 
 	ok($stderr eq '');
+	if($stderr ne '') {
+		diag($stderr);
+	}
 
 	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
 
