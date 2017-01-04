@@ -569,13 +569,13 @@ sub DESTROY {
 				if($dbh && $self->{info} && $self->{save_to} && (my $request_uri = $ENV{'REQUEST_URI'})) {
 					# There is a race condition here, another process
 					# could get in and created an entry after the
-					# select fails.  The fix is to to it in a transaction
+					# select fails.  The fix is to do it in a transaction
 					my $query = "SELECT DISTINCT creation FROM fcgi_buffer WHERE key = ?";
 					if($self->{logger}) {
 						$self->{logger}->debug("$query: $key");
 					}
-					my $sth = $dbh->prepare($query);
 					$dbh->begin_work();
+					my $sth = $dbh->prepare($query);
 					eval {
 						$sth->execute($key);
 						if(my $href = $sth->fetchrow_hashref()) {
