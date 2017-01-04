@@ -567,82 +567,70 @@ sub DESTROY {
 				# Create a static page with the information and link to that in the output
 				# HTML
 				if($dbh && $self->{info} && $self->{save_to} && (my $request_uri = $ENV{'REQUEST_URI'})) {
-					# There is a race condition here, another process
-					# could get in and created an entry after the
-					# select fails.  The fix is to do it in a transaction
 					my $query = "SELECT DISTINCT creation FROM fcgi_buffer WHERE key = ?";
 					if($self->{logger}) {
 						$self->{logger}->debug("$query: $key");
 					}
-					$dbh->begin_work();
 					my $sth = $dbh->prepare($query);
-					eval {
-						$sth->execute($key);
-						if(my $href = $sth->fetchrow_hashref()) {
-							if(my $ttl = $self->{save_to}->{ttl}) {
-								push @{$self->{o}}, 'Expires: ' .
-									HTTP::Date::time2str($href->{'creation'} + $ttl);
-							}
-						} else {
-							my $dir = $self->{save_to}->{directory};
-							my $browser_type = $self->{info}->browser_type();
-							my $language = $self->{lingua}->language();
-							my $bdir = "$dir/$browser_type";
-							if($bdir =~ /^(.+)$/) {
-								$bdir = $1; # Untaint
-							}
-							my $ldir = "$bdir/$language";
-							my $script_name = $self->{info}->script_name();
-							my $sdir = "$ldir/$script_name";
-							if(!-d $bdir) {
-								mkdir $bdir;
-								mkdir $ldir;
-								mkdir $sdir;
-							} elsif(!-d $ldir) {
-								mkdir $ldir;
-								mkdir $sdir;
-							} elsif(!-d $sdir) {
-								mkdir $sdir;
-							}
-							my $path = "$sdir/" . $self->{info}->as_string() . '.html';
-							if($path =~ /^(.+)$/) {
-								$path = $1; # Untaint
-								$path =~ tr/[\|;]/_/;
-							}
-							if(open(my $fout, '>', $path)) {
-								my $u = $request_uri;
-								$u =~ s/\?/\\?/g;
-								my $copy = $unzipped_body;
-								my $changes = ($copy =~ s/<a\s+href="$u"/<a href="$path"/gi);
-
-								# handle <a href="?arg3=4">Call self with different args</a>
-								$script_name = $ENV{'SCRIPT_NAME'};
-								$copy =~ s/<a\s+href="(\\?.+?)"/<a href="$script_name$1"/gi;
-
-								print $fout $copy;
-								close $fout;
-								$query = "INSERT INTO fcgi_buffer(key, language, browser_type, path, uri, creation) VALUES('$key', '$language', '$browser_type', '$path', '$request_uri', strftime('\%s','now'))";
-								$dbh->prepare($query)->execute();
-								if($self->{logger}) {
-									$self->{logger}->debug($query);
-								}
-
-								if($changes && (my $ttl = $self->{save_to}->{ttl})) {
-									push @{$self->{o}}, 'Expires: ' . HTTP::Date::time2str(time + $ttl);
-								}
-							} elsif($self->{logger}) {
-								$self->{logger}->warn("Can't create $path");
-							}
-						}
-					};
-					if($@) {
-						$sth->finish();
-						$dbh->rollback();
-						if($self->{logger}) {
-							$self->{logger}->warn($@);
+					$sth->execute($key);
+					if(my $href = $sth->fetchrow_hashref()) {
+						if(my $ttl = $self->{save_to}->{ttl}) {
+							push @{$self->{o}}, 'Expires: ' .
+								HTTP::Date::time2str($href->{'creation'} + $ttl);
 						}
 					} else {
-						$dbh->commit();
+						my $dir = $self->{save_to}->{directory};
+						my $browser_type = $self->{info}->browser_type();
+						my $language = $self->{lingua}->language();
+						my $bdir = "$dir/$browser_type";
+						if($bdir =~ /^(.+)$/) {
+							$bdir = $1; # Untaint
+						}
+						my $ldir = "$bdir/$language";
+						my $script_name = $self->{info}->script_name();
+						my $sdir = "$ldir/$script_name";
+						if(!-d $bdir) {
+							mkdir $bdir;
+							mkdir $ldir;
+							mkdir $sdir;
+						} elsif(!-d $ldir) {
+							mkdir $ldir;
+							mkdir $sdir;
+						} elsif(!-d $sdir) {
+							mkdir $sdir;
+						}
+						my $path = "$sdir/" . $self->{info}->as_string() . '.html';
+						if($path =~ /^(.+)$/) {
+							$path = $1; # Untaint
+							$path =~ tr/[\|;]/_/;
+						}
+						if(open(my $fout, '>', $path)) {
+							my $u = $request_uri;
+							$u =~ s/\?/\\?/g;
+							my $copy = $unzipped_body;
+							my $changes = ($copy =~ s/<a\s+href="$u"/<a href="$path"/gi);
+
+							# handle <a href="?arg3=4">Call self with different args</a>
+							$script_name = $ENV{'SCRIPT_NAME'};
+							$copy =~ s/<a\s+href="(\\?.+?)"/<a href="$script_name$1"/gi;
+
+							print $fout $copy;
+							close $fout;
+							# Do INSERT OR IGNORE in case another program has
+							# got in first, it doesn't matter about ignoring since
+							# the data should be the same in both inserts
+							$query = "INSERT OR IGNORE INTO fcgi_buffer(key, language, browser_type, path, uri, creation) VALUES('$key', '$language', '$browser_type', '$path', '$request_uri', strftime('\%s','now'))";
+							if($self->{logger}) {
+								$self->{logger}->debug($query);
+							}
+							$dbh->prepare($query)->execute();
+
+							if($changes && (my $ttl = $self->{save_to}->{ttl})) {
+								push @{$self->{o}}, 'Expires: ' . HTTP::Date::time2str(time + $ttl);
+							}
+						} elsif($self->{logger}) {
+							$self->{logger}->warn("Can't create $path");
+						}
 					}
 				}
 				if($self->{generate_last_modified}) {
