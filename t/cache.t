@@ -231,8 +231,8 @@ CACHED: {
 		$ENV{'HTTP_ACCEPT_LANGUAGE'} = 'en-gb,en;q=0.5';
 		my $save_to = {
 			directory => $tempdir,
-			# directory => '/tmp/njh',	# FIXME
 			ttl => '3600',
+			create_table => 1,
 		};
 
 		# Check if static links have been put in

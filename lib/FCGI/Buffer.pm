@@ -336,7 +336,9 @@ sub DESTROY {
 				mkdir $save_to->{directory};
 			}
 			$dbh = DBI->connect("dbi:SQLite:dbname=$sqlite_file", undef, undef);
-			$dbh->prepare('CREATE TABLE fcgi_buffer(key char PRIMARY KEY, language char, browser_type char, path char NOT NULL, uri char NOT NULL, creation timestamp NOT NULL)')->execute();
+			if($self->{save_to}->{create_table}) {
+				$dbh->prepare('CREATE TABLE fcgi_buffer(key char PRIMARY KEY, language char, browser_type char, path char UNIQUE NOT NULL, uri char NOT NULL, creation timestamp NOT NULL)')->execute();
+			}
 		} else {
 			$dbh = DBI->connect("dbi:SQLite:dbname=$sqlite_file", undef, undef);
 		}
@@ -616,10 +618,9 @@ sub DESTROY {
 
 							print $fout $copy;
 							close $fout;
-							# Do INSERT OR IGNORE in case another program has
-							# got in first, it doesn't matter about ignoring since
-							# the data should be the same in both inserts
-							$query = "INSERT OR IGNORE INTO fcgi_buffer(key, language, browser_type, path, uri, creation) VALUES('$key', '$language', '$browser_type', '$path', '$request_uri', strftime('\%s','now'))";
+							# Do INSERT OR REPLACE in case another program has
+							# got in first,
+							$query = "INSERT OR REPLACE INTO fcgi_buffer(key, language, browser_type, path, uri, creation) VALUES('$key', '$language', '$browser_type', '$path', '$request_uri', strftime('\%s','now'))";
 							if($self->{logger}) {
 								$self->{logger}->debug($query);
 							}
@@ -941,7 +942,7 @@ Set various options and override default values.
 	logger => $self->{logger},
 	lint_content => 0,	# Pass through HTML::Lint
 	generate_304 => 1,	# When appropriate, generate 304: Not modified
-	save_to => { directory => '/var/www/htdocs/save_to', ttl => 600 },
+	save_to => { directory => '/var/www/htdocs/save_to', ttl => 600, create_table => 1 },
 	info => CGI::Info->new(),
 	lingua => CGI::Lingua->new(),
     });
