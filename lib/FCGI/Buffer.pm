@@ -389,9 +389,11 @@ sub DESTROY {
 					my $sth = $dbh->prepare($query);
 					$sth->execute();
 					if(my $href = $sth->fetchrow_hashref()) {
-						my $path = $href->{'path'};
-						if($path) {
+						if(my $path = $href->{'path'}) {
 							# TODO: replace dynamic links with static links
+							if($self->{logger}) {
+								$self->{logger}->warn("Gone through TODO path: $path");
+							}
 						}
 					}
 				}
