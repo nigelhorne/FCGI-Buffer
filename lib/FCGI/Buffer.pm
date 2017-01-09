@@ -376,27 +376,6 @@ sub DESTROY {
 		# Cache unzipped version
 		if(!defined($self->{body})) {
 			if($self->{send_body}) {
-				if($dbh) {
-					my $query;
-					if($self->{save_to}->{ttl}) {
-						$query = "SELECT DISTINCT path FROM fcgi_buffer WHERE key = '$key' AND creation >= strftime('\%s','now') - " . $self->{save_to}->{ttl};
-					} else {
-						$query = "SELECT DISTINCT path FROM fcgi_buffer WHERE key = '$key'";
-					}
-					if($self->{logger}) {
-						$self->{logger}->debug($query);
-					}
-					my $sth = $dbh->prepare($query);
-					$sth->execute();
-					if(my $href = $sth->fetchrow_hashref()) {
-						if(my $path = $href->{'path'}) {
-							# TODO: replace dynamic links with static links
-							if($self->{logger}) {
-								$self->{logger}->warn("Gone through TODO path: $path");
-							}
-						}
-					}
-				}
 				$self->{cobject} = $self->{cache}->get_object($key);
 				if(defined($self->{cobject})) {
 					$cache_hash = Storable::thaw($self->{cobject}->value());
@@ -430,6 +409,12 @@ sub DESTROY {
 			}
 			if($self->{send_body} && ($self->{status} == 200)) {
 				$self->{body} = $cache_hash->{'body'};
+				if($dbh) {
+					my $changes = $self->_save_to($self->{body}, $dbh);
+					if($changes && (my $ttl = $self->{save_to}->{ttl})) {
+						push @{$self->{o}}, 'Expires: ' . HTTP::Date::time2str(time + $ttl);
+					}
+				}
 				if(!defined($self->{body})) {
 					# Panic
 					$headers = 'Status: 500 Internal Server Error';
