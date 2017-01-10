@@ -4,6 +4,7 @@ use strict;
 use warnings;
 
 # FIXME: save_to treats ?arg1=a&arg2=b and ?arg2=b&arg1=a as different
+# FIXME: save_to treats /cgi-bin/foo.fcgi and /cgi-bin2/foo.fcgi as the same
 
 use Digest::MD5;
 use IO::String;
@@ -601,7 +602,7 @@ sub DESTROY {
 
 							# handle <a href="?arg3=4">Call self with different args</a>
 							$script_name = $ENV{'SCRIPT_NAME'};
-							$copy =~ s/<a\s+href="(\\?.+?)"/<a href="$script_name$1"/gi;
+							$copy =~ s/<a\s+href="(\?.+?)"/<a href="$script_name$1"/gi;
 
 							print $fout $copy;
 							close $fout;
@@ -953,6 +954,7 @@ Ttl is set to the number of seconds that the static pages are deemed to
 be live for, the default is 10 minutes.
 If set to 0, the page is live forever.
 To enable save_to, a info and lingua arguments must also be given.
+It works best when cache is also given.
 Only use where output is guaranteed to be the same with a given set of arguments
 (the same criteria for enabling generate_304).
 

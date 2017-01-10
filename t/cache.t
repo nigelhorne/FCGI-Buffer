@@ -1,8 +1,8 @@
-#!perl -Tw
+#!perl -wT
 
 use strict;
 use warnings;
-use Test::Most tests => 145;
+use Test::Most tests => 155;
 use Storable;
 use Capture::Tiny ':all';
 use CGI::Info;
@@ -31,7 +31,7 @@ CACHED: {
 
 		if($@) {
 			diag('CHI required to test caching');
-			skip 'CHI not installed', 143;
+			skip 'CHI not installed', 153;
 		} else {
 			diag("Using CHI $CHI::VERSION");
 		}
@@ -269,7 +269,7 @@ CACHED: {
 			print "Content-type: text/html; charset=ISO-8859-1\n\n";
 
 			print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\n",
-				"<HTML><HEAD><TITLE>Hello, world</TITLE></HEAD>",
+				"<HTML><HEAD><TITLE>test5</TITLE></HEAD>",
 				"<BODY><P>The quick brown fox jumped over the lazy dog.</P>",
 				'<A HREF="/cgi-bin/test4.cgi?arg1=a&arg2=b">link</a>',
 				"</BODY></HTML>\n";
@@ -313,6 +313,15 @@ CACHED: {
 		ok($headers =~ /^Expires: /m);
 
 		ok($body =~ /"\/web\/English\/test4.cgi\/.+\.html"/m);
+
+		ok(-f "$tempdir/web/English/test5.cgi/arg1=a_arg2=b.html");
+		open(my $fin, '<', "$tempdir/web/English/test5.cgi/arg1=a_arg2=b.html");
+		my $html_file;
+		while(<$fin>) {
+			$html_file .= $_;
+		}
+		close($fin);
+		ok($html_file =~ /<A HREF="\/cgi-bin\/test4.cgi\?arg1=a&arg2=b">link<\/a>/mi);
 
 		# no cache argument to init()
 		sub test5a {
@@ -451,8 +460,8 @@ CACHED: {
 		ok(-d "$tempdir/web/English/test5.cgi");
 
 		# ...............................
-		$ENV{'SCRIPT_NAME'} = '/cgi-bin/foo.cgi';
-		$ENV{'REQUEST_URI'} = '/cgi-bin/foo.cgi?arg1=a';
+		$ENV{'SCRIPT_NAME'} = '/cgi-bin/test6.cgi';
+		$ENV{'REQUEST_URI'} = '/cgi-bin/test6.cgi?foo=bar';
 		$ENV{'REQUEST_METHOD'} = 'GET';
 		delete $ENV{'HTTP_ACCEPT_ENCODING'};
 
@@ -462,6 +471,7 @@ CACHED: {
 
 			$b->init({
 				info => $info,
+				cache => $cache,
 				lingua => CGI::Lingua->new(
 					supported => ['en'],
 					dont_use_ip => 1,
@@ -477,9 +487,12 @@ CACHED: {
 			print "Content-type: text/html; charset=ISO-8859-1\n\n";
 
 			print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\n",
-				"<HTML><HEAD><TITLE>Hello, world</TITLE></HEAD>",
+				"<HTML><HEAD><TITLE>test6</TITLE></HEAD>",
 				"<BODY>",
-				'<A HREF="/cgi-bin/foo.cgi?arg2=b">link</a>',
+				'<A HREF="/cgi-bin/test6.cgi?arg2=b">link</a>',
+				'<A HREF="http://github.com/nigelhorne/FCGI-Buffer">link2</a>',
+				'<A HREF="/cgi-bin/test4.cgi?arg3=c">link3</a>',
+				'<A HREF="/cgi-bin/test4.cgi?arg1=a&arg2=b">link4</a>',
 				"</BODY></HTML>\n";
 		}
 
@@ -489,6 +502,23 @@ CACHED: {
 		($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
 
 		ok($body =~ /<a href="\?arg2=b">link<\/a>/mi);
+		ok($body =~ /<a href=\"\/\/github.com\/nigelhorne/mi);
+		ok($body =~ /<a href=\"\/cgi-bin\/test4.cgi\?arg3=c">/mi);
+		ok($body =~ /"\/web\/English\/test4.cgi\/arg1=a_arg2=b\.html"/m);
+
+		ok(-f "$tempdir/web/English/test6.cgi/arg1=a_arg2=b.html");
+		open($fin, '<', "$tempdir/web/English/test6.cgi/arg1=a_arg2=b.html");
+		$html_file = undef;
+		while(<$fin>) {
+			$html_file .= $_;
+		}
+		close($fin);
+		# ok($html_file =~ /<A HREF="\/cgi-bin\/test4.cgi\?arg1=a&arg2=b">link<\/a>/mi);
+
+		ok($html_file =~ /<a href="\/cgi-bin\/test6.cgi\?arg2=b">link<\/a>/mi);
+		ok($html_file =~ /<a href=\"\/\/github.com\/nigelhorne/mi);
+		ok($html_file =~ /<a href=\"\/cgi-bin\/test4.cgi\?arg3=c">/mi);
+		ok($html_file =~ /"\/cgi-bin\/test4.cgi\?arg1=a&arg2=b">/mi);
 	}
 }
 
