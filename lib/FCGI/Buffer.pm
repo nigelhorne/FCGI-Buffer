@@ -1008,11 +1008,12 @@ sub init {
 	}
 	if(defined($params{lingua})) {
 		$self->{lingua} = $params{lingua};
-		if(defined($params{save_to}) && $self->can_cache()) {
-			$self->{save_to} = $params{save_to};
-			if(!exists($params{save_to})) {
-				$self->{save_to} = 600;
-			}
+	}
+	# Don't forget to handle where lingua could have been set in a previous init() call
+	if(defined($params{save_to}) && $self->{lingua} && $self->can_cache()) {
+		$self->{save_to} = $params{save_to};
+		if(!exists($params{save_to})) {
+			$self->{save_to} = 600;
 		}
 	}
 	if(defined($params{generate_304})) {
@@ -1599,7 +1600,7 @@ The licence for cgi_buffer is:
 
     This software is provided 'as is' without warranty of any kind."
 
-The rest of the program is Copyright 2015-2016 Nigel Horne,
+The rest of the program is Copyright 2015-2017 Nigel Horne,
 and is released under the following licence: GPL
 
 =cut
