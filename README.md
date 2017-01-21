@@ -9,7 +9,7 @@ Verify, Cache and Optimise FCGI Output
 
 # VERSION
 
-Version 0.08
+Version 0.09
 
 # SYNOPSIS
 
@@ -86,8 +86,8 @@ Set various options and override default values.
     # optimise_content and lint_content are OFF.  Set optimise_content to 2 to
     # do aggressive JavaScript optimisations which may fail.
     use FCGI::Buffer;
-    my $buffer = FCGI::Buffer->new();
-    $buffer->init({
+
+    my $buffer = FCGI::Buffer->new()->init({
         generate_etag => 1,     # make good use of client's cache
         generate_last_modified => 1,    # more use of client's cache
         compress_content => 1,  # if gzip the output
@@ -98,7 +98,7 @@ Set various options and override default values.
         logger => $self->{logger},
         lint_content => 0,      # Pass through HTML::Lint
         generate_304 => 1,      # When appropriate, generate 304: Not modified
-        save_to => { directory => '/var/www/htdocs/save_to', ttl => 600 },
+        save_to => { directory => '/var/www/htdocs/save_to', ttl => 600, create_table => 1 },
         info => CGI::Info->new(),
         lingua => CGI::Lingua->new(),
     });
@@ -122,6 +122,7 @@ Ttl is set to the number of seconds that the static pages are deemed to
 be live for, the default is 10 minutes.
 If set to 0, the page is live forever.
 To enable save\_to, a info and lingua arguments must also be given.
+It works best when cache is also given.
 Only use where output is guaranteed to be the same with a given set of arguments
 (the same criteria for enabling generate\_304).
 
@@ -235,6 +236,10 @@ cleared up first.  In particular it should be loaded after
 produces are printed after the HTTP headers have been sent by
 FCGI::Buffer;
 
+Save\_to doesn't understand links in JavaScript, which means that if you use self-calling
+CGIs which are loaded as a static page they may point to the wrong place.
+The workaround is to avoid self-calling CGIs in JavaScript
+
 Please report any bugs or feature requests to `bug-fcgi-buffer at rt.cpan.org`,
 or through the web interface at [http://rt.cpan.org/NoAuth/ReportBug.html?Queue=FCGI-Buffer](http://rt.cpan.org/NoAuth/ReportBug.html?Queue=FCGI-Buffer).
 I will be notified, and then you'll automatically be notified of progress on
@@ -284,5 +289,5 @@ The licence for cgi\_buffer is:
 
     This software is provided 'as is' without warranty of any kind."
 
-The rest of the program is Copyright 2015-2016 Nigel Horne,
+The rest of the program is Copyright 2015-2017 Nigel Horne,
 and is released under the following licence: GPL
