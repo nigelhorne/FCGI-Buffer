@@ -1373,6 +1373,7 @@ sub _save_to {
 	my ($self, $unzipped_body, $dbh) = @_;
 
 	return 0 unless($dbh && $self->{info} && (my $request_uri = $ENV{'REQUEST_URI'}));
+	return 0 if(!defined($unzipped_body));
 
 	my $query;
 	my $copy = $unzipped_body;
