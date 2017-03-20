@@ -673,6 +673,8 @@ sub DESTROY {
 			print $fout "BUG: ETag not generated, status $self->{status}:\n",
 				$headers,
 				'x' x 40,
+				defined($self->{body}) ? $self->{body} : "body is empty\n",
+				'x' x 40,
 				"\n";
 			$self->{logger}->warn("BUG: ETag not generated, status $self->{status}");
 		}
