@@ -1,5 +1,8 @@
 Revision history for FCGI-Buffer
 
+0.10
+	Remove false positive bug reports
+
 0.09 Sat 21 Jan 09:42:42 EST 2017
 	Replace dynamic links to static links on subsequent calls
 	In /cgi-bin/foo.fcgi?arg1=a replace references to
