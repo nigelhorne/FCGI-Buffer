@@ -597,6 +597,7 @@ sub DESTROY {
 						if(open(my $fout, '>', $path)) {
 							my $u = $request_uri;
 							$u =~ s/\?/\\?/g;
+							$u =~ s/\)/\\)/g;
 							my $copy = $unzipped_body;
 							my $changes = ($copy =~ s/<a\s+href="$u"/<a href="$path"/gi);
 
