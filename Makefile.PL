@@ -1,6 +1,6 @@
 use strict;
 use warnings;
-use ExtUtils::MakeMaker;
+use ExtUtils::MakeMaker 6.64;	# 6.64 for TEST_REQUIRES
 
 WriteMakefile(
     NAME                => 'FCGI::Buffer',
@@ -12,7 +12,7 @@ WriteMakefile(
       ? ('LICENSE'=> 'GPL')
       : ()),
     PL_FILES            => {},
-    BUILD_REQUIRES => {
+    TEST_REQUIRES => {
 	'Test::Most' => 0,
 	# 'Test::NoWarnings' => 0,
 	'Capture::Tiny' => 0,

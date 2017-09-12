@@ -11,7 +11,7 @@
 use strict;
 use warnings;
 
-use Test::Most tests => 255;
+use Test::Most tests => 256;
 use IO::Uncompress::Brotli;
 use DateTime;
 use Capture::Tiny ':all';
@@ -148,6 +148,7 @@ OUTPUT: {
 	ok($headers =~ /^Content-Encoding: br/m);
 	ok($headers =~ /ETag: "[A-Za-z0-F0-f]{32}"/m);
 
+	ok(defined($body));
 	ok(length($body) eq $length);
 	$body = unbro($body);
 	ok(defined($body));
@@ -771,8 +772,8 @@ EOF
 	<HEAD>
 	</HEAD>
 	<BODY>
-		 <a href="http://www.example.com">example</a> 
-		 <a href="https://www.nigelhorne.com">nigelhorne</a> 
+		 <a href="http://www.example.com">example</a>
+		 <a href="https://www.nigelhorne.com">nigelhorne</a>
 	</BODY>
 </HTML>
 EOF
