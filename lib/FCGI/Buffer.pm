@@ -605,7 +605,8 @@ sub DESTROY {
 							$script_name = $ENV{'SCRIPT_NAME'};
 							$copy =~ s/<a\s+href="(\?.+?)"/<a href="$script_name$1"/gi;
 
-							print $fout $copy;
+							# Avoide Wide character
+							print $fout Encode::encode_utf8($copy);
 							close $fout;
 							# Do INSERT OR REPLACE in case another program has
 							# got in first,
