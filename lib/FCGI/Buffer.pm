@@ -606,6 +606,10 @@ sub DESTROY {
 							$copy =~ s/<a\s+href="(\?.+?)"/<a href="$script_name$1"/gi;
 
 							# Avoide Wide character
+							unless($self->{_encode_loaded}) {
+								require Encode;
+								$self->{_encode_loaded} = 1;
+							}
 							print $fout Encode::encode_utf8($copy);
 							close $fout;
 							# Do INSERT OR REPLACE in case another program has
