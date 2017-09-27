@@ -970,6 +970,12 @@ To enable save_to, a info and lingua arguments must also be given.
 It works best when cache is also given.
 Only use where output is guaranteed to be the same with a given set of arguments
 (the same criteria for enabling generate_304).
+You can turn it off on a case by case basis thus:
+
+    my $params = CGI::Info->new()->params();
+    if($params->{'send_private_email'}) {
+        $buffer->init('save_to' => undef);
+    }
 
 Info is an optional argument to give information about the FCGI environment, e.g.
 a L<CGI::Info> object.
@@ -1028,6 +1034,8 @@ sub init {
 		if(!exists($params{save_to})) {
 			$self->{save_to} = 600;
 		}
+	} elsif(exists($params{'save_to'}) && !defined($params{'save_to'})) {
+		delete $self->{'save_to'};
 	}
 	if(defined($params{generate_304})) {
 		$self->{generate_304} = $params{generate_304};
