@@ -304,10 +304,12 @@ sub DESTROY {
 		}
 	}
 
-	$self->{status} = 200;
-
 	if(defined($headers) && ($headers =~ /^Status: (\d+)/m)) {
 		$self->{status} = $1;
+	} elsif(defined($self->{info})) {
+		$self->{status} = $self->{info}->status();
+	} else {
+		$self->{status} = 200;
 	}
 
 	if($self->{'logger'}) {
