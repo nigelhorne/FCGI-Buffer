@@ -1459,7 +1459,7 @@ sub _save_to {
 				}
 			}
 		}
-	};
+	}
 	my $expiration = 0;
 	if(defined($creation) && (my $ttl = $self->{save_to}->{ttl})) {
 		$expiration = $creation + $ttl;
