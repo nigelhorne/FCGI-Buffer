@@ -865,6 +865,7 @@ sub _optimise_content {
 	$self->{body} =~ s/<\/li>\s+<li>/<\/li><li>/gis;
 	$self->{body} =~ s/<\/li>\s+<\/ul>/<\/li><\/ul>/gis;
 	$self->{body} =~ s/<ul>\s+<li>/<ul><li>/gis;
+	$self->{body} =~ s/\s+<\/li>/<\/li>/gis;
 	$self->{body} =~ s/\<\/option\>\s+\<option/\<\/option\>\<option/gis;
 	$self->{body} =~ s/<title>\s*(.+?)\s*<\/title>/<title>$1<\/title>/is;
 }
