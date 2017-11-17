@@ -1430,7 +1430,7 @@ sub _save_to {
 			$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE uri = ? AND language = ? AND browser_type = ?";
 		}
 		if($self->{logger}) {
-			$self->{logger}->debug("$query: $search_uri");
+			$self->{logger}->debug("$query: $search_uri, ", $self->{lingua}->language(), ', ', $self->{info}->browser_type());
 		}
 		my $sth = $dbh->prepare($query);
 		if(!defined($sth)) {
