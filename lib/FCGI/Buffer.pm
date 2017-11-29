@@ -1442,6 +1442,9 @@ sub _save_to {
 			if(my $href = $sth->fetchrow_hashref()) {
 				if(my $path = $href->{'path'}) {
 					if(-r $path) {
+						if($self->{logger}) {
+							$self->{logger}->debug("Changing links from $link to $path");
+						}
 						$link =~ s/\?/\\?/g;
 						my $rootdir = $self->{info}->rootdir();
 						$path =~ s/^$rootdir//;
@@ -1468,7 +1471,11 @@ sub _save_to {
 	if($changes && (($expiration == 0) || ($expiration >= time))) {
 		if($self->{logger}) {
 			# $self->{logger}->debug("$changes links now point to static pages");
-			$self->{logger}->info("$changes links now point to static pages");
+			if($changes == 1) {
+				$self->{logger}->info('1 link now points to a static page for ', $expiration - time, 's');
+			} else {
+				$self->{logger}->info("$changes links now point to static pages");
+			}
 		}
 		$unzipped_body = $copy;
 		$self->{'body'} = $unzipped_body;
