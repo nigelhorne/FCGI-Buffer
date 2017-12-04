@@ -848,7 +848,7 @@ sub _optimise_content {
 	$self->{body} =~ s/\<\/tr\>\s\<\/table\>/\<\/tr\>\<\/table\>/gi;
 	$self->{body} =~ s/\<br\s?\/?\>\s?\<p\>/\<p\>/gi;
 	$self->{body} =~ s/\<br\>\s+/\<br\>/gi;
-	$self->{body} =~ s/\s+\<br\>/\<br\>/gi;
+	$self->{body} =~ s/\s+\<br/\<br/gi;
 	$self->{body} =~ s/\<br\s?\/\>\s/\<br \/\>/gi;
 	$self->{body} =~ s/[ \t]+/ /gs;	# Remove duplicate space, don't use \s+ it breaks JavaScript
 	$self->{body} =~ s/\s\<p\>/\<p\>/gi;
