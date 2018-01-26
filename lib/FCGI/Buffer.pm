@@ -1584,6 +1584,8 @@ or through the web interface at L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue
 I will be notified, and then you'll automatically be notified of progress on
 your bug as I make changes.
 
+The lint operation only works on HTML4, because of a restriction in L<HTML::Lint>.
+
 =head1 SEE ALSO
 
 CGI::Buffer, HTML::Packer, HTML::Lint
