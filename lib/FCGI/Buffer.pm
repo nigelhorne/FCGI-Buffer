@@ -439,7 +439,7 @@ sub DESTROY {
 							}
 						}
 						$query = "DELETE FROM fcgi_buffer WHERE key = '$key'";
-						$dbh->prepare($query)->execute();
+						$dbh->do($query);
 						if($self->{logger}) {
 							$self->{logger}->debug($query);
 						}
@@ -1621,7 +1621,7 @@ L<http://search.cpan.org/dist/FCGI-Buffer/>
 =head1 ACKNOWLEDGEMENTS
 
 The inspiration and code for some of this is cgi_buffer by Mark
-Nottingham: http://www.mnot.net/cgi_buffer.
+Nottingham: L<https://www.mnot.net/blog/2003/04/24/etags>.
 
 =head1 LICENSE AND COPYRIGHT
 
