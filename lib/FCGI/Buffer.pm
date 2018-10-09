@@ -868,6 +868,7 @@ sub _optimise_content {
 	$self->{body} =~ s/\s+<\/li>/<\/li>/gis;
 	$self->{body} =~ s/\<\/option\>\s+\<option/\<\/option\>\<option/gis;
 	$self->{body} =~ s/<title>\s*(.+?)\s*<\/title>/<title>$1<\/title>/is;
+	$self->{body} =~ s/<\/center>\s+<center>/ /gis;
 }
 
 # Create a key for the cache
@@ -1634,8 +1635,8 @@ The licence for cgi_buffer is:
 
     This software is provided 'as is' without warranty of any kind."
 
-The rest of the program is Copyright 2015-2017 Nigel Horne,
-and is released under the following licence: GPL
+The rest of the program is Copyright 2015-2018 Nigel Horne,
+and is released under the following licence: GPL2
 
 =cut
 

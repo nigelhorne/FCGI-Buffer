@@ -3,6 +3,7 @@ Revision history for FCGI-Buffer
 0.12
 	Get the return status from the CGI::Info object
 	Optimise lists a bit more
+	Optmise <center>
 	Added t/links.t and t/no404s.t
 
 0.11	Wed Oct  4 08:52:44 EDT 2017
