@@ -865,6 +865,5 @@ EOF
 	ok(defined($length));
 	ok(length($body) == $length);
 
-	diag($body);
 	ok($body =~ /a bit more\s+a third bit/);
 }
