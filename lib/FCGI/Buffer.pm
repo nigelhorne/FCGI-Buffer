@@ -1302,8 +1302,7 @@ sub _set_content_type {
 	foreach my $header (split(/\r?\n/, $headers)) {
 		my ($header_name, $header_value) = split /\:\s*/, $header, 2;
 		if (lc($header_name) eq 'content-type') {
-			my @content_type;
-			@content_type = split /\//, $header_value, 2;
+			my @content_type = split /\//, $header_value, 2;
 			$self->{content_type} = \@content_type;
 			return;
 		}
@@ -1433,12 +1432,7 @@ sub _save_to {
 		if($self->{logger}) {
 			$self->{logger}->debug("$query: $search_uri, ", $self->{lingua}->language(), ', ', $self->{info}->browser_type());
 		}
-		my $sth = $dbh->prepare($query);
-		if(!defined($sth)) {
-			if($self->{logger}) {
-				$self->{logger}->warn("failed to prepare '$query'");
-			}
-		} else {
+		if(defined(my $sth = $dbh->prepare($query))) {
 			$sth->execute($search_uri, $self->{lingua}->language(), $self->{info}->browser_type());
 			if(my $href = $sth->fetchrow_hashref()) {
 				if(my $path = $href->{'path'}) {
@@ -1463,6 +1457,8 @@ sub _save_to {
 					}
 				}
 			}
+		} elsif($self->{logger}) {
+			$self->{logger}->warn("failed to prepare '$query'");
 		}
 	}
 	my $expiration = 0;
@@ -1604,10 +1600,6 @@ You can also look for information at:
 =item * RT: CPAN's request tracker
 
 L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=FCGI-Buffer>
-
-=item * AnnoCPAN: Annotated CPAN documentation
-
-L<http://annocpan.org/dist/FCGI-Buffer>
 
 =item * CPAN Ratings
 
