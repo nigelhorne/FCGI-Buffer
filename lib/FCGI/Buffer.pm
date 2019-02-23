@@ -19,11 +19,11 @@ FCGI::Buffer - Verify, Cache and Optimise FCGI Output
 
 =head1 VERSION
 
-Version 0.11
+Version 0.12
 
 =cut
 
-our $VERSION = '0.11';
+our $VERSION = '0.12';
 
 =head1 SYNOPSIS
 
@@ -255,7 +255,6 @@ sub DESTROY {
 
 				# Don't always do javascript 'best' since it's confused
 				# by the common <!-- HIDE technique.
-				# See https://github.com/nevesenin/javascript-packer-perl/issues/1#issuecomment-4356790
 				my $options = {
 					remove_comments => 1,
 					remove_newlines => 0,
@@ -1551,7 +1550,6 @@ For example:
 
 Can produce buggy JavaScript if you use the <!-- HIDING technique.
 This is a bug in L<JavaScript::Packer>, not FCGI::Buffer.
-See https://github.com/nevesenin/javascript-packer-perl/issues/1#issuecomment-4356790
 
 Mod_deflate can confuse this when compressing output.
 Ensure that deflation is off for .pl files:
@@ -1627,7 +1625,7 @@ The licence for cgi_buffer is:
 
     This software is provided 'as is' without warranty of any kind."
 
-The rest of the program is Copyright 2015-2018 Nigel Horne,
+The rest of the program is Copyright 2015-2019 Nigel Horne,
 and is released under the following licence: GPL2
 
 =cut
