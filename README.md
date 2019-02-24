@@ -9,7 +9,7 @@ FCGI::Buffer - Verify, Cache and Optimise FCGI Output
 
 # VERSION
 
-Version 0.12
+Version 0.13
 
 # SYNOPSIS
 

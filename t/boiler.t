@@ -51,5 +51,5 @@ TODO: {
 		"placeholder date/time" => qr(Date/time)
 	);
 
-	module_boilerplate_ok('lib/CGI/Info.pm');
+	module_boilerplate_ok('lib/FCGI/Buffer.pm');
 }
