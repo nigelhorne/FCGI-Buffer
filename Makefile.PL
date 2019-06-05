@@ -14,7 +14,7 @@ WriteMakefile(
     PL_FILES            => {},
     TEST_REQUIRES => {
 	'Test::Most' => 0,
-	# 'Test::NoWarnings' => 0,
+	'Test::NoWarnings' => 0,
 	'Capture::Tiny' => 0,
 	'DateTime' => 0,
 	'DateTime::Format::HTTP' => 0,
