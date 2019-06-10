@@ -7,6 +7,7 @@ use warnings;
 # FIXME: save_to treats /cgi-bin/foo.fcgi and /cgi-bin2/foo.fcgi as the same
 
 use Digest::MD5;
+use File::Spec;
 use IO::String;
 use CGI::Info;
 use Carp;
@@ -573,13 +574,15 @@ sub DESTROY {
 						my $dir = $self->{save_to}->{directory};
 						my $browser_type = $self->{info}->browser_type();
 						my $language = $self->{lingua}->language();
-						my $bdir = "$dir/$browser_type";
-						if($bdir =~ /^(.+)$/) {
-							$bdir = $1; # Untaint
+						if($language =~ /([\w\s]+)/i) {
+							$language = $1;	# Untaint
 						}
-						my $ldir = "$bdir/$language";
-						my $script_name = $self->{info}->script_name();
-						my $sdir = "$ldir/$script_name";
+						my $bdir = File::Spec->catfile($dir, $browser_type);
+						if($bdir =~ /^\/(.+)$/) {
+							$bdir = "/$1"; # Untaint
+						}
+						my $ldir = File::Spec->catfile($bdir, $language);
+						my $sdir = File::Spec->catfile($ldir, $self->{info}->script_name());
 						if(!-d $bdir) {
 							mkdir $bdir;
 							mkdir $ldir;
@@ -603,7 +606,7 @@ sub DESTROY {
 							my $changes = ($copy =~ s/<a\s+href="$u"/<a href="$path"/gi);
 
 							# handle <a href="?arg3=4">Call self with different args</a>
-							$script_name = $ENV{'SCRIPT_NAME'};
+							my $script_name = $ENV{'SCRIPT_NAME'};
 							$copy =~ s/<a\s+href="(\?.+?)"/<a href="$script_name$1"/gi;
 
 							# Avoide Wide character

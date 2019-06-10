@@ -31,6 +31,7 @@ WriteMakefile(
 	'CGI::Info' => 0.51,
 	'CSS::Packer' => 0,
 	'Compress::Zlib' => 0,
+	'File::Spec' => 0,
 	'IO::Compress::Brotli' => 0.003,
 	'Digest::MD5' => 0,
     	'Encode' => 0,
