@@ -276,6 +276,7 @@ CACHED: {
 		}
 
 		($stdout, $stderr) = capture { test5() };
+		diag($stderr) if($stderr ne '');
 		ok($stderr eq '');
 
 		($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
