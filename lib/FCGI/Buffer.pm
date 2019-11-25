@@ -134,6 +134,9 @@ sub DESTROY {
 	}
 	my $self = shift;
 
+	if($self->{'logger'}) {
+		$self->{'logger'}->info('In DESTROY');
+	}
 	select($self->{old_buf});
 	if((!defined($self->{buf})) || (!defined($self->{buf}->getpos()))) {
 		# Unlikely

@@ -13,6 +13,8 @@ use autodie qw(:all);
 use HTTP::Response;
 use HTTP::Headers;
 use Cwd;
+use lib 't/lib';
+use MyLogger;
 
 BEGIN {
 	use_ok('FCGI::Buffer');
@@ -541,51 +543,5 @@ CACHED: {
 		ok($html_file =~ /<a href=\"\/\/github.com\/nigelhorne/mi);
 		ok($html_file =~ /<a href=\"\/cgi-bin\/test4.cgi\?arg3=c">/mi);
 		ok($html_file =~ /"\/cgi-bin\/test4.cgi\?arg1=a&arg2=b">/mi);
-	}
-}
-
-package MyLogger;
-
-sub new {
-	my ($proto, %args) = @_;
-
-	my $class = ref($proto) || $proto;
-
-	return bless { }, $class;
-}
-
-sub info {
-	my $self = shift;
-	my $message = shift;
-
-	if($ENV{'TEST_VERBOSE'}) {
-		::diag($message);
-	}
-}
-
-sub trace {
-	my $self = shift;
-	my $message = shift;
-
-	if($ENV{'TEST_VERBOSE'}) {
-		::diag($message);
-	}
-}
-
-sub debug {
-	my $self = shift;
-	my $message = shift;
-
-	if($ENV{'TEST_VERBOSE'}) {
-		::diag($message);
-	}
-}
-
-sub AUTOLOAD {
-	our $AUTOLOAD;
-	my $param = $AUTOLOAD;
-
-	unless($param eq 'MyLogger::DESTROY') {
-		::diag("Need to define $param");
 	}
 }
