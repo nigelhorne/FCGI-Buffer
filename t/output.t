@@ -12,7 +12,6 @@ use strict;
 use warnings;
 
 use Test::Most tests => 282;
-use IO::Uncompress::Brotli;
 use DateTime;
 use Capture::Tiny ':all';
 use CGI::Info;
