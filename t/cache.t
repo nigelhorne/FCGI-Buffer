@@ -2,7 +2,7 @@
 
 use strict;
 use warnings;
-use Test::Most tests => 155;
+use Test::Most tests => 157;
 use Storable;
 use Capture::Tiny ':all';
 use CGI::Info;
@@ -278,9 +278,12 @@ CACHED: {
 		($stdout, $stderr) = capture { test5() };
 		diag($stderr) if($stderr ne '');
 		ok($stderr eq '');
-		diag($stdout);
+		diag(__LINE__, ": $stdout");
+		diag(__LINE__, ": $stderr");
 
 		($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
+		ok(defined($headers));
+		ok(defined($body));
 
 		like($headers, qr/Content-type: text\/html; charset=ISO-8859-1/mi, 'HTML output');
 		like($headers, qr/^ETag:\s+.+/m, 'ETag header is present');
