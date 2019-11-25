@@ -120,7 +120,11 @@ OUTPUT: {
 
 	$ENV{'SERVER_PROTOCOL'} = 'HTTP/1.1';
 	delete($ENV{'HTTP_ACCEPT_ENCODING'});
-	$ENV{'HTTP_TE'} = 'br,gzip';
+	if($^O eq 'MSWin32') {
+		$ENV{'HTTP_TE'} = 'gzip';
+	} else {
+		$ENV{'HTTP_TE'} = 'br,gzip';
+	}
 
 	sub test4 {
 		my $b = new_ok('FCGI::Buffer');
