@@ -246,6 +246,12 @@ CACHED: {
 		$ENV{'QUERY_STRING'} = 'arg1=a&arg2=b';
 		delete $ENV{'HTTP_ACCEPT_ENCODING'};
 
+		opendir(DIR, $tempdir);
+		while(my $file = readdir(DIR)) {
+			diag(__LINE__, ": $file");
+		}
+		closedir(DIR);
+
 		($stdout, $stderr) = capture { test4a() };
 		ok($stderr eq '');
 
@@ -271,7 +277,6 @@ CACHED: {
 			ok($b->can_cache() == 1);
 
 			print "Content-type: text/html; charset=ISO-8859-1\n\n",
-
 				"<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN>\n",
 				'<HTML><HEAD><TITLE>test5</TITLE></HEAD>',
 				'<BODY><P>The quick brown fox jumped over the lazy dog.</P>',
@@ -280,6 +285,12 @@ CACHED: {
 		}
 
 		($stdout, $stderr) = capture { test5() };
+		opendir(DIR, $tempdir);
+		while(my $file = readdir(DIR)) {
+			diag(__LINE__, ": $file");
+		}
+		closedir(DIR);
+
 		diag($stderr) if($stderr ne '');
 		ok($stderr eq '');
 		diag(__LINE__, ": $stdout");
