@@ -218,7 +218,9 @@ CACHED: {
 		ok($headers =~ /^ETag:\s+(.+)/m);
 		ok($1 eq $etag);
 
+		# Among other things, save_to will be to here
 		my $tempdir = tempdir();
+		diag(__LINE__, ": $tempdir");
 		$ENV{'DOCUMENT_ROOT'} = $tempdir;
 
 		delete $ENV{'LANGUAGE'};

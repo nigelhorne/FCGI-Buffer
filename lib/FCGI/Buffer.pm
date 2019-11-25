@@ -1123,6 +1123,7 @@ sub set_options {
 =head2 can_cache
 
 Returns true if the server is allowed to store the results locally.
+This is the value of X-Cache in the returned header.
 
 =cut
 
