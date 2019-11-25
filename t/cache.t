@@ -324,7 +324,7 @@ CACHED: {
 
 		diag(">>>>>>>>>>>>>>>>>>$body");
 		if($^O eq 'MSWin32') {
-			ok($body =~ /"\\web\\English\\test4.cgi\\.+\.html"/m);
+			ok($body =~ /\\web\\English\\test4.cgi\\.+\.html"/m);
 		} else {
 			ok($body =~ /"\/web\/English\/test4.cgi\/.+\.html"/m);
 		}
@@ -466,7 +466,11 @@ CACHED: {
 		ok($h->content_encoding() eq 'gzip');
 
 		$body = $r->decoded_content();
-		ok($body =~ /"\/web\/English\/test4.cgi\/.+\.html"/m);
+		if($^O eq 'MSWin32') {
+			ok($body =~ /\\web\\English\\test4.cgi\\.+\.html"/m);
+		} else {
+			ok($body =~ /"\/web\/English\/test4.cgi\/.+\.html"/m);
+		}
 		ok($body !~ /"\?arg1=a/m);
 
 		$ENV{'REQUEST_METHOD'} = 'HEAD';
@@ -530,10 +534,15 @@ CACHED: {
 
 		($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
 
+diag(__LINE__, ": $body");
 		ok($body =~ /<a href="\?arg2=b">link<\/a>/mi);
 		ok($body =~ /<a href=\"\/\/github.com\/nigelhorne/mi);
 		ok($body =~ /<a href=\"\/cgi-bin\/test4.cgi\?arg3=c">/mi);
-		ok($body =~ /"\/web\/English\/test4.cgi\/arg1=a_arg2=b\.html"/m);
+		if($^O eq 'MSWin32') {
+			ok($body =~ /\\web\\English\\test4.cgi\\arg1=a_arg2=b\.html"/m);
+		} else {
+			ok($body =~ /"\/web\/English\/test4.cgi\/arg1=a_arg2=b\.html"/m);
+		}
 
 		ok(-f "$tempdir/web/English/test6.cgi/arg1=a_arg2=b.html");
 		open($fin, '<', "$tempdir/web/English/test6.cgi/arg1=a_arg2=b.html");
