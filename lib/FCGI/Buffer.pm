@@ -563,6 +563,7 @@ sub DESTROY {
 				# Create a static page with the information and link to that in the output
 				# HTML
 				if($dbh && $self->{info} && $self->{save_to} && (my $request_uri = $ENV{'REQUEST_URI'})) {
+::diag(__LINE__);
 					my $query = "SELECT DISTINCT creation FROM fcgi_buffer WHERE key = ?";
 					if($self->{logger}) {
 						$self->{logger}->debug("$query: $key");
@@ -570,11 +571,13 @@ sub DESTROY {
 					my $sth = $dbh->prepare($query);
 					$sth->execute($key);
 					if(my $href = $sth->fetchrow_hashref()) {
+::diag(__LINE__);
 						if(my $ttl = $self->{save_to}->{ttl}) {
 							push @{$self->{o}}, 'Expires: ' .
 								HTTP::Date::time2str($href->{'creation'} + $ttl);
 						}
 					} else {
+::diag(__LINE__);
 						my $dir = $self->{save_to}->{directory};
 						my $browser_type = $self->{info}->browser_type();
 						my $language = $self->{lingua}->language();
@@ -582,11 +585,15 @@ sub DESTROY {
 							$language = $1;	# Untaint
 						}
 						my $bdir = File::Spec->catfile($dir, $browser_type);
-						if($bdir =~ /^\/(.+)$/) {
-							$bdir = "/$1"; # Untaint
+						if($bdir =~ /^([\/\\])(.+)$/) {
+							$bdir = "$1$2"; # Untaint
+::diag('>>>>>>>>>>>>', $bdir);
 						}
 						my $ldir = File::Spec->catfile($bdir, $language);
 						my $sdir = File::Spec->catfile($ldir, $self->{info}->script_name());
+						if($self->{logger}) {
+							$self->{logger}->debug("Create paths to $sdir");
+						}
 						if(!-d $bdir) {
 							mkdir $bdir;
 							mkdir $ldir;
@@ -597,7 +604,7 @@ sub DESTROY {
 						} elsif(!-d $sdir) {
 							mkdir $sdir;
 						}
-						my $path = "$sdir/" . $self->{info}->as_string() . '.html';
+						my $path = File::Spec->catfile($sdir, $self->{info}->as_string() . '.html');
 						if($path =~ /^(.+)$/) {
 							$path = $1; # Untaint
 							$path =~ tr/[\|;]/_/;
