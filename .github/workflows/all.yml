@@ -26,7 +26,7 @@ jobs:
           cpanm -iqn Test::Script Test::Pod::Spelling::CommonMistakes Test::Portability::Files Test::Taint Test::Carp DBD::SQLite DBI CHI Test::Without::Module Locale::Language Test::Pod::Coverage
           cpanm -iq --installdeps --notest .
       - name: Install non Windows Dependencies
-        if: ${{ matrix.os != 'windows-latest' }}
+        - if: matrix.os != 'windows-latest'
           run: cpanm -iqn IO::Compress::Brotli
       - name: Run Tests
         run: prove -l t
