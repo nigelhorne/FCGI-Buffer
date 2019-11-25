@@ -21,6 +21,7 @@ BEGIN {
 CACHED: {
 	delete $ENV{'REMOTE_ADDR'};
 	delete $ENV{'HTTP_USER_AGENT'};
+	$ENV{'TEST_VERBOSE'} = 1;
 
 	SKIP: {
 		eval {
