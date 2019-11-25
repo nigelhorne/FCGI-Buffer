@@ -334,7 +334,7 @@ sub DESTROY {
 
 	my $dbh;
 	if(my $save_to = $self->{save_to}) {
-		my $sqlite_file = $save_to->{directory} . '/fcgi.buffer.sql';
+		my $sqlite_file = File::Spec->catfile($save_to->{directory}, 'fcgi.buffer.sql');
 		if(!-r $sqlite_file) {
 			if(!-d $save_to->{directory}) {
 				mkdir $save_to->{directory};
