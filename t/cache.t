@@ -2,7 +2,7 @@
 
 use strict;
 use warnings;
-use Test::Most tests => 157;
+use Test::Most tests => 159;
 use Storable;
 use Capture::Tiny ':all';
 use CGI::Info;
@@ -221,6 +221,8 @@ CACHED: {
 		# Among other things, save_to will be to here
 		my $tempdir = tempdir();
 		diag(__LINE__, ": $tempdir");
+		ok(-d $tempdir);
+		ok(-w $tempdir);
 		$ENV{'DOCUMENT_ROOT'} = $tempdir;
 
 		delete $ENV{'LANGUAGE'};
