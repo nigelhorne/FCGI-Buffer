@@ -7,6 +7,7 @@ my %prereq_pm = (
 	'CGI::Info' => 0.51,
 	'CSS::Packer' => 0,
 	'Compress::Zlib' => 0,
+	'File::Path' => 0,
 	'File::Spec' => 0,
 	'Digest::MD5' => 0,
     	'Encode' => 0,

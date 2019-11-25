@@ -7,6 +7,7 @@ use warnings;
 # FIXME: save_to treats /cgi-bin/foo.fcgi and /cgi-bin2/foo.fcgi as the same
 
 use Digest::MD5;
+use File::Path;
 use File::Spec;
 use IO::String;
 use CGI::Info;
@@ -597,24 +598,25 @@ sub DESTROY {
 							$self->{logger}->debug("Create paths to $sdir");
 						}
 ::diag("!!!!!!!!!!!! $sdir");
-						if(!-d $bdir) {
-::diag("AAAAAAAAAA $bdir");
-							eval {
-								mkdir $bdir;
-							};
-							if($@) {
-								::diag("$bdir: $!");
-							}
-::diag("BBBBBBBBBB $ldir");
-							mkdir $ldir;
-::diag("CCCCCCCCCCC $sdir");
-							mkdir $sdir;
-						} elsif(!-d $ldir) {
-							mkdir $ldir;
-							mkdir $sdir;
-						} elsif(!-d $sdir) {
-							mkdir $sdir;
-						}
+						File::Path::make_path($sdir);
+						#if(!-d $bdir) {
+#::diag("AAAAAAAAAA $bdir");
+							#eval {
+								#mkdir $bdir;
+							#};
+							#if($@) {
+								#::diag("$bdir: $!");
+							#}
+#::diag("BBBBBBBBBB $ldir");
+							#mkdir $ldir;
+#::diag("CCCCCCCCCCC $sdir");
+							#mkdir $sdir;
+						#} elsif(!-d $ldir) {
+							#mkdir $ldir;
+							#mkdir $sdir;
+						#} elsif(!-d $sdir) {
+							#mkdir $sdir;
+						#}
 						my $path = File::Spec->catfile($sdir, $self->{info}->as_string() . '.html');
 						if($path =~ /^(.+)$/) {
 							$path = $1; # Untaint
