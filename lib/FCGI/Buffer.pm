@@ -599,7 +599,12 @@ sub DESTROY {
 ::diag("!!!!!!!!!!!! $sdir");
 						if(!-d $bdir) {
 ::diag("AAAAAAAAAA $bdir");
-							mkdir $bdir;
+							eval {
+								mkdir $bdir;
+							};
+							if($@) {
+								::diag("$bdir: $!");
+							}
 ::diag("BBBBBBBBBB $ldir");
 							mkdir $ldir;
 ::diag("CCCCCCCCCCC $sdir");
