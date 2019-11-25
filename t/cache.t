@@ -166,7 +166,7 @@ CACHED: {
 
 			print "Content-type: text/html; charset=ISO-8859-1\n\n";
 
-			print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\n",
+			print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN>\n",
 				"<HTML><HEAD><TITLE>Hello, world</TITLE></HEAD><BODY><P>The quick brown fox jumped over the lazy dog.</P></BODY></HTML>\n";
 		}
 
@@ -202,7 +202,7 @@ CACHED: {
 
 			print "Content-type: text/html; charset=ISO-8859-1\n\n";
 
-			print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\n",
+			print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN>\n",
 				"<HTML><HEAD><TITLE>Hello, world</TITLE></HEAD><BODY><P>The quick brown fox jumped over the lazy dog.</P></BODY></HTML>\n";
 
 			ok($b->is_cached() == 1);
@@ -266,11 +266,11 @@ CACHED: {
 
 			ok($b->can_cache() == 1);
 
-			print "Content-type: text/html; charset=ISO-8859-1\n\n";
+			print "Content-type: text/html; charset=ISO-8859-1\n\n",
 
-			print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\n",
-				"<HTML><HEAD><TITLE>test5</TITLE></HEAD>",
-				"<BODY><P>The quick brown fox jumped over the lazy dog.</P>",
+				"<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN>\n",
+				'<HTML><HEAD><TITLE>test5</TITLE></HEAD>',
+				'<BODY><P>The quick brown fox jumped over the lazy dog.</P>',
 				'<A HREF="/cgi-bin/test4.cgi?arg1=a&arg2=b">link</a>',
 				"</BODY></HTML>\n";
 		}
@@ -278,6 +278,7 @@ CACHED: {
 		($stdout, $stderr) = capture { test5() };
 		diag($stderr) if($stderr ne '');
 		ok($stderr eq '');
+		diag($stdout);
 
 		($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
 
@@ -341,7 +342,7 @@ CACHED: {
 
 			print "Content-type: text/html; charset=ISO-8859-1\n\n";
 
-			print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\n",
+			print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN>\n",
 				"<HTML><HEAD><TITLE>Hello, world</TITLE></HEAD>",
 				"<BODY><P>The quick brown fox jumped over the lazy dog.</P>",
 				'<A HREF="/cgi-bin/test4.cgi?arg1=a&arg2=b">link</a>',
@@ -387,7 +388,7 @@ CACHED: {
 
 			print "Content-type: text/html; charset=ISO-8859-1\n\n";
 
-			print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\n",
+			print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN>\n",
 				"<HTML><HEAD><TITLE>Hello, world</TITLE></HEAD>",
 				"<BODY><P>The quick brown fox jumped over the lazy dog.</P>",
 				'<A HREF="?arg1=a&arg2=b">link</a>',
@@ -488,7 +489,7 @@ CACHED: {
 
 			print "Content-type: text/html; charset=ISO-8859-1\n\n";
 
-			print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\n",
+			print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN>\n",
 				"<HTML><HEAD><TITLE>test6</TITLE></HEAD>",
 				"<BODY>",
 				'<A HREF="/cgi-bin/test6.cgi?arg2=b">link</a>',
@@ -524,7 +525,6 @@ CACHED: {
 	}
 }
 
-# On some platforms it's failing - find out why
 package MyLogger;
 
 sub new {

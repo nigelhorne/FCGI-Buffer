@@ -27,7 +27,7 @@ jobs:
           cpanm -iq --installdeps --notest .
       - name: Install Windows Dependencies
         if: matrix.os == 'windows-latest'
-        run: cpanm -iv Win32::Process IPC::System::Simple
+        run: cpanm -iqn Win32::Process IPC::System::Simple
       - name: Install non Windows Dependencies
         if: matrix.os != 'windows-latest'
         run: cpanm -iqn IO::Compress::Brotli
