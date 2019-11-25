@@ -285,9 +285,6 @@ CACHED: {
 				'<BODY><P>The quick brown fox jumped over the lazy dog.</P>',
 				'<A HREF="/cgi-bin/test4.cgi?arg1=a&arg2=b">link</a>',
 				"</BODY></HTML>\n";
-
-			$b = undef;
-			$info = undef;
 		}
 
 		($stdout, $stderr) = capture { test5() };

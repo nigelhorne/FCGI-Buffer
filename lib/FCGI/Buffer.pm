@@ -588,6 +588,8 @@ sub DESTROY {
 						if($bdir =~ /^([\/\\])(.+)$/) {
 							$bdir = "$1$2"; # Untaint
 ::diag('>>>>>>>>>>>>', $bdir);
+						} else {
+::diag('>>>>>>>>>>>> NO MATCH ', $bdir);
 						}
 						my $ldir = File::Spec->catfile($bdir, $language);
 						my $sdir = File::Spec->catfile($ldir, $self->{info}->script_name());
