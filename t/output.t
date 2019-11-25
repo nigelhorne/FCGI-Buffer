@@ -156,7 +156,7 @@ OUTPUT: {
 	if($^O eq 'MSWin32') {
 		TODO: {
 			local $TODO = "IO::Compress::Brotli doesn't support Windows";
-			$body = IO::Compress::Brotli::unbro($body, 1024);
+			# $body = IO::Compress::Brotli::unbro($body, 1024);
 			ok($body =~ /<HTML><HEAD><TITLE>Hello, world<\/TITLE><\/HEAD><BODY><P>The quick brown fox jumped over the lazy dog.<\/P><\/BODY><\/HTML>\n$/);
 			html_ok($body, 'HTML:Lint shows no errors');
 		}
