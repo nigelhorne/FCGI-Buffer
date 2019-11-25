@@ -27,6 +27,6 @@ jobs:
           cpanm -iq --installdeps --notest .
       - name: Install Dependencies when not Windows
         if: matrix.os != 'windows.latest'
-        run: cpan -iq IO::Compress::Brotli
+        run: cpanm -iq IO::Compress::Brotli
       - name: Run Tests
         run: prove -l t
