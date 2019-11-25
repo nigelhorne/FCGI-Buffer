@@ -594,9 +594,9 @@ sub DESTROY {
 						my $ldir = File::Spec->catfile($bdir, $language);
 						my $sdir = File::Spec->catfile($ldir, $self->{info}->script_name());
 						if($self->{logger}) {
-::diag("!!!!!!!!!!!! $sdir");
 							$self->{logger}->debug("Create paths to $sdir");
 						}
+::diag("!!!!!!!!!!!! $sdir");
 						if(!-d $bdir) {
 							mkdir $bdir;
 							mkdir $ldir;
@@ -641,9 +641,11 @@ sub DESTROY {
 							if($changes && (my $ttl = $self->{save_to}->{ttl})) {
 								push @{$self->{o}}, 'Expires: ' . HTTP::Date::time2str(time + $ttl);
 							}
-						} elsif($self->{logger}) {
+						} else {
 ::diag('>>>>>>>>>>>', "Can't create $path");
-							$self->{logger}->warn("Can't create $path");
+							if($self->{logger}) {
+								$self->{logger}->warn("Can't create $path");
+							}
 						}
 					}
 				}
