@@ -11,7 +11,7 @@
 use strict;
 use warnings;
 
-use Test::Most tests => 282;
+use Test::Most tests => 281;
 use DateTime;
 use Capture::Tiny ':all';
 use CGI::Info;
@@ -149,10 +149,18 @@ OUTPUT: {
 
 	ok(defined($body));
 	ok(length($body) eq $length);
-	$body = unbro($body, 1024);
-	ok(defined($body));
-	ok($body =~ /<HTML><HEAD><TITLE>Hello, world<\/TITLE><\/HEAD><BODY><P>The quick brown fox jumped over the lazy dog.<\/P><\/BODY><\/HTML>\n$/);
-	html_ok($body, 'HTML:Lint shows no errors');
+	if($^O eq 'MSWin32') {
+		TODO: {
+			local $TODO = "IO::Compress::Brotli doesn't support Windows";
+			$body = IO::Compress::Brotli::unbro($body, 1024);
+			ok($body =~ /<HTML><HEAD><TITLE>Hello, world<\/TITLE><\/HEAD><BODY><P>The quick brown fox jumped over the lazy dog.<\/P><\/BODY><\/HTML>\n$/);
+			html_ok($body, 'HTML:Lint shows no errors');
+		}
+	} else {
+		$body = IO::Compress::Brotli::unbro($body, 1024);
+		ok($body =~ /<HTML><HEAD><TITLE>Hello, world<\/TITLE><\/HEAD><BODY><P>The quick brown fox jumped over the lazy dog.<\/P><\/BODY><\/HTML>\n$/);
+		html_ok($body, 'HTML:Lint shows no errors');
+	}
 
 	#..........................................
 	delete $ENV{'SERVER_PROTOCOL'};
