@@ -48,7 +48,6 @@ WriteMakefile(
 	# 'Test::Kwalitee' => 0,
 	'autodie' => 0,
 	'IPC::System::Simple' => 0,
-	# 'Test::TempDir::Tiny' => 0.016,
 	'Directory::Scratch' => 0,
 	'CGI::Lingua' => 0,
 	'HTTP::Response' => 0,

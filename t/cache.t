@@ -8,7 +8,6 @@ use Capture::Tiny ':all';
 use CGI::Info;
 use CGI::Lingua;
 use Test::NoWarnings;
-# use Test::TempDir::Tiny;
 use Directory::Scratch;
 use autodie qw(:all);
 use HTTP::Response;
@@ -223,7 +222,6 @@ CACHED: {
 		ok($1 eq $etag);
 
 		# Among other things, save_to will be to here
-		# my $tempdir = tempdir();
 		my $tempdir = Directory::Scratch->new()->mkdir('cache.t');
 		diag(__LINE__, ": $tempdir");
 		ok(-d $tempdir);
@@ -325,7 +323,11 @@ CACHED: {
 		ok($headers =~ /^Expires: /m);
 
 		diag(">>>>>>>>>>>>>>>>>>$body");
-		ok($body =~ /"\/web\/English\/test4.cgi\/.+\.html"/m);
+		if($^O eq 'MSWin32') {
+			ok($body =~ /"\\web\\English\\test4.cgi\\.+\.html"/m);
+		} else {
+			ok($body =~ /"\/web\/English\/test4.cgi\/.+\.html"/m);
+		}
 
 		$ENV{'SCRIPT_NAME'} = '/cgi-bin/test5.cgi';
 		$ENV{'REQUEST_URI'} = '/cgi-bin/test5.cgi?fred=wilma';
