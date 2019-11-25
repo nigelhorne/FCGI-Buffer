@@ -324,6 +324,7 @@ CACHED: {
 		ok($headers =~ /^ETag:\s+.+/m);
 		ok($headers =~ /^Expires: /m);
 
+		diag(">>>>>>>>>>>>>>>>>>$body");
 		ok($body =~ /"\/web\/English\/test4.cgi\/.+\.html"/m);
 
 		$ENV{'SCRIPT_NAME'} = '/cgi-bin/test5.cgi';
@@ -337,7 +338,6 @@ CACHED: {
 		ok($headers =~ /^ETag:\s+.+/m);
 		ok($headers =~ /^Expires: /m);
 
-		diag(">>>>>>>>>>>>>>>>>>$body");
 		ok($body =~ /"\/web\/English\/test4.cgi\/.+\.html"/m);
 
 		ok(-f "$tempdir/web/English/test5.cgi/arg1=a_arg2=b.html");
