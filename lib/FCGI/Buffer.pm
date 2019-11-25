@@ -598,8 +598,11 @@ sub DESTROY {
 						}
 ::diag("!!!!!!!!!!!! $sdir");
 						if(!-d $bdir) {
+::diag("AAAAAAAAAA $bdir");
 							mkdir $bdir;
+::diag("BBBBBBBBBB $ldir");
 							mkdir $ldir;
+::diag("CCCCCCCCCCC $sdir");
 							mkdir $sdir;
 						} elsif(!-d $ldir) {
 							mkdir $ldir;
