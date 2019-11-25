@@ -8,7 +8,7 @@ use Capture::Tiny ':all';
 use CGI::Info;
 use CGI::Lingua;
 use Test::NoWarnings;
-use Test::TempDir::Tiny;
+# use Test::TempDir::Tiny;
 use Directory::Scratch;
 use autodie qw(:all);
 use HTTP::Response;
