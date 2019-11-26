@@ -564,7 +564,6 @@ sub DESTROY {
 				# Create a static page with the information and link to that in the output
 				# HTML
 				if($dbh && $self->{info} && $self->{save_to} && (my $request_uri = $ENV{'REQUEST_URI'})) {
-::diag(__LINE__);
 					my $query = "SELECT DISTINCT creation FROM fcgi_buffer WHERE key = ?";
 					if($self->{logger}) {
 						$self->{logger}->debug("$query: $key");
@@ -1472,7 +1471,8 @@ sub _save_to {
 						}
 						$link =~ s/\?/\\?/g;
 						my $rootdir = $self->{info}->rootdir();
-						$path =~ s/^$rootdir//;
+						$path = substr($path, length($rootdir));
+::diag(__LINE__, ": $path");
 						$changes += ($copy =~ s/<a\s+href="$link">/<a href="$path">/gis);
 						# Find the first link that will expire and use that
 						if((!defined($creation)) || ($href->{'creation'} < $creation)) {
