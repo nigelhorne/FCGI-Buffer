@@ -552,5 +552,7 @@ CACHED: {
 		ok($html_file =~ /<a href=\"\/\/github.com\/nigelhorne/mi);
 		ok($html_file =~ /<a href=\"\/cgi-bin\/test4.cgi\?arg3=c">/mi);
 		ok($html_file =~ /"\/cgi-bin\/test4.cgi\?arg1=a&arg2=b">/mi);
+
+
 	}
 }

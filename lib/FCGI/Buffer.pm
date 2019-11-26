@@ -339,6 +339,9 @@ sub DESTROY {
 	my $dbh;
 	if(my $save_to = $self->{save_to}) {
 		my $sqlite_file = File::Spec->catfile($save_to->{directory}, 'fcgi.buffer.sql');
+		if($self->{logger}) {
+			$self->{logger}->debug("save_to sqlite file: $sqlite_file");
+		}
 		if(!-r $sqlite_file) {
 			if(!-d $save_to->{directory}) {
 				mkdir $save_to->{directory};
@@ -578,9 +581,14 @@ sub DESTROY {
 					} else {
 						my $dir = $self->{save_to}->{directory};
 						my $browser_type = $self->{info}->browser_type();
-						my $language = $self->{lingua}->language();
-						if($language =~ /([\w\s]+)/i) {
-							$language = $1;	# Untaint
+						my $language;
+						if($self->{'lingua'}) {
+							$language = $self->{lingua}->language();
+							if($language =~ /([\w\s]+)/i) {
+								$language = $1;	# Untaint
+							}
+						} else {
+							$language = 'default';
 						}
 						my $bdir = File::Spec->catfile($dir, $browser_type);
 						if($bdir =~ /^([\/\\])(.+)$/) {
@@ -1035,8 +1043,18 @@ sub init {
 	if(defined($params{lingua})) {
 		$self->{lingua} = $params{lingua};
 	}
-	# Don't forget to handle where lingua could have been set in a previous init() call
-	if(defined($params{save_to}) && $self->{lingua} && $self->can_cache()) {
+
+	if(defined($params{save_to}) && $self->can_cache()) {
+		if(my $dir = $params{'save_to'}->{'directory'}) {
+			if(! -d $dir) {
+				Carp::carp("$dir isn't a directory");
+				return;
+			}
+			if(! -w $dir) {
+				Carp::carp("$dir isn't writeable");
+				return;
+			}
+		}
 		$self->{save_to} = $params{save_to};
 		if(!exists($params{save_to})) {
 			$self->{save_to} = 600;
@@ -1473,7 +1491,11 @@ sub _save_to {
 		if($self->{logger}) {
 			# $self->{logger}->debug("$changes links now point to static pages");
 			if($changes == 1) {
-				$self->{logger}->info('1 link now points to a static page for ', $expiration - time, 's');
+				if($self->{'save_to'}->{'ttl'}) {
+					$self->{logger}->info('1 link now points to a static page for ', $expiration - time, 's');
+				} else {
+					$self->{logger}->info('1 link now points to a static page');
+				}
 			} else {
 				$self->{logger}->info("$changes links now point to static pages");
 			}
