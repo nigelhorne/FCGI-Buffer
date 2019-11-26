@@ -148,7 +148,6 @@ OUTPUT: {
 	ok(defined($length));
 
 	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
-	ok($headers =~ /^Content-Encoding: br/m);
 	ok($headers =~ /ETag: "[A-Za-z0-F0-f]{32}"/m);
 
 	ok(defined($body));
@@ -156,11 +155,15 @@ OUTPUT: {
 	if($^O eq 'MSWin32') {
 		TODO: {
 			local $TODO = "IO::Compress::Brotli doesn't support Windows";
+			ok($headers =~ /^Content-Encoding: br/m);
+
 			# $body = IO::Compress::Brotli::unbro($body, 1024);
 			ok($body =~ /<HTML><HEAD><TITLE>Hello, world<\/TITLE><\/HEAD><BODY><P>The quick brown fox jumped over the lazy dog.<\/P><\/BODY><\/HTML>\n$/);
 			html_ok($body, 'HTML:Lint shows no errors');
 		}
 	} else {
+		ok($headers =~ /^Content-Encoding: br/m);
+
 		$body = IO::Compress::Brotli::unbro($body, 1024);
 		ok($body =~ /<HTML><HEAD><TITLE>Hello, world<\/TITLE><\/HEAD><BODY><P>The quick brown fox jumped over the lazy dog.<\/P><\/BODY><\/HTML>\n$/);
 		html_ok($body, 'HTML:Lint shows no errors');
