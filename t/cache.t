@@ -387,7 +387,7 @@ CACHED: {
 
 		if($^O eq 'MSWin32') {
 			diag($body);
-			ok($body =~ /\\web\\English\\test4.cgi\/.+\.html"/m);
+			ok($body =~ /\\web\\English\\test4.cgi\\.+\.html"/m);
 		} else {
 			ok($body =~ /"\/web\/English\/test4.cgi\/.+\.html"/m);
 		}
@@ -439,7 +439,7 @@ CACHED: {
 		ok($headers !~ /^Content-Encoding: gzip/m);
 
 		if($^O eq 'MSWin32') {
-			ok($body =~ /\\web\\English\\test4.cgi\/.+\.html"/m);
+			ok($body =~ /\\web\\English\\test4.cgi\\.+\.html"/m);
 		} else {
 			ok($body =~ /"\/web\/English\/test4.cgi\/.+\.html"/m);
 		}
