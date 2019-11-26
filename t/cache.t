@@ -296,8 +296,6 @@ CACHED: {
 
 		diag($stderr) if($stderr ne '');
 		ok($stderr eq '');
-		diag(__LINE__, ": $stdout");
-		diag(__LINE__, ": $stderr");
 
 		($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
 		ok(defined($headers));
@@ -354,6 +352,7 @@ CACHED: {
 		close($fin);
 
 		if($^O eq 'MSWin32') {
+			diag($html_file);
 			ok($html_file =~ /<A HREF="\\cgi-bin\\test4.cgi\?arg1=a&arg2=b">link<\/a>/mi);
 		} else {
 			ok($html_file =~ /<A HREF="\/cgi-bin\/test4.cgi\?arg1=a&arg2=b">link<\/a>/mi);
@@ -374,9 +373,8 @@ CACHED: {
 
 			ok($b->can_cache() == 1);
 
-			print "Content-type: text/html; charset=ISO-8859-1\n\n";
-
-			print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN>\n",
+			print "Content-type: text/html; charset=ISO-8859-1\n\n",
+				"<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN>\n",
 				"<HTML><HEAD><TITLE>Hello, world</TITLE></HEAD>",
 				"<BODY><P>The quick brown fox jumped over the lazy dog.</P>",
 				'<A HREF="/cgi-bin/test4.cgi?arg1=a&arg2=b">link</a>',
