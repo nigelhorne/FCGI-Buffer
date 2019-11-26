@@ -322,7 +322,6 @@ CACHED: {
 		ok($headers =~ /^ETag:\s+.+/m);
 		ok($headers =~ /^Expires: /m);
 
-		diag(">>>>>>>>>>>>>>>>>>$body");
 		if($^O eq 'MSWin32') {
 			ok($body =~ /\\web\\English\\test4.cgi\\.+\.html"/m);
 		} else {
@@ -340,7 +339,11 @@ CACHED: {
 		ok($headers =~ /^ETag:\s+.+/m);
 		ok($headers =~ /^Expires: /m);
 
-		ok($body =~ /"\/web\/English\/test4.cgi\/.+\.html"/m);
+		if($^O eq 'MSWin32') {
+			ok($body =~ /\\web\\English\\test4.cgi\\.+\.html"/m);
+		} else {
+			ok($body =~ /"\/web\/English\/test4.cgi\/.+\.html"/m);
+		}
 
 		ok(-f "$tempdir/web/English/test5.cgi/arg1=a_arg2=b.html");
 		open(my $fin, '<', "$tempdir/web/English/test5.cgi/arg1=a_arg2=b.html");
@@ -349,7 +352,12 @@ CACHED: {
 			$html_file .= $_;
 		}
 		close($fin);
-		ok($html_file =~ /<A HREF="\/cgi-bin\/test4.cgi\?arg1=a&arg2=b">link<\/a>/mi);
+
+		if($^O eq 'MSWin32') {
+			ok($html_file =~ /<A HREF="\\cgi-bin\\test4.cgi\?arg1=a&arg2=b">link<\/a>/mi);
+		} else {
+			ok($html_file =~ /<A HREF="\/cgi-bin\/test4.cgi\?arg1=a&arg2=b">link<\/a>/mi);
+		}
 
 		# no cache argument to init()
 		sub test5a {
