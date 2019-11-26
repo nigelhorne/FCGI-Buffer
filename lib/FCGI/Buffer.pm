@@ -571,13 +571,11 @@ sub DESTROY {
 					my $sth = $dbh->prepare($query);
 					$sth->execute($key);
 					if(my $href = $sth->fetchrow_hashref()) {
-::diag(__LINE__);
 						if(my $ttl = $self->{save_to}->{ttl}) {
 							push @{$self->{o}}, 'Expires: ' .
 								HTTP::Date::time2str($href->{'creation'} + $ttl);
 						}
 					} else {
-::diag(__LINE__);
 						my $dir = $self->{save_to}->{directory};
 						my $browser_type = $self->{info}->browser_type();
 						my $language = $self->{lingua}->language();
@@ -587,35 +585,13 @@ sub DESTROY {
 						my $bdir = File::Spec->catfile($dir, $browser_type);
 						if($bdir =~ /^([\/\\])(.+)$/) {
 							$bdir = "$1$2"; # Untaint
-::diag('>>>>>>>>>>>>', $bdir);
-						} else {
-::diag('>>>>>>>>>>>> NO MATCH ', $bdir);
 						}
 						my $ldir = File::Spec->catfile($bdir, $language);
 						my $sdir = File::Spec->catfile($ldir, $self->{info}->script_name());
 						if($self->{logger}) {
 							$self->{logger}->debug("Create paths to $sdir");
 						}
-::diag("!!!!!!!!!!!! $sdir");
 						File::Path::make_path($sdir);
-						#if(!-d $bdir) {
-#::diag("AAAAAAAAAA $bdir");
-							#eval {
-								#mkdir $bdir;
-							#};
-							#if($@) {
-								#::diag("$bdir: $!");
-							#}
-#::diag("BBBBBBBBBB $ldir");
-							#mkdir $ldir;
-#::diag("CCCCCCCCCCC $sdir");
-							#mkdir $sdir;
-						#} elsif(!-d $ldir) {
-							#mkdir $ldir;
-							#mkdir $sdir;
-						#} elsif(!-d $sdir) {
-							#mkdir $sdir;
-						#}
 						my $path = File::Spec->catfile($sdir, $self->{info}->as_string() . '.html');
 						if($path =~ /^(.+)$/) {
 							$path = $1; # Untaint
@@ -651,7 +627,6 @@ sub DESTROY {
 								push @{$self->{o}}, 'Expires: ' . HTTP::Date::time2str(time + $ttl);
 							}
 						} else {
-::diag('>>>>>>>>>>>', "Can't create $path");
 							if($self->{logger}) {
 								$self->{logger}->warn("Can't create $path");
 							}
@@ -1472,7 +1447,6 @@ sub _save_to {
 						$link =~ s/\?/\\?/g;
 						my $rootdir = $self->{info}->rootdir();
 						$path = substr($path, length($rootdir));
-::diag(__LINE__, ": $path");
 						$changes += ($copy =~ s/<a\s+href="$link">/<a href="$path">/gis);
 						# Find the first link that will expire and use that
 						if((!defined($creation)) || ($href->{'creation'} < $creation)) {

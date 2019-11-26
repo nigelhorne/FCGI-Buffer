@@ -222,7 +222,6 @@ CACHED: {
 
 		# Among other things, save_to will be to here
 		my $tempdir = Directory::Scratch->new()->mkdir('cache.t');
-		diag(__LINE__, ": $tempdir");
 		ok(-d $tempdir);
 		ok(-w $tempdir);
 		$ENV{'DOCUMENT_ROOT'} = $tempdir;
@@ -247,12 +246,6 @@ CACHED: {
 		$ENV{'SCRIPT_NAME'} = '/cgi-bin/test4.cgi';
 		$ENV{'QUERY_STRING'} = 'arg1=a&arg2=b';
 		delete $ENV{'HTTP_ACCEPT_ENCODING'};
-
-		opendir(DIR, $tempdir);
-		while(my $file = readdir(DIR)) {
-			diag(__LINE__, ": $file");
-		}
-		closedir(DIR);
 
 		($stdout, $stderr) = capture { test4a() };
 		ok($stderr eq '');
@@ -287,11 +280,6 @@ CACHED: {
 		}
 
 		($stdout, $stderr) = capture { test5() };
-		opendir(DIR, $tempdir);
-		while(my $file = readdir(DIR)) {
-			diag(__LINE__, ": $file");
-		}
-		closedir(DIR);
 
 		diag($stderr) if($stderr ne '');
 		ok($stderr eq '');
@@ -385,7 +373,6 @@ CACHED: {
 		ok($headers =~ /^Expires: /m);
 
 		if($^O eq 'MSWin32') {
-			diag($body);
 			ok($body =~ /\\web\\English\\test4.cgi\\.+\.html"/m);
 		} else {
 			ok($body =~ /"\/web\/English\/test4.cgi\/.+\.html"/m);
@@ -543,7 +530,6 @@ CACHED: {
 
 		($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
 
-diag(__LINE__, ": $body");
 		ok($body =~ /<a href="\?arg2=b">link<\/a>/mi);
 		ok($body =~ /<a href=\"\/\/github.com\/nigelhorne/mi);
 		ok($body =~ /<a href=\"\/cgi-bin\/test4.cgi\?arg3=c">/mi);
