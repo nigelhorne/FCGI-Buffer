@@ -351,12 +351,7 @@ CACHED: {
 		}
 		close($fin);
 
-		if($^O eq 'MSWin32') {
-			diag($html_file);
-			ok($html_file =~ /<A HREF="\\cgi-bin\\test4.cgi\?arg1=a&arg2=b">link<\/a>/mi);
-		} else {
-			ok($html_file =~ /<A HREF="\/cgi-bin\/test4.cgi\?arg1=a&arg2=b">link<\/a>/mi);
-		}
+		ok($html_file =~ /<A HREF="\/cgi-bin\/test4.cgi\?arg1=a&arg2=b">link<\/a>/mi);
 
 		# no cache argument to init()
 		sub test5a {
@@ -390,7 +385,12 @@ CACHED: {
 		ok($headers =~ /^ETag:\s+.+/m);
 		ok($headers =~ /^Expires: /m);
 
-		ok($body =~ /"\/web\/English\/test4.cgi\/.+\.html"/m);
+		if($^O eq 'MSWin32') {
+			diag($body);
+			ok($body =~ /\\web\\English\\test4.cgi\/.+\.html"/m);
+		} else {
+			ok($body =~ /"\/web\/English\/test4.cgi\/.+\.html"/m);
+		}
 		ok($body !~ /"\?arg1=a/m);
 
 		ok($headers =~ /^Content-Length:\s+(\d+)/m);
@@ -438,7 +438,11 @@ CACHED: {
 		ok($headers =~ /^Expires: /m);
 		ok($headers !~ /^Content-Encoding: gzip/m);
 
-		ok($body =~ /"\/web\/English\/test4.cgi\/.+\.html"/m);
+		if($^O eq 'MSWin32') {
+			ok($body =~ /\\web\\English\\test4.cgi\/.+\.html"/m);
+		} else {
+			ok($body =~ /"\/web\/English\/test4.cgi\/.+\.html"/m);
+		}
 		ok($body !~ /"\?arg1=a/m);
 
 		ok($headers =~ /^Content-Length:\s+(\d+)/m);
