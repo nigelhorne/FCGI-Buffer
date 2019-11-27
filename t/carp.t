@@ -4,13 +4,14 @@
 
 use strict;
 use warnings;
-use Test::Most tests => 7;
+use Test::Most;
 
 eval 'use Test::Carp';
 
 if($@) {
-	skip('Test::Carp required for test', 7);
+	plan(skip_all => 'Test::Carp required for test');
 } else {
+	plan(tests => 7);
 	use_ok('FCGI::Buffer');
 
 	CARP: {
