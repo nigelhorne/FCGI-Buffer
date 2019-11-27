@@ -9,7 +9,7 @@ use Test::Most tests => 7;
 eval 'use Test::Carp';
 
 if($@) {
-	plan skip_all => 'Test::Carp required for test';
+	skip('Test::Carp required for test', 7);
 } else {
 	use_ok('FCGI::Buffer');
 

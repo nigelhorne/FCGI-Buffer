@@ -33,7 +33,7 @@ CACHED: {
 
 		if($@) {
 			diag('CHI required to test caching');
-			skip('CHI not installed', 153);
+			skip('CHI not installed', 157);
 		} else {
 			diag("Using CHI $CHI::VERSION");
 		}
