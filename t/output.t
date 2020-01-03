@@ -47,7 +47,7 @@ OUTPUT: {
 
 	my ($stdout, $stderr) = capture { test1() };
 
-	ok($stderr eq '');
+	is($stderr, '');
 	ok($stdout !~ /^ETag: "/m);
 	ok($stdout !~ /^Content-Encoding: gzip/m);
 
@@ -864,7 +864,7 @@ EOF
 
 	($stdout, $stderr) = capture { test21() };
 
-	ok($stderr eq '');
+	is($stderr, '');
 	ok(defined($stdout));
 	ok($stdout !~ /ETag: "([A-Za-z0-F0-f]{32})"/m);
 	ok($stdout !~ /^Status: 304 Not Modified/mi);
@@ -877,7 +877,7 @@ EOF
 
 	ok(length($body) != 0);
 	ok(defined($length));
-	ok(length($body) == $length);
+	is(length($body), $length);
 
 	ok($body =~ /a bit more\s+a third bit/);
 }

@@ -22,7 +22,7 @@ before_install:
   # - sudo apt-get install sqlite3 libdbi-perl libdbd-sqlite3-perl
 
 install:
-  - cpanm -n Devel::Cover::Report::Coveralls Test::Script Test::Pod::Spelling::CommonMistakes Test::Portability::Files Test::Taint Test::Carp DBD::SQLite DBI CHI Test::Without::Module Locale::Language
+  - cpanm -iqn Devel::Cover::Report::Coveralls Test::Script Test::Pod::Spelling::CommonMistakes Test::Portability::Files Test::Taint Test::Carp DBD::SQLite DBI CHI Test::Without::Module Locale::Language
   - cpanm -v --installdeps --notest .
 
 script:
