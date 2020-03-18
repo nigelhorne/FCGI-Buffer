@@ -1047,7 +1047,7 @@ sub init {
 	if(defined($params{save_to}) && $self->can_cache()) {
 		if(my $dir = $params{'save_to'}->{'directory'}) {
 			if(! -d $dir) {
-				mkdir $save_to->{directory};
+				mkdir $dir;
 				if(! -d $dir) {
 					Carp::carp("$dir isn't a directory");
 					return;
