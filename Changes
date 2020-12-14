@@ -2,6 +2,7 @@ Revision history for FCGI-Buffer
 
 0.16
 	Try harder to mkdir the save_to directory
+	Fixed handling when save_to->ttl is not given
 
 0.15	Fri  3 Jan 17:05:38 EST 2020
 	IO::Compress:Brotli hasn't been ported to Windows

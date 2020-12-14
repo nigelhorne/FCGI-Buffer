@@ -1059,8 +1059,8 @@ sub init {
 			}
 		}
 		$self->{save_to} = $params{save_to};
-		if(!exists($params{save_to})) {
-			$self->{save_to} = 600;
+		if(!exists($params{save_to}->{'ttl'})) {
+			$self->{save_to}->{'ttl'} = 600;
 		}
 	} elsif(exists($params{'save_to'}) && !defined($params{'save_to'})) {
 		delete $self->{'save_to'};
