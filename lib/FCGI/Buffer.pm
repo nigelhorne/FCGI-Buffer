@@ -1,4 +1,4 @@
-package FCGI::Buffer;
+packagr FCGI::Buffer;
 
 use strict;
 use warnings;
@@ -402,7 +402,7 @@ sub DESTROY {
 						push @{$self->{o}}, 'X-Cache-Lookup: HIT';
 					}
 				} else {
-					carp "Error retrieving data for key $key";
+					carp __PACKAGE__, ": error retrieving data for key $key";
 				}
 			}
 
