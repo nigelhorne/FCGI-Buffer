@@ -33,6 +33,7 @@ t/metrics.t
 t/namespaces.t
 t/no404s.t
 t/nocache.t
+t/noopentickets.t
 t/noplan.t
 t/output.t
 t/pod-cm.t
