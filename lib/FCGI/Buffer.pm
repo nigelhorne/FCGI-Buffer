@@ -1,4 +1,4 @@
-packagr FCGI::Buffer;
+package FCGI::Buffer;
 
 use strict;
 use warnings;
