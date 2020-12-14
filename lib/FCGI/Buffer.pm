@@ -402,7 +402,7 @@ sub DESTROY {
 						push @{$self->{o}}, 'X-Cache-Lookup: HIT';
 					}
 				} else {
-					carp __PACKAGE__, ": error retrieving data for key $key";
+					carp( __PACKAGE__, ": error retrieving data for key $key");
 				}
 			}
 
