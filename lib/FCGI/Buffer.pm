@@ -102,9 +102,14 @@ Create an FCGI::Buffer object.  Do one of these for each FCGI::Accept.
 
 # FIXME: Call init() on any arguments that are given
 sub new {
-	my $class = shift;
+	my $proto = shift;
+	my $class = ref($proto) || $proto;
 
-	return unless($class);
+	# Use FCGI::Buffer->new(), not FCGI::Buffer::new()
+	if(!defined($class)) {
+		carp(__PACKAGE__, ' use ->new() not ::new() to instantiate');
+		return;
+	}
 
 	my $buf = IO::String->new();
 
