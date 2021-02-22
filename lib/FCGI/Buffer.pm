@@ -517,7 +517,7 @@ sub DESTROY {
 					if($self->{logger}) {
 						$self->{logger}->debug('Set Last-Modified to ', HTTP::Date::time2str($self->{cobject}->created_at()));
 					}
-					push @{$self->{o}}, "Last-Modified: " . HTTP::Date::time2str($self->{cobject}->created_at());
+					push @{$self->{o}}, 'Last-Modified: ' . HTTP::Date::time2str($self->{cobject}->created_at());
 				}
 			}
 		} else {
@@ -649,9 +649,9 @@ sub DESTROY {
 				if($self->{generate_last_modified}) {
 					$self->{cobject} = $self->{cache}->get_object($key);
 					if(defined($self->{cobject})) {
-						push @{$self->{o}}, "Last-Modified: " . HTTP::Date::time2str($self->{cobject}->created_at());
+						push @{$self->{o}}, 'Last-Modified: ' . HTTP::Date::time2str($self->{cobject}->created_at());
 					} else {
-						push @{$self->{o}}, "Last-Modified: " . HTTP::Date::time2str(time);
+						push @{$self->{o}}, 'Last-Modified: ' . HTTP::Date::time2str(time);
 					}
 				}
 			}
@@ -679,6 +679,9 @@ sub DESTROY {
 	} elsif($self->{info}) {
 		my $host_name = $self->{info}->host_name();
 		push @{$self->{o}}, ("X-Cache: MISS from $host_name", "X-Cache-Lookup: MISS from $host_name");
+		if(($self->{generate_last_modified} && (my $age = $self->_my_age())) {
+			push @{$self->{o}}, 'Last-Modified: ' . HTTP::Date::time2str($age);
+		}
 		if($self->_save_to($unzipped_body, $dbh) && $encoding) {
 			$self->_compress({ encoding => $encoding });
 		}
@@ -821,7 +824,7 @@ sub _check_modified_since {
 		$self->{logger}->debug("_check_modified_since: Compare $$params{modified} with $s");
 	}
 	if($$params{modified} <= $s) {
-		push @{$self->{o}}, "Status: 304 Not Modified";
+		push @{$self->{o}}, 'Status: 304 Not Modified';
 		$self->{status} = 304;
 		$self->{send_body} = 0;
 		if($self->{logger}) {

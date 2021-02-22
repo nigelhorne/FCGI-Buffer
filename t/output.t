@@ -840,6 +840,8 @@ EOF
 	# Check removal of </center><center>
 
 	sub test21 {
+		local $ENV{'SCRIPT_FILENAME'} = '/';
+
 		my $b = new_ok('FCGI::Buffer');
 
 		$b->set_options({ optimise_content => 1, generate_etag => 0 });
