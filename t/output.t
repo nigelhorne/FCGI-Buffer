@@ -11,7 +11,7 @@
 use strict;
 use warnings;
 
-use Test::Most tests => 281;
+use Test::Most tests => 282;
 use DateTime;
 use Capture::Tiny ':all';
 use CGI::Info;
@@ -872,6 +872,7 @@ EOF
 	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
 
 	ok($headers =~ /^Content-Length:\s+(\d+)/m);
+	like($headers, qr/^Last-Modified: /mi, 'Headers include Last-Modified');
 	$length = $1;
 	ok($headers =~ /MISS/m);
 
