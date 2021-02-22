@@ -679,8 +679,10 @@ sub DESTROY {
 	} elsif($self->{info}) {
 		my $host_name = $self->{info}->host_name();
 		push @{$self->{o}}, ("X-Cache: MISS from $host_name", "X-Cache-Lookup: MISS from $host_name");
-		if(($self->{generate_last_modified} && (my $age = $self->_my_age())) {
-			push @{$self->{o}}, 'Last-Modified: ' . HTTP::Date::time2str($age);
+		if($self->{generate_last_modified}) {
+			if(my $age = $self->_my_age()) {
+				push @{$self->{o}}, 'Last-Modified: ' . HTTP::Date::time2str($age);
+			}
 		}
 		if($self->_save_to($unzipped_body, $dbh) && $encoding) {
 			$self->_compress({ encoding => $encoding });
