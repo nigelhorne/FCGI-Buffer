@@ -5,7 +5,7 @@ use warnings;
 
 use Test::Most;
 
-if(not $ENV{AUTHOR_TESTING}) {
+if($ENV{AUTHOR_TESTING}) {
 	eval 'use Test::Vars';
 
 	plan(skip_all => 'Test::Vars required for detecting unused variables') if $@;
