@@ -684,6 +684,12 @@ sub DESTROY {
 				push @{$self->{o}}, 'Last-Modified: ' . HTTP::Date::time2str($age);
 			}
 		}
+		if($ENV{'HTTP_IF_MODIFIED_SINCE'} && ($self->{status} != 304) && $self->{generate_304}) {
+			$self->_check_modified_since({
+				since => $ENV{'HTTP_IF_MODIFIED_SINCE'},
+				modified => $self->_my_age()
+			});
+		}
 		if($self->_save_to($unzipped_body, $dbh) && $encoding) {
 			$self->_compress({ encoding => $encoding });
 		}
