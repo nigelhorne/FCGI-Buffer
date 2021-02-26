@@ -7,6 +7,7 @@
 # TODO: check ETags are correct
 # TODO: Write a test to check that 304 is sent when a cached object
 #	is newer than the IF_MODIFIED_SINCE date
+# TODO: Test HTTP_IF_MODIFIED_SINCE sends 304 when appropriate
 
 use strict;
 use warnings;
