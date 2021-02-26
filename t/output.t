@@ -875,7 +875,7 @@ EOF
 	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
 
 	ok($headers =~ /^Content-Length:\s+(\d+)/m);
-	unlike($headers, qr/^Last-Modified: /mi, 'Headers must not include Last-Modified');	# The file '/' isn't HTML
+	like($headers, qr/^Last-Modified: /mi, 'Headers include Last-Modified');
 	$length = $1;
 	ok($headers =~ /MISS/m);
 

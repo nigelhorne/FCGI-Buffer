@@ -4,7 +4,7 @@ Revision history for FCGI-Buffer
 	Try harder to mkdir the save_to directory
 	Fixed handling when save_to->ttl is not given
 	Fix problem where Last-Modified header not set when no cache
-	Generate 304 on non-cached static files
+	Generate 304 on non-cached files
 
 0.15	Fri  3 Jan 17:05:38 EST 2020
 	IO::Compress:Brotli hasn't been ported to Windows

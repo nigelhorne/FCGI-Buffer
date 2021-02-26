@@ -679,19 +679,16 @@ sub DESTROY {
 	} elsif($self->{info}) {
 		my $host_name = $self->{info}->host_name();
 		push @{$self->{o}}, ("X-Cache: MISS from $host_name", "X-Cache-Lookup: MISS from $host_name");
-		my $path = $self->{'info'}->script_path();
-		if($path =~ /.html?$/) {	# Static file
-			if($self->{generate_last_modified}) {
-				if(my $age = $self->_my_age()) {
-					push @{$self->{o}}, 'Last-Modified: ' . HTTP::Date::time2str($age);
-				}
+		if($self->{generate_last_modified}) {
+			if(my $age = $self->_my_age()) {
+				push @{$self->{o}}, 'Last-Modified: ' . HTTP::Date::time2str($age);
 			}
-			if($ENV{'HTTP_IF_MODIFIED_SINCE'} && ($self->{status} != 304) && $self->{generate_304}) {
-				$self->_check_modified_since({
-					since => $ENV{'HTTP_IF_MODIFIED_SINCE'},
-					modified => $self->_my_age()
-				});
-			}
+		}
+		if($ENV{'HTTP_IF_MODIFIED_SINCE'} && ($self->{status} != 304) && $self->{generate_304}) {
+			$self->_check_modified_since({
+				since => $ENV{'HTTP_IF_MODIFIED_SINCE'},
+				modified => $self->_my_age()
+			});
 		}
 		if($self->_save_to($unzipped_body, $dbh) && $encoding) {
 			$self->_compress({ encoding => $encoding });
