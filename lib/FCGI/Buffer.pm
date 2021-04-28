@@ -621,7 +621,7 @@ sub DESTROY {
 							my $script_name = $ENV{'SCRIPT_NAME'};
 							$copy =~ s/<a\s+href="(\?.+?)"/<a href="$script_name$1"/gi;
 
-							# Avoide Wide character
+							# Avoid Wide character
 							unless($self->{_encode_loaded}) {
 								require Encode;
 								$self->{_encode_loaded} = 1;
