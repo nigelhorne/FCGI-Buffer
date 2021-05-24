@@ -81,6 +81,7 @@ But that's simple:
 To temporarily prevent the use of server-side caches, for example whilst
 debugging before publishing a code change, set the NO_CACHE environment variable
 to any non-zero value.
+This will also stop ETag being added to the header.
 If you get errors about Wide characters in print it means that you've
 forgotten to emit pure HTML on non-ascii characters.
 See L<HTML::Entities>.
@@ -703,7 +704,7 @@ sub DESTROY {
 			if($self->{logger}) {
 				$self->{logger}->debug("Set ETag to $self->{etag}");
 			}
-		} elsif($self->{logger} && (($self->{status} == 200) || $self->{status} == 304) && $self->{body} && !$self->is_cached()) {
+		} elsif($self->{logger} && (($self->{status} == 200) || $self->{status} == 304) && $self->{body} && (!$ENV{'NO_CACHE'}) && !$self->is_cached()) {
 			# open(my $fout, '>>', '/tmp/FCGI-bug');
 			# print $fout "BUG: ETag not generated, status $self->{status}:\n",
 				# $headers,
@@ -1237,6 +1238,10 @@ sub is_cached {
 	unless($self->{cache}) {
 		if($self->{logger}) {
 			$self->{logger}->debug("is_cached: cache hasn't been enabled");
+			my $i = 0;
+                        while((my @call_details = (caller($i++)))) {
+                                $self->{logger}->debug($call_details[1], ':', $call_details[2], ' calling function ', $call_details[3]);
+                        }
 		}
 		return 0;
 	}
