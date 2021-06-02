@@ -1,6 +1,6 @@
 Revision history for FCGI-Buffer
 
-0.16
+0.16	Wed Jun  2 09:05:38 EDT 2021
 	Try harder to mkdir the save_to directory
 	Fixed handling when save_to->ttl is not given
 	Fix problem where Last-Modified header not set when no cache
