@@ -609,7 +609,7 @@ sub DESTROY {
 						my $path = File::Spec->catfile($sdir, $self->{info}->as_string() . '.html');
 						if($path =~ /^(.+)$/) {
 							$path = $1; # Untaint
-							$path =~ tr/[\|;]/_/;
+							$path =~ tr/[\|;\/]/_/;
 						}
 						if(open(my $fout, '>', $path)) {
 							my $u = $request_uri;
@@ -1454,7 +1454,7 @@ sub _save_to {
 		my $link = $1;
 		next if($seen_links{$link});	# Already updated in the copy
 		$seen_links{$link} = 1;
-		$link =~ tr/[\|;]/_/;
+		$link =~ tr/[\|;\/]/_/;
 
 		my $search_uri = $link;
 		if($search_uri =~ /^\?/) {
