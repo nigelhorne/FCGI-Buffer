@@ -714,6 +714,7 @@ sub DESTROY {
 				# defined($self->{body}) ? $self->{body} : "body is empty\n",
 				# 'x' x 40,
 				# "\n";
+			# close $fout;
 			$self->{logger}->warn("BUG: ETag not generated, status $self->{status}");
 		}
 	}
