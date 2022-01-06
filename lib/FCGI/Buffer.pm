@@ -559,7 +559,10 @@ sub DESTROY {
 						$cache_hash->{'headers'} = $headers;
 					}
 				}
-				if($self->{generate_etag} && defined($self->{etag})) {
+				if($self->{generate_etag}) {
+					if(!defined($self->{etag})) {
+						$self->{etag} = '"' . Digest::MD5->new->add(Encode::encode_utf8($cache_hash->{body}))->hexdigest() . '"';
+					}
 					$cache_hash->{'etag'} = $self->{etag};
 				}
 				# TODO: Support the Expires header
@@ -709,9 +712,10 @@ sub DESTROY {
 		} elsif($self->{logger} && (($self->{status} == 200) || $self->{status} == 304) && $self->{body} && (!$ENV{'NO_CACHE'}) && !$self->is_cached()) {
 			# open(my $fout, '>>', '/tmp/FCGI-bug');
 			# print $fout "BUG: ETag not generated, status $self->{status}:\n",
-				# $headers,
+				# "$headers\n",
 				# 'x' x 40,
-				# defined($self->{body}) ? $self->{body} : "body is empty\n",
+				# # defined($self->{body}) ? $self->{body} : "body is empty\n",
+				# defined($unzipped_body) ? "$unzipped_body\n" : "body is empty\n",
 				# 'x' x 40,
 				# "\n";
 			# close $fout;
