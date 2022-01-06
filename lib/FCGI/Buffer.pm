@@ -333,10 +333,8 @@ sub DESTROY {
 	if($ENV{'SERVER_PROTOCOL'} &&
 	  ($ENV{'SERVER_PROTOCOL'} eq 'HTTP/1.1') &&
 	  $self->{generate_etag} && defined($self->{body})) {
-		# encode to avoid "Wide character in subroutine entry"
-		require Encode;
-		$self->{_encode_loaded} = 1;
-		$self->{etag} = '"' . Digest::MD5->new->add(Encode::encode_utf8($self->{body}))->hexdigest() . '"';
+	  	$self->_generate_etag();
+
 		if($ENV{'HTTP_IF_NONE_MATCH'} && $self->{generate_304} && ($self->{status} == 200)) {
 			$self->_check_if_none_match();
 		}
@@ -476,24 +474,20 @@ sub DESTROY {
 			  ($self->{status} == 200)) {
 				if($ENV{'HTTP_IF_NONE_MATCH'} && $self->{generate_etag}) {
 					if(!defined($self->{etag})) {
-						unless($self->{_encode_loaded}) {
-							require Encode;
-							$self->{_encode_loaded} = 1;
-						}
-						$self->{etag} = '"' . Digest::MD5->new->add(Encode::encode_utf8($self->{body}))->hexdigest() . '"';
+						$self->_generate_etag();
 					}
 					$self->_check_if_none_match();
 				}
 			}
 			if($self->{status} == 200) {
-				$encoding = $self->_should_gzip();
-				if($self->{send_body}) {
-					if($self->{generate_etag} && !defined($self->{etag}) && ((!defined($headers)) || ($headers !~ /^ETag: /m))) {
-						$self->{etag} = '"' . Digest::MD5->new->add(Encode::encode_utf8($self->{body}))->hexdigest() . '"';
-					}
-					$self->_compress({ encoding => $encoding });
-				}
-			}
+                                $encoding = $self->_should_gzip();
+                                if($self->{send_body}) {
+                                        if($self->{generate_etag} && !defined($self->{etag}) && ((!defined($headers)) || ($headers !~ /^ETag: /m))) {
+                                                $self->_generate_etag();
+                                        }
+                                        $self->_compress({ encoding => $encoding });
+                                }
+                        }
 			my $cannot_304 = !$self->{generate_304};
 			unless($self->{etag}) {
 				if(defined($headers) && ($headers =~ /^ETag: "([a-z0-9]{32})"/m)) {
@@ -561,7 +555,7 @@ sub DESTROY {
 				}
 				if($self->{generate_etag}) {
 					if(!defined($self->{etag})) {
-						$self->{etag} = '"' . Digest::MD5->new->add(Encode::encode_utf8($cache_hash->{body}))->hexdigest() . '"';
+						$self->_generate_etag();
 					}
 					$cache_hash->{'etag'} = $self->{etag};
 				}
@@ -704,24 +698,34 @@ sub DESTROY {
 	}
 
 	if($self->{generate_etag} && ((!defined($headers)) || ($headers !~ /^ETag: /m))) {
-		if(defined($self->{etag})) {
-			push @{$self->{o}}, "ETag: $self->{etag}";
-			if($self->{logger}) {
-				$self->{logger}->debug("Set ETag to $self->{etag}");
-			}
-		} elsif($self->{logger} && (($self->{status} == 200) || $self->{status} == 304) && $self->{body} && (!$ENV{'NO_CACHE'}) && !$self->is_cached()) {
-			# open(my $fout, '>>', '/tmp/FCGI-bug');
-			# print $fout "BUG: ETag not generated, status $self->{status}:\n",
-				# "$headers\n",
-				# 'x' x 40,
-				# # defined($self->{body}) ? $self->{body} : "body is empty\n",
-				# defined($unzipped_body) ? "$unzipped_body\n" : "body is empty\n",
-				# 'x' x 40,
-				# "\n";
-			# close $fout;
-			$self->{logger}->warn("BUG: ETag not generated, status $self->{status}");
-		}
-	}
+                if((!defined($self->{etag})) &&
+                   (($self->{status} == 200) || $self->{status} == 304) &&
+                   $self->{body} && (!$ENV{'NO_CACHE'}) &&
+                   !$self->is_cached()) {
+                        unless($self->{_encode_loaded}) {
+                                require Encode;
+                                $self->{_encode_loaded} = 1;
+                        }
+                        $self->{etag} = '"' . Digest::MD5->new->add(Encode::encode_utf8($unzipped_body))->hexdigest() . '"';
+                }
+                if(defined($self->{etag})) {
+                        push @{$self->{o}}, "ETag: $self->{etag}";
+                        if($self->{logger}) {
+                                $self->{logger}->debug("Set ETag to $self->{etag}");
+                        }
+                } else {
+                        open(my $fout, '>>', '/tmp/FCGI-bug');
+                        print $fout "BUG: ETag not generated, status $self->{status}:\n",
+                                "$headers\n",
+                                'x' x 40, "\n",
+                                # defined($self->{body}) ? $self->{body} : "body is empty\n",
+                                defined($unzipped_body) ? "$unzipped_body\n" : "body is empty\n",
+                                'x' x 40,
+                                "\n";
+                        close $fout;
+                        $self->{logger}->warn("BUG: ETag not generated, status $self->{status}");
+                }
+        }
 
 	my $body_length;
 	if(defined($self->{body})) {
@@ -795,6 +799,22 @@ sub DESTROY {
 
 	if((!$self->{send_body}) || !defined($self->{body})) {
 		print "\r\n\r\n";
+	}
+}
+
+sub _generate_etag {
+	my $self = shift;
+
+	return if defined($self->{'etag'});
+
+	if(!defined($self->{_encode_loaded})) {
+		# encode to avoid "Wide character in subroutine entry"
+		require Encode;
+		$self->{_encode_loaded} = 1;
+	}
+	$self->{etag} = '"' . Digest::MD5->new->add(Encode::encode_utf8($self->{body}))->hexdigest() . '"';
+	if($self->{'logger'}) {
+		$self->{'logger'}->debug('Etag = ', $self->{'etag'});
 	}
 }
 
