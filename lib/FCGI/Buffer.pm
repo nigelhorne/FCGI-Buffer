@@ -126,7 +126,7 @@ sub new {
 	# $rc->{o} = ();
 
 	if($ENV{'SERVER_PROTOCOL'} &&
-	  ($ENV{'SERVER_PROTOCOL'} eq 'HTTP/1.1')) {
+	  (($ENV{'SERVER_PROTOCOL'} eq 'HTTP/1.1') || ($ENV{'SERVER_PROTOCOL'} eq 'HTTP/2.0'))) {
 		$rc->{generate_etag} = 1;
 	} else {
 		$rc->{generate_etag} = 0;
@@ -331,7 +331,7 @@ sub DESTROY {
 	# includes the mtime field which changes thus causing a different
 	# Etag to be generated
 	if($ENV{'SERVER_PROTOCOL'} &&
-	  ($ENV{'SERVER_PROTOCOL'} eq 'HTTP/1.1') &&
+	  (($ENV{'SERVER_PROTOCOL'} eq 'HTTP/1.1') || ($ENV{'SERVER_PROTOCOL'} eq 'HTTP/2.0')) &&
 	  $self->{generate_etag} && defined($self->{body})) {
 	  	$self->_generate_etag();
 
@@ -413,7 +413,7 @@ sub DESTROY {
 			# Nothing has been output yet, so we can check if it's
 			# OK to send 304 if possible
 			if($self->{send_body} && $ENV{'SERVER_PROTOCOL'} &&
-			  ($ENV{'SERVER_PROTOCOL'} eq 'HTTP/1.1') &&
+			  (($ENV{'SERVER_PROTOCOL'} eq 'HTTP/1.1') || ($ENV{'SERVER_PROTOCOL'} eq 'HTTP/2.0')) &&
 			  $self->{generate_304} && ($self->{status} == 200)) {
 				if($ENV{'HTTP_IF_MODIFIED_SINCE'}) {
 					$self->_check_modified_since({
@@ -470,7 +470,7 @@ sub DESTROY {
 				}
 			}
 			if($self->{send_body} && $ENV{'SERVER_PROTOCOL'} &&
-			  ($ENV{'SERVER_PROTOCOL'} eq 'HTTP/1.1') &&
+			  (($ENV{'SERVER_PROTOCOL'} eq 'HTTP/1.1') || ($ENV{'SERVER_PROTOCOL'} eq 'HTTP/2.0')) &&
 			  ($self->{status} == 200)) {
 				if($ENV{'HTTP_IF_NONE_MATCH'} && $self->{generate_etag}) {
 					if(!defined($self->{etag})) {
