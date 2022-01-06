@@ -733,6 +733,7 @@ sub DESTROY {
                                 $self->{logger}->debug("Set ETag to $self->{etag}");
                         }
                 } elsif($self->{logger} && (($self->{status} == 200) || $self->{status} == 304) && $self->{body} && (!$ENV{'NO_CACHE'}) && !$self->is_cached()) {
+                        # $self->{logger}->warn("BUG: ETag not generated, status $self->{status}");
                         # open(my $fout, '>>', '/tmp/FCGI-bug');
                         # print $fout "BUG: ETag not generated, status $self->{status}:\n",
                                 # $headers,
@@ -740,7 +741,13 @@ sub DESTROY {
                                 # defined($self->{body}) ? $self->{body} : "body is empty\n",
                                 # 'x' x 40,
                                 # "\n";
-                        $self->{logger}->warn("BUG: ETag not generated, status $self->{status}");
+			# print $fout "ENV:\n";
+			# while(my ($key, $value) = each %ENV) {
+				# print $fout "$key = $value\n;
+			# }
+			# print $fout 'x' x 40, "\n";
+                        # close $fout;
+                        # $self->{logger}->warn("BUG: ETag not generated, status $self->{status}");
                 }
         }
 
