@@ -2,8 +2,7 @@ Revision history for FCGI-Buffer
 
 0.17
 	save_to: support '/' in an argument
-	Working through sometimes when ETAG isn't added
-	Added HTTP/2.0 recognition
+	Fix where ETags were not being added with HTTP/2.0
 
 0.16	Wed Jun  2 09:05:38 EDT 2021
 	Try harder to mkdir the save_to directory
