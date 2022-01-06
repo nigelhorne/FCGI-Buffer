@@ -722,6 +722,10 @@ sub DESTROY {
                                 # defined($unzipped_body) ? "$unzipped_body\n" : "body is empty\n",
                                 # 'x' x 40,
                                 # "\n";
+			# print $fout "ENV:\n";
+                        # while(my ($key, $value) = each %ENV) {
+                                # print $fout "$key = $value\n";
+                        # }
                         # close $fout;
                         # $self->{logger}->warn("BUG: ETag not generated, status $self->{status}");
                 # }
