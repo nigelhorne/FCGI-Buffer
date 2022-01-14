@@ -35,7 +35,7 @@ if($@) {
 				does_carp_that_matches(\&test1, qr/isn't writeable/);
 			} else {
 				# happens on Win32 or when running as root
-                                skip('Root directory is writable');
+                                skip('Root directory is writable', 3);
 			}
 		}
 
