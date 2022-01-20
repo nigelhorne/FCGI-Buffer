@@ -1,6 +1,6 @@
 Revision history for FCGI-Buffer
 
-0.17
+0.17	Thu Jan 20 11:00:19 EST 2022
 	save_to: support '/' in an argument
 	Fix where ETags were not being added with HTTP/2.0
 	Fix installation as root
