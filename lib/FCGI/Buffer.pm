@@ -83,7 +83,7 @@ debugging before publishing a code change, set the NO_CACHE environment variable
 to any non-zero value.
 This will also stop ETag being added to the header.
 If you get errors about Wide characters in print it means that you've
-forgotten to emit pure HTML on non-ascii characters.
+forgotten to emit pure HTML on non-ASCII characters.
 See L<HTML::Entities>.
 As a hack work around you could also remove accents and the like by using
 L<Text::Unidecode>,
