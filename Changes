@@ -1,4 +1,7 @@
 Revision history for FCGI-Buffer
+ 
+0.18
+	Make debugging more readable
 
 0.17	Thu Jan 20 11:00:19 EST 2022
 	save_to: support '/' in an argument

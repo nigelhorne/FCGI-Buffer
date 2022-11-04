@@ -166,8 +166,8 @@ sub DESTROY {
 		if($ENV{'HTTP_IF_MODIFIED_SINCE'}) {
 			$self->{logger}->debug("HTTP_IF_MODIFIED_SINCE: $ENV{HTTP_IF_MODIFIED_SINCE}");
 		}
-		$self->{logger}->debug("Generate_etag = $self->{generate_etag}",
-			"Generate_304 = $self->{generate_304}",
+		$self->{logger}->debug("Generate_etag = $self->{generate_etag}, ",
+			"Generate_304 = $self->{generate_304}, ",
 			"Generate_last_modified = $self->{generate_last_modified}");
 	}
 	unless($headers || $self->is_cached()) {
