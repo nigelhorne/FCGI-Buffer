@@ -1679,7 +1679,7 @@ FCGI::Buffer has not been tested against FastCGI.
 
 I advise adding FCGI::Buffer as the last use statement so that it is
 cleared up first.  In particular it should be loaded after
-L<Log::Log4Perl>, if you're using that, so that any messages it
+L<Log::Log4perl>, if you're using that, so that any messages it
 produces are printed after the HTTP headers have been sent by
 FCGI::Buffer;
 
@@ -1738,7 +1738,7 @@ The licence for cgi_buffer is:
 
     This software is provided 'as is' without warranty of any kind."
 
-The rest of the program is Copyright 2015-2022 Nigel Horne,
+The rest of the program is Copyright 2015-2023 Nigel Horne,
 and is released under the following licence: GPL2
 
 =cut
