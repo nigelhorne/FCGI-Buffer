@@ -307,7 +307,11 @@ sub DESTROY {
 					$self->{body} = '';
 					foreach my $error ($lint->errors) {
 						my $errtext = $error->where() . ': ' . $error->errtext() . "\n";
-						warn($errtext);
+						if($self->{logger}) {
+							$self->{logger}->warn($errtext);
+						} else {
+							warn($errtext);
+						}
 						$self->{body} .= $errtext;
 					}
 				}
@@ -405,6 +409,8 @@ sub DESTROY {
 						push @{$self->{o}}, 'X-Cache: HIT';
 						push @{$self->{o}}, 'X-Cache-Lookup: HIT';
 					}
+				} elsif($self->{logger}) {
+					$self->{logger}->warn("Error retrieving data for key $key");
 				} else {
 					carp( __PACKAGE__, ": error retrieving data for key $key");
 				}
@@ -422,7 +428,7 @@ sub DESTROY {
 					});
 				}
 			}
-			if($self->{send_body} && ($self->{status} == 200)) {
+			if($self->{send_body} && ($self->{status} == 200) && defined($cache_hash)) {
 				$self->{body} = $cache_hash->{'body'};
 				if($dbh) {
 					my $changes = $self->_save_to($self->{body}, $dbh);
@@ -461,10 +467,11 @@ sub DESTROY {
 
 					if($self->{logger}) {
 						$self->{logger}->error("Can't retrieve body for key $key");
+						$self->{logger}->warn($self->{body});
 					} else {
 						carp "Can't retrieve body for key $key";
+						warn($self->{body});
 					}
-					warn($self->{body});
 					$self->{send_body} = 0;
 					$self->{status} = 500;
 				}
