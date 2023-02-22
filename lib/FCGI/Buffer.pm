@@ -412,7 +412,7 @@ sub DESTROY {
 				} elsif($self->{logger}) {
 					$self->{logger}->warn("Error retrieving data for key $key");
 				} else {
-					carp( __PACKAGE__, ": error retrieving data for key $key");
+					carp(__PACKAGE__, ": error retrieving data for key $key");
 				}
 			}
 
@@ -469,7 +469,7 @@ sub DESTROY {
 						$self->{logger}->error("Can't retrieve body for key $key");
 						$self->{logger}->warn($self->{body});
 					} else {
-						carp "Can't retrieve body for key $key";
+						carp("Can't retrieve body for key $key");
 						warn($self->{body});
 					}
 					$self->{send_body} = 0;
