@@ -841,6 +841,7 @@ sub _generate_etag {
 	my $self = shift;
 
 	return if defined($self->{'etag'});
+	return unless defined($self->{'body'});
 
 	if(!defined($self->{_encode_loaded})) {
 		# encode to avoid "Wide character in subroutine entry"
