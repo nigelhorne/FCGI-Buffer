@@ -1,6 +1,6 @@
 Revision history for FCGI-Buffer
  
-0.18
+0.18	Sun Feb 26 17:06:17 EST 2023
 	Make debugging more readable
 	Log correctly when data isn't retrieved from the cache
 	Call logger instead of warn where possible
