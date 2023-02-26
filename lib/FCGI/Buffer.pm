@@ -1423,6 +1423,7 @@ sub _compress()
 	my $self = shift;
 	my %params = (ref($_[0]) eq 'HASH') ? %{$_[0]} : @_;
 
+	return unless(defined($self->{'body'}));
 	my $encoding = $params{encoding};
 
 	if((length($encoding) == 0) || (length($self->{body}) < MIN_GZIP_LEN)) {
