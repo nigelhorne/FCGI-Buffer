@@ -337,7 +337,7 @@ sub DESTROY {
 	if($ENV{'SERVER_PROTOCOL'} &&
 	  (($ENV{'SERVER_PROTOCOL'} eq 'HTTP/1.1') || ($ENV{'SERVER_PROTOCOL'} eq 'HTTP/2.0')) &&
 	  $self->{generate_etag} && defined($self->{body})) {
-	  	$self->_generate_etag();
+		$self->_generate_etag();
 
 		if($ENV{'HTTP_IF_NONE_MATCH'} && $self->{generate_304} && ($self->{status} == 200)) {
 			$self->_check_if_none_match();
@@ -602,7 +602,7 @@ sub DESTROY {
 						}
 						my $bdir = File::Spec->catfile($dir, $browser_type);
 						if($bdir =~ /^([\/\\])(.+)$/) {
-							$bdir = "$1$2"; # Untaint
+							$bdir = "$1$2";	# Untaint
 						}
 						my $ldir = File::Spec->catfile($bdir, $language);
 						my $sdir = File::Spec->catfile($ldir, $self->{info}->script_name());
@@ -614,7 +614,7 @@ sub DESTROY {
 						$file =~ tr/\//_/;
 						my $path = File::Spec->catfile($sdir, "$file.html");
 						if($path =~ /^(.+)$/) {
-							$path = $1; # Untaint
+							$path = $1;	# Untaint
 							$path =~ tr/[\|;]/_/;
 						}
 						if(open(my $fout, '>', $path)) {
