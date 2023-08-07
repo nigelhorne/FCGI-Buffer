@@ -174,6 +174,14 @@ sub DESTROY {
 		if($self->{'logger'}) {
 			$self->{'logger'}->debug('There was no output');
 		}
+		if(!defined($headers)) {
+			require HTTP::Status;
+			HTTP::Status->import();
+
+			print 'Status: ', $self->{status}, ' ',
+				HTTP::Status::status_message($self->{status}),
+				"\n\n";
+		}
 		return;
 	}
 	if($ENV{'REQUEST_METHOD'} && ($ENV{'REQUEST_METHOD'} eq 'HEAD')) {
