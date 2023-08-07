@@ -178,6 +178,9 @@ sub DESTROY {
 			require HTTP::Status;
 			HTTP::Status->import();
 
+			if(!defined($self->{'status'})) {
+				$self->{'status'} = 200;
+			}
 			print 'Status: ', $self->{status}, ' ',
 				HTTP::Status::status_message($self->{status}),
 				"\n\n";
