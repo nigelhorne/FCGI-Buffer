@@ -25,7 +25,7 @@ my %prereq_pm = (
 );
 
 if($^O ne 'MSWin32') {
-	# Doen't work on Windows
+	# Doesn't work on Windows
 	$prereq_pm{'IO::Compress::Brotli'} = 0.003;
 }
 
