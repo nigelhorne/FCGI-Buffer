@@ -1,6 +1,6 @@
 Revision history for FCGI-Buffer
  
-0.19
+0.19	Fri Sep  1 21:28:40 EDT 2023
 	Fix uninitialisd variable
 	Ensure 403 statuses are printed
 	IO::Compress::Brotli doesn't work on OpenBSD
