@@ -1,5 +1,8 @@
 Revision history for FCGI-Buffer
  
+0.20
+	cache_age is now known as cache_duration
+
 0.19	Fri Sep  1 21:28:40 EDT 2023
 	Fix uninitialisd variable
 	Ensure 403 statuses are printed

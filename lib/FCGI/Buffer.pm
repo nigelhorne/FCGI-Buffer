@@ -400,6 +400,11 @@ sub DESTROY {
 	if($self->{cache}) {
 		require Storable;
 
+		if($self->{'cache_age'}) {
+			# Legacy
+			$self->{'cache_duration'} = $self->{'cache_age'};
+		}
+
 		my $cache_hash;
 		my $key = $self->_generate_key();
 
@@ -538,11 +543,11 @@ sub DESTROY {
 			if($self->{status} == 200) {
 				my $changes = $self->_save_to($unzipped_body, $dbh);
 
-				unless($self->{cache_age}) {
+				unless($self->{cache_duration}) {
 					# It would be great if CHI::set()
 					# allowed the time to be 'lru' for least
 					# recently used.
-					$self->{cache_age} = '10 minutes';
+					$self->{cache_duration} = '10 minutes';
 				}
 				$cache_hash->{'body'} = $unzipped_body;
 				if($changes && $encoding) {
@@ -581,9 +586,9 @@ sub DESTROY {
 				# if($headers !~ /^Expires: /m))) {
 				# }
 				if($self->{logger}) {
-					$self->{logger}->debug("Store $key in the cache, age = ", $self->{cache_age}, ' ', length($cache_hash->{'body'}), ' bytes');
+					$self->{logger}->debug("Store $key in the cache, age = ", $self->{cache_duration}, ' ', length($cache_hash->{'body'}), ' bytes');
 				}
-				$self->{cache}->set($key, Storable::freeze($cache_hash), $self->{cache_age});
+				$self->{cache}->set($key, Storable::freeze($cache_hash), $self->{cache_duration});
 
 				# Create a static page with the information and link to that in the output
 				# HTML
@@ -1045,7 +1050,7 @@ Set various options and override default values.
 	optimise_content => 0,	# optimise your program's HTML, CSS and JavaScript
 	cache => CHI->new(driver => 'File'),	# cache requests
 	cache_key => 'string',	# key for the cache
-	cache_age => '10 minutes',	# how long to store responses in the cache
+	cache_duration => '10 minutes',	# how long to store responses in the cache
 	logger => $self->{logger},
 	lint_content => 0,	# Pass through HTML::Lint
 	generate_304 => 1,	# When appropriate, generate 304: Not modified
@@ -1064,7 +1069,7 @@ used as a server-side cache to reduce the need to rerun database accesses.
 
 Items stay in the server-side cache by default for 10 minutes.
 This can be overridden by the cache_control HTTP header in the request, and
-the default can be changed by the cache_age argument to init().
+the default can be changed by the cache_duration argument to init().
 
 Save_to is feature which stores output of dynamic pages to your
 htdocs tree and replaces future links that point to that page with static links
@@ -1183,13 +1188,13 @@ sub init {
 			if($control =~ /^max-age\s*=\s*(\d+)$/) {
 				# There is an argument not to do this
 				# since one client will affect others
-				$self->{cache_age} = "$1 seconds";
+				$self->{cache_duration} = "$1 seconds";
 				if(defined($self->{logger})) {
-					$self->{logger}->debug("cache_age = $self->{cache_age}");
+					$self->{logger}->debug("cache_duration = $self->{cache_duration}");
 				}
 			}
 		}
-		$self->{cache_age} ||= $params{cache_age};
+		$self->{cache_duration} ||= $params{cache_duration};
 		if((!defined($params{cache})) && defined($self->{cache})) {
 			if(defined($self->{logger})) {
 				if($self->{cache_key}) {
