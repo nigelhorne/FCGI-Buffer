@@ -121,7 +121,7 @@ OUTPUT: {
 
 	$ENV{'SERVER_PROTOCOL'} = 'HTTP/1.1';
 	delete($ENV{'HTTP_ACCEPT_ENCODING'});
-	if(($^O eq 'MSWin32') || ($^O eq 'openbsd')) {
+	if(($^O eq 'MSWin32') || ($^O eq 'openbsd') || ($^O eq 'freebsd')) {
 		$ENV{'HTTP_TE'} = 'gzip';
 	} else {
 		$ENV{'HTTP_TE'} = 'br,gzip';
@@ -153,7 +153,7 @@ OUTPUT: {
 
 	ok(defined($body));
 	ok(length($body) eq $length);
-	if(($^O eq 'MSWin32') || ($^O eq 'openbsd')) {
+	if(($^O eq 'MSWin32') || ($^O eq 'openbsd') || ($^O eq 'freebsd')) {
 		TODO: {
 			local $TODO = "IO::Compress::Brotli doesn't support Windows";
 			ok($headers =~ /^Content-Encoding: br/m);
