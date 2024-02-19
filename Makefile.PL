@@ -24,8 +24,8 @@ my %prereq_pm = (
 	'DBI' => 0
 );
 
-if(($^O ne 'MSWin32') && ($^O ne 'openbsd')) {
-	# Doesn't work on Windows or compile on OpenBSD
+if(($^O ne 'MSWin32') && ($^O ne 'openbsd') && ($^O ne 'freebsd')) {
+	# Doesn't work on Windows or compile on OpenBSD/FreeBSD
 	$prereq_pm{'IO::Compress::Brotli'} = 0.003;
 }
 
@@ -42,6 +42,7 @@ WriteMakefile(
     TEST_REQUIRES => {
 	'Test::Most' => 0,
 	'Test::NoWarnings' => 0,
+	'Test::Needs' => 0,
 	'Capture::Tiny' => 0,
 	'DateTime' => 0,
 	'DateTime::Format::HTTP' => 0,
@@ -51,7 +52,7 @@ WriteMakefile(
 	'Directory::Scratch' => 0,
 	'CGI::Lingua' => 0,
 	'HTTP::Response' => 0,
-	'HTTP::Headers' => 0,
+	'HTTP::Headers' => 0
     },
     PREREQ_PM  => \%prereq_pm,
     dist       => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
