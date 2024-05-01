@@ -26,7 +26,8 @@ my %prereq_pm = (
 
 if(($^O ne 'MSWin32') && ($^O ne 'openbsd') && ($^O ne 'freebsd')) {
 	# Doesn't work on Windows or compile on OpenBSD/FreeBSD
-	$prereq_pm{'IO::Compress::Brotli'} = 0.003;
+	# Also doesn't compile on Arm on Linux, so let's give up
+	# $prereq_pm{'IO::Compress::Brotli'} = 0.003;
 }
 
 WriteMakefile(
