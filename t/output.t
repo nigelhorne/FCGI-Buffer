@@ -13,7 +13,8 @@ use strict;
 use warnings;
 
 use Test::Most tests => 282;
-use DateTime;
+# use DateTime;
+use HTTP::Date;
 use Capture::Tiny ':all';
 use CGI::Info;
 use Digest::MD5;
@@ -605,7 +606,8 @@ OUTPUT: {
 
 	#..........................................
 	delete $ENV{'HTTP_IF_NONE_MATCH'};
-	$ENV{'HTTP_IF_MODIFIED_SINCE'} = DateTime->now();
+	# my $t = $ENV{'HTTP_IF_MODIFIED_SINCE'} = DateTime->now();
+	my $t = $ENV{'HTTP_IF_MODIFIED_SINCE'} = HTTP::Date::time2str(time);
 
 	sub test14 {
 		my $b = new_ok('FCGI::Buffer');
