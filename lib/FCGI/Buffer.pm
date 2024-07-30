@@ -102,9 +102,11 @@ Create an FCGI::Buffer object.  Do one of these for each FCGI::Accept.
 =cut
 
 # FIXME: Call init() on any arguments that are given
-sub new {
+sub new
+{
 	my $proto = shift;
 	my $class = ref($proto) || $proto;
+	my %args = (ref($_[0]) eq 'HASH') ? %{$_[0]} : @_;
 
 	# Use FCGI::Buffer->new(), not FCGI::Buffer::new()
 	if(!defined($class)) {
@@ -122,6 +124,7 @@ sub new {
 		compress_content => 1,
 		optimise_content => 0,
 		lint_content => 0,
+		%args,
 	};
 	# $rc->{o} = ();
 
