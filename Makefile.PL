@@ -30,6 +30,15 @@ if(($^O ne 'MSWin32') && ($^O ne 'openbsd') && ($^O ne 'freebsd')) {
 	# $prereq_pm{'IO::Compress::Brotli'} = 0.003;
 }
 
+my $dist = {
+	COMPRESS => 'gzip -9f',
+	SUFFIX => 'gz'
+};
+
+if($^O eq 'darwin') {
+	$dist->{'TAR'} = 'gtar';
+}
+
 WriteMakefile(
     NAME                => 'FCGI::Buffer',
     AUTHOR              => q{Nigel Horne <njh@bandsman.co.uk>},
@@ -42,6 +51,7 @@ WriteMakefile(
     PL_FILES            => {},
     TEST_REQUIRES => {
 	'Test::Most' => 0,
+	'Test::DescribeMe' => 0,
 	'Test::NoWarnings' => 0,
 	'Test::Needs' => 0,
 	'Capture::Tiny' => 0,
@@ -54,9 +64,8 @@ WriteMakefile(
 	'CGI::Lingua' => 0,
 	'HTTP::Response' => 0,
 	'HTTP::Headers' => 0
-    },
-    PREREQ_PM  => \%prereq_pm,
-    dist       => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
+    }, PREREQ_PM  => \%prereq_pm,
+	dist => $dist,
     clean      => { FILES => 'FCGI-Buffer-*' },
     META_MERGE => {
     	'meta-spec' => { version => 2 },
