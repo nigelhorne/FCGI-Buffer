@@ -805,6 +805,9 @@ sub DESTROY {
 			HTTP::Status->import();
 
 			push @{$self->{o}}, 'Status: ' . $self->{status} . ' ' . HTTP::Status::status_message($self->{status});
+			if($self->{'info'}) {
+				$self->{'info'}->status($self->{'status'});
+			}
 		}
 	} else {
 		push @{$self->{o}}, "X-FCGI-Buffer-$VERSION: No headers";
