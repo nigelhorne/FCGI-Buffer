@@ -1739,10 +1739,6 @@ You can also look for information at:
 
 L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=FCGI-Buffer>
 
-=item * CPAN Ratings
-
-L<http://cpanratings.perl.org/d/FCGI-Buffer>
-
 =item * Search CPAN
 
 L<http://search.cpan.org/dist/FCGI-Buffer/>
@@ -1765,7 +1761,7 @@ The licence for cgi_buffer is:
 
     This software is provided 'as is' without warranty of any kind."
 
-The rest of the program is Copyright 2015-2023 Nigel Horne,
+The rest of the program is Copyright 2015-2024 Nigel Horne,
 and is released under the following licence: GPL2
 
 =cut
