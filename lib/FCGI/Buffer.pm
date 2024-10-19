@@ -182,7 +182,11 @@ sub DESTROY {
 			HTTP::Status->import();
 
 			if(!defined($self->{'status'})) {
-				$self->{'status'} = 200;
+				if($self->{'info'}) {
+					$self->{'status'} = $self->{'info'}->status();
+				} else {
+					$self->{'status'} = 200;
+				}
 			}
 			print 'Status: ', $self->{status}, ' ',
 				HTTP::Status::status_message($self->{status}),
@@ -395,6 +399,9 @@ sub DESTROY {
 				}
 				$unzipped_body = $self->{body};
 				$self->{'status'} = 206;
+				if($self->{'info'}) {
+					$self->{'info'}->status(206);
+				}
 			}
 		}
 		$self->_compress({ encoding => $encoding });
@@ -493,6 +500,9 @@ sub DESTROY {
 					}
 					$self->{send_body} = 0;
 					$self->{status} = 500;
+					if($self->{'info'}) {
+						$self->{'info'}->status(500);
+					}
 				}
 			}
 			if($self->{send_body} && $ENV{'SERVER_PROTOCOL'} &&
@@ -920,6 +930,9 @@ sub _check_modified_since {
 	if($$params{modified} <= $s) {
 		push @{$self->{o}}, 'Status: 304 Not Modified';
 		$self->{status} = 304;
+		if($self->{'info'}) {
+			$self->{'info'}->status(304);
+		}
 		$self->{send_body} = 0;
 		if($self->{logger}) {
 			$self->{logger}->debug('Set status to 304');
@@ -1491,6 +1504,9 @@ sub _compress()
 			}
 		} else {
 			$self->{status} = 406;
+			if($self->{'info'}) {
+				$self->{'info'}->status(406);
+			}
 		}
 	}
 }
@@ -1505,6 +1521,9 @@ sub _check_if_none_match {
 		push @{$self->{o}}, 'Status: 304 Not Modified';
 		$self->{send_body} = 0;
 		$self->{status} = 304;
+		if($self->{'info'}) {
+			$self->{'info'}->status(304);
+		}
 		if($self->{logger}) {
 			$self->{logger}->debug('Set status to 304');
 		}
