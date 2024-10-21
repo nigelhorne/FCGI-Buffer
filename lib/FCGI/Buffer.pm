@@ -1742,7 +1742,9 @@ The lint operation only works on HTML4, because of a restriction in L<HTML::Lint
 
 =head1 SEE ALSO
 
-CGI::Buffer, HTML::Packer, HTML::Lint
+L<CGI::Buffer>,
+L<HTML::Packer>,
+L<HTML::Lint>
 
 =head1 SUPPORT
 
