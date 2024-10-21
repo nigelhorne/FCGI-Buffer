@@ -29,7 +29,6 @@ t/js.t
 t/kwalitee.t
 t/last_mod.t
 t/lib/MyLogger.pm
-t/links.t
 t/manifest.t
 t/metrics.t
 t/namespaces.t
@@ -39,6 +38,7 @@ t/noopentickets.t
 t/noplan.t
 t/output.t
 t/pod-cm.t
+t/pod-links.t
 t/pod-spelling.t
 t/pod-synopsis.t
 t/pod.t

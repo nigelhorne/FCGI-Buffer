@@ -6,6 +6,7 @@ Revision history for FCGI-Buffer
 	Set CGI::Info::status() if available
 	Added CircleCI integration
 	Improve setting CGI::Info status
+	Use Test::DescribeMe to simplify tests
 
 0.19	Fri Sep  1 21:28:40 EDT 2023
 	Fix uninitialisd variable
