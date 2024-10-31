@@ -106,13 +106,15 @@ sub new
 {
 	my $proto = shift;
 	my $class = ref($proto) || $proto;
-	my %args = (ref($_[0]) eq 'HASH') ? %{$_[0]} : @_;
 
 	# Use FCGI::Buffer->new(), not FCGI::Buffer::new()
 	if(!defined($class)) {
 		carp(__PACKAGE__, ' use ->new() not ::new() to instantiate');
 		return;
 	}
+
+	# Handle hash or hashref arguments
+	my %args = (ref($_[0]) eq 'HASH') ? %{$_[0]} : @_;
 
 	my $buf = IO::String->new();
 
@@ -135,6 +137,7 @@ sub new
 		$rc->{generate_etag} = 0;
 	}
 
+	# Return the blessed object
 	return bless $rc, $class;
 }
 
