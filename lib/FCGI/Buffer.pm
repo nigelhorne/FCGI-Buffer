@@ -432,11 +432,9 @@ sub DESTROY {
 					@{$self->{o}} = ("X-FCGI-Buffer-$VERSION: Hit");
 					if($self->{info}) {
 						my $host_name = $self->{info}->host_name();
-						push @{$self->{o}}, "X-Cache: HIT from $host_name";
-						push @{$self->{o}}, "X-Cache-Lookup: HIT from $host_name";
+						push @{$self->{o}}, "X-Cache: HIT from $host_name", "X-Cache-Lookup: HIT from $host_name";
 					} else {
-						push @{$self->{o}}, 'X-Cache: HIT';
-						push @{$self->{o}}, 'X-Cache-Lookup: HIT';
+						push @{$self->{o}}, 'X-Cache: HIT', 'X-Cache-Lookup: HIT';
 					}
 				} elsif($self->{logger}) {
 					$self->{logger}->warn("Error retrieving data for key $key");
