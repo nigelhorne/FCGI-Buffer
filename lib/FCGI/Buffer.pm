@@ -52,9 +52,9 @@ to your server asking for the same data:
 	# ...
     }
 
-To also make use of server caches, that is to say to save regenerating
-output when different clients ask you for the same data, you will need
-to create a cache.
+To also make use of server caches, that is to say,
+to save regenerating output when different clients ask you for the same data,
+you will need to create a cache.
 But that's simple:
 
     use FCGI;
@@ -78,12 +78,12 @@ But that's simple:
 	}
     }
 
-To temporarily prevent the use of server-side caches, for example whilst
+To temporarily prevent the use of server-side caches, for example, whilst
 debugging before publishing a code change, set the NO_CACHE environment variable
 to any non-zero value.
-This will also stop ETag being added to the header.
-If you get errors about Wide characters in print it means that you've
-forgotten to emit pure HTML on non-ASCII characters.
+This will also stop ETag from being added to the header.
+If you get errors about Wide characters in print,
+you've forgotten to emit pure HTML on non-ASCII characters.
 See L<HTML::Entities>.
 As a hack work around you could also remove accents and the like by using
 L<Text::Unidecode>,
@@ -116,8 +116,8 @@ sub new
 	# Handle hash or hashref arguments
 	my %args = (ref($_[0]) eq 'HASH') ? %{$_[0]} : @_;
 
+	# Initialize buffer and object properties
 	my $buf = IO::String->new();
-
 	my $rc = {
 		buf => $buf,
 		old_buf => select($buf),
@@ -130,12 +130,8 @@ sub new
 	};
 	# $rc->{o} = ();
 
-	if($ENV{'SERVER_PROTOCOL'} &&
-	  (($ENV{'SERVER_PROTOCOL'} eq 'HTTP/1.1') || ($ENV{'SERVER_PROTOCOL'} eq 'HTTP/2.0'))) {
-		$rc->{generate_etag} = 1;
-	} else {
-		$rc->{generate_etag} = 0;
-	}
+	# Set generate_etag based on server protocol
+	$rc->{generate_etag} = ($ENV{'SERVER_PROTOCOL'} || '') =~ /^(HTTP\/1\.1|HTTP\/2\.0)$/ ? 1 : 0;
 
 	# Return the blessed object
 	return bless $rc, $class;
@@ -553,7 +549,7 @@ sub DESTROY {
 				}
 			}
 		} else {
-			# Not in the server side cache
+			# Not in the server-side cache
 			if($self->{status} == 200) {
 				my $changes = $self->_save_to($unzipped_body, $dbh);
 
@@ -1127,7 +1123,7 @@ Generally speaking, passing by reference is better since it copies less on to
 the stack.
 
 If you give a cache to init() then later give cache => undef,
-the server side cache is no longer used.
+the server-side cache is no longer used.
 This is useful when you find an error condition when creating your HTML
 and decide that you no longer wish to store the output in the cache.
 
@@ -1310,7 +1306,7 @@ the result stored in the cache.
     my $i = CGI::Info->new();
     my $l = CGI::Lingua->new(supported => ['en']);
 
-    # To use server side caching you must give the cache argument, however
+    # To use server-side caching you must give the cache argument, however
     # the cache_key argument is optional - if you don't give one then one will
     # be generated for you
     my $buffer = FCGI::Buffer->new();
@@ -1695,13 +1691,14 @@ Nigel Horne, C<< <njh at bandsman.co.uk> >>
 
 =head1 BUGS
 
-FCGI::Buffer should be safe even in scripts which produce lots of different
+FCGI::Buffer should be safe even in scripts that produce lots of different
 output, e.g. e-commerce situations.
-On such pages, however, I strongly urge to setting generate_304 to 0 and
+On such pages, however, I strongly urge setting generate_304 to 0 and
 sending the HTTP header "Cache-Control: no-cache".
 
 When using L<Template>, ensure that you don't use it to output to STDOUT,
-instead you will need to capture into a variable and print that.
+instead,
+you will need to capture into a variable and print that.
 For example:
 
     my $output;
@@ -1719,24 +1716,25 @@ Ensure that deflation is off for .pl files:
 If you request compressed output then uncompressed output (or vice
 versa) on input that produces the same output, the status will be 304.
 The letter of the spec says that's wrong, so I'm noting it here, but
-in practice you should not see this happen or have any difficulties
+in practice, you should not see this happen or have any difficulties
 because of it.
 
 FCGI::Buffer has not been tested against FastCGI.
 
 I advise adding FCGI::Buffer as the last use statement so that it is
-cleared up first.  In particular it should be loaded after
+cleared up first.  In particular, it should be loaded after
 L<Log::Log4perl>, if you're using that, so that any messages it
 produces are printed after the HTTP headers have been sent by
 FCGI::Buffer;
 
 Save_to doesn't understand links in JavaScript, which means that if you use self-calling
-CGIs which are loaded as a static page they may point to the wrong place.
+CGIs loaded as a static page,
+they may point to the wrong place.
 The workaround is to avoid self-calling CGIs in JavaScript
 
-Please report any bugs or feature requests to C<bug-fcgi-buffer at rt.cpan.org>,
+Please report any bugs or feature requests to C<bug-fcgi-buffer at rt.cpan.org>
 or through the web interface at L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=FCGI-Buffer>.
-I will be notified, and then you'll automatically be notified of progress on
+I will be notified, and then you'll automatically be notified of the progress on
 your bug as I make changes.
 
 The lint operation only works on HTML4, because of a restriction in L<HTML::Lint>.
