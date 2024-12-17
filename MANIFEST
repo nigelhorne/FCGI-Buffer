@@ -31,6 +31,7 @@ t/last_mod.t
 t/lib/MyLogger.pm
 t/manifest.t
 t/metrics.t
+t/modules-used.t
 t/namespaces.t
 t/no404s.t
 t/nocache.t
@@ -48,5 +49,4 @@ t/snippets.t
 t/strict.t
 t/too_late.t
 t/unused.t
-t/used.t
 t/vars.t
