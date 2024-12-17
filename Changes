@@ -7,9 +7,11 @@ Revision history for FCGI-Buffer
 	Added CircleCI integration
 	Improve setting CGI::Info status
 	Use Test::DescribeMe to simplify tests
+	Use Test::Needs
+	Use gtar to create a distribution on Macs
 
 0.19	Fri Sep  1 21:28:40 EDT 2023
-	Fix uninitialisd variable
+	Fix uninitialised variable
 	Ensure 403 statuses are printed
 	IO::Compress::Brotli doesn't work on OpenBSD
 
