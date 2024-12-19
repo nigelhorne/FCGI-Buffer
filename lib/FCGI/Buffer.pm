@@ -1407,6 +1407,7 @@ sub is_cached {
 	return 1;
 }
 
+# Determine the last modification time of the script and cache it for subsequent calls
 sub _my_age {
 	my $self = shift;
 
@@ -1415,19 +1416,22 @@ sub _my_age {
 	}
 	unless(defined($self->{info})) {
 		if($self->{cache}) {
-			$self->{info} = CGI::Info->new({ cache => $self->{cache} });
+			$self->{info} = CGI::Info->new({ cache => $self->{cache} })
+				or croak 'Failed to create CGI::Info object with cache';
 		} else {
-			$self->{info} = CGI::Info->new();
+			$self->{info} = CGI::Info->new()
+				or croak 'Failed to create CGI::Info object';
 		}
 	}
 
 	my $path = $self->{info}->script_path();
 	unless(defined($path)) {
+		croak 'Failed to retrieve script path';
 		return;
 	}
 
 	my @statb = stat($path);
-	$self->{script_mtime} = $statb[9];
+	$self->{'script_mtime'} = $statb[9];	# Set script_mtime to the modification time of the script
 	return $self->{script_mtime};
 }
 
