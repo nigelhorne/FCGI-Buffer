@@ -14,6 +14,13 @@ use CGI::Info;
 use Carp;
 use HTTP::Date;
 use DBI;
+use Readonly;
+
+Readonly my $DEFAULT_GENERATE_304 => 1;
+Readonly my $DEFAULT_GENERATE_LAST_MODIFIED => 1;
+Readonly my $DEFAULT_COMPRESS_CONTENT => 1;
+Readonly my $DEFAULT_OPTIMISE_CONTENT => 0;
+Readonly my $DEFAULT_LINT_CONTENT => 0;
 
 =head1 NAME
 
@@ -97,7 +104,8 @@ use constant MIN_GZIP_LEN => 32;
 
 =head2 new
 
-Create an FCGI::Buffer object.  Do one of these for each FCGI::Accept.
+Create an FCGI::Buffer object.
+Do one of these for each FCGI::Accept.
 
 =cut
 
@@ -109,23 +117,31 @@ sub new
 
 	# Use FCGI::Buffer->new(), not FCGI::Buffer::new()
 	if(!defined($class)) {
-		carp(__PACKAGE__, ' use ->new() not ::new() to instantiate');
+		carp(__PACKAGE__, ': use ->new() not ::new() to instantiate');
 		return;
 	}
 
 	# Handle hash or hashref arguments
-	my %args = (ref($_[0]) eq 'HASH') ? %{$_[0]} : @_;
+	my %args;
+	if((@_ == 1) && (ref $_[0] eq 'HASH')) {
+		%args = %{$_[0]};
+	} elsif((@_ % 2) == 0) {
+		%args = @_;
+	} else {
+		carp(__PACKAGE__, ': Invalid arguments passed to new()');
+		return;
+	}
 
 	# Initialize buffer and object properties
-	my $buf = IO::String->new();
+	my $buf = IO::String->new() or croak(__PACKAGE__, ': Failed to initialize IO::String');
 	my $rc = {
 		buf => $buf,
 		old_buf => select($buf),
-		generate_304 => 1,
-		generate_last_modified => 1,
-		compress_content => 1,
-		optimise_content => 0,
-		lint_content => 0,
+		generate_304 => $DEFAULT_GENERATE_304,
+		generate_last_modified => $DEFAULT_GENERATE_LAST_MODIFIED,
+		compress_content => $DEFAULT_COMPRESS_CONTENT,
+		optimise_content => $DEFAULT_OPTIMISE_CONTENT,
+		lint_content => $DEFAULT_LINT_CONTENT,
 		%args,
 	};
 	# $rc->{o} = ();

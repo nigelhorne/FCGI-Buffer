@@ -1,6 +1,7 @@
 Revision history for FCGI-Buffer
  
 0.20
+	Use Readonly
 	cache_age is now known as cache_duration
 	IO::Compress::Brotli doesn't work on FreeBSD or Arm Linux
 	Set CGI::Info::status() if available

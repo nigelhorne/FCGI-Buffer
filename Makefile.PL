@@ -21,7 +21,8 @@ my %prereq_pm = (
 	'HTML::Lint' => 0,
 	'Storable' => 0,
 	'HTTP::Status' => 0,
-	'DBI' => 0
+	'DBI' => 0,
+	'Readonly' => 0
 );
 
 if(($^O ne 'MSWin32') && ($^O ne 'openbsd') && ($^O ne 'freebsd')) {
