@@ -21,6 +21,7 @@ Readonly my $DEFAULT_GENERATE_LAST_MODIFIED => 1;
 Readonly my $DEFAULT_COMPRESS_CONTENT => 1;
 Readonly my $DEFAULT_OPTIMISE_CONTENT => 0;
 Readonly my $DEFAULT_LINT_CONTENT => 0;
+Readonly my $MIN_GZIP_LEN => 32;
 
 =head1 NAME
 
@@ -99,8 +100,6 @@ which works well but isn't really what you want.
 =head1 SUBROUTINES/METHODS
 
 =cut
-
-use constant MIN_GZIP_LEN => 32;
 
 =head2 new
 
@@ -1478,7 +1477,7 @@ sub _compress()
 	return unless(defined($self->{'body'}));
 	my $encoding = $params{encoding};
 
-	if((length($encoding) == 0) || (length($self->{body}) < MIN_GZIP_LEN)) {
+	if((length($encoding) == 0) || (length($self->{body}) < $MIN_GZIP_LEN)) {
 		return;
 	}
 
