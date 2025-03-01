@@ -651,8 +651,9 @@ sub DESTROY {
 							$self->{logger}->debug("Create paths to $sdir");
 						}
 						File::Path::make_path($sdir);
-						my $file = $self->{info}->as_string();
+						my $file = $self->{'info'}->as_string();
 						$file =~ tr/\//_/;
+						$file =~ s/\s//g;
 						my $path = File::Spec->catfile($sdir, "$file.html");
 						if($path =~ /^(.+)$/) {
 							$path = $1;	# Untaint

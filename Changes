@@ -1,5 +1,8 @@
 Revision history for FCGI-Buffer
  
+0.21
+	Handle the new CGI::Info::as_string()
+
 0.20	Thu Dec 19 07:12:02 EST 2024
 	Use Readonly
 	cache_age is now known as cache_duration
