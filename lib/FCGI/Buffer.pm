@@ -1447,7 +1447,7 @@ sub _should_gzip {
 		}
 		my $accept = lc($ENV{'HTTP_ACCEPT_ENCODING'} ? $ENV{'HTTP_ACCEPT_ENCODING'} : $ENV{'HTTP_TE'});
 		foreach my $method(split(/,\s?/, $accept)) {
-			if(($method eq 'gzip') || ($method eq 'x-gzip') || ($method eq 'br')) {
+			if(($method eq 'gzip') || ($method eq 'x-gzip') || ($method eq 'br') || ($method eq 'zstd')) {
 				return $method;
 			}
 		}
@@ -1499,6 +1499,25 @@ sub _compress()
 			}
 			unless(grep(/^Vary: Accept-Encoding/, @{$self->{o}})) {
 				push @{$self->{o}}, 'Vary: Accept-Encoding';
+			}
+		}
+	} elsif($encoding eq 'zstd') {
+		# Facebook
+		if(eval { require Compress::Zstd; 1 }) {
+			my $compressed_body = Compress::Zstd::compress(\Encode::_encode_utf8($self->{'body'}));
+			if(length($compressed_body) < length($self->{'body'})) {
+				$self->{'body'} = $compressed_body;
+				unless(grep(/^Content-Encoding: zstd/, @{$self->{o}})) {
+					push @{$self->{o}}, 'Content-Encoding: zstd';
+				}
+				unless(grep(/^Vary: Accept-Encoding/, @{$self->{o}})) {
+					push @{$self->{o}}, 'Vary: Accept-Encoding';
+				}
+			}
+		} else {
+			$self->{status} = 406;
+			if($self->{'info'}) {
+				$self->{'info'}->status(406);
 			}
 		}
 	} elsif($encoding eq 'br') {
