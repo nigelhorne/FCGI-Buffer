@@ -42,7 +42,7 @@ if($^O eq 'darwin') {
 
 WriteMakefile(
     NAME                => 'FCGI::Buffer',
-    AUTHOR              => q{Nigel Horne <njh@bandsman.co.uk>},
+    AUTHOR              => q{Nigel Horne <njh@nigelhorne.com>},
     VERSION_FROM        => 'lib/FCGI/Buffer.pm',
     ABSTRACT_FROM       => 'lib/FCGI/Buffer.pm',
     ((defined($ExtUtils::MakeMaker::VERSION) &&
