@@ -459,7 +459,7 @@ sub DESTROY {
 			if($self->{send_body} && $ENV{'SERVER_PROTOCOL'} &&
 			  (($ENV{'SERVER_PROTOCOL'} eq 'HTTP/1.1') || ($ENV{'SERVER_PROTOCOL'} eq 'HTTP/2.0')) &&
 			  $self->{generate_304} && ($self->{status} == 200)) {
-				if($ENV{'HTTP_IF_MODIFIED_SINCE'}) {
+				if($ENV{'HTTP_IF_MODIFIED_SINCE'} && $self->{'cobject'}) {
 					$self->_check_modified_since({
 						since => $ENV{'HTTP_IF_MODIFIED_SINCE'},
 						modified => $self->{cobject}->created_at()
