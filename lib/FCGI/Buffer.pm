@@ -448,9 +448,9 @@ sub DESTROY {
 						push @{$self->{o}}, 'X-Cache: HIT', 'X-Cache-Lookup: HIT';
 					}
 				} elsif($self->{logger}) {
-					$self->{logger}->warn("Error retrieving data for key $key");
+					$self->{logger}->warn(ref($self), ": Error retrieving data for key $key");
 				} else {
-					carp(__PACKAGE__, ": error retrieving data for key $key");
+					carp(ref($self), ": error retrieving data for key $key");
 				}
 			}
 
