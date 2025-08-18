@@ -1550,20 +1550,22 @@ sub _compress()
 sub _check_if_none_match {
 	my $self = shift;
 
-	if($self->{logger}) {
-		$self->{logger}->debug("Compare $ENV{HTTP_IF_NONE_MATCH} with $self->{etag}");
-	}
-	if($ENV{'HTTP_IF_NONE_MATCH'} eq $self->{etag}) {
-		push @{$self->{o}}, 'Status: 304 Not Modified';
-		$self->{send_body} = 0;
-		$self->{status} = 304;
-		if($self->{'info'}) {
-			$self->{'info'}->status(304);
-		}
+	if($ENV{'HTTP_IF_NONE_MATCH'}) {
 		if($self->{logger}) {
-			$self->{logger}->debug('Set status to 304');
+			$self->{logger}->debug("Compare $ENV{HTTP_IF_NONE_MATCH} with $self->{etag}");
 		}
-		return 1;
+		if($ENV{'HTTP_IF_NONE_MATCH'} eq $self->{etag}) {
+			push @{$self->{o}}, 'Status: 304 Not Modified';
+			$self->{send_body} = 0;
+			$self->{status} = 304;
+			if($self->{'info'}) {
+				$self->{'info'}->status(304);
+			}
+			if($self->{logger}) {
+				$self->{logger}->debug('Set status to 304');
+			}
+			return 1;
+		}
 	}
 	if($self->{cache} && $self->{logger} && $self->{logger}->is_debug()) {
 		my $cached_copy = $self->{cache}->get($self->_generate_key());
