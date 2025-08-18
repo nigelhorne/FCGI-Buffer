@@ -1020,7 +1020,7 @@ sub _generate_key {
 		$self->{info} = CGI::Info->new({ cache => $self->{cache} });
 	}
 
-	my $key = $self->{info}->browser_type() . '::' . $self->{info}->domain_name() . '::' . $self->{info}->script_name() . '::' . $self->{info}->as_string();
+	my $key = __PACKAGE__ . '::' . $self->{info}->browser_type() . '::' . $self->{info}->domain_name() . '::' . $self->{info}->script_name() . '::' . $self->{info}->as_string();
 
 	if($self->{lingua}) {
 		$key .= '::' . $self->{lingua}->language();
