@@ -152,14 +152,15 @@ sub new
 	return bless $rc, $class;
 }
 
-sub DESTROY {
+sub DESTROY
+{
 	if(defined($^V) && ($^V ge 'v5.14.0')) {
 		return if ${^GLOBAL_PHASE} eq 'DESTRUCT';	# >= 5.14.0 only
 	}
 	my $self = shift;
 
 	if($self->{'logger'}) {
-		$self->{'logger'}->info('In DESTROY');
+		$self->{'logger'}->trace('>In ' . __PACKAGE__ . ' DESTROY');
 	}
 	select($self->{old_buf});
 	if((!defined($self->{buf})) || (!defined($self->{buf}->getpos()))) {
