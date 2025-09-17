@@ -188,6 +188,7 @@ sub DESTROY
 			"Generate_304 = $self->{generate_304}, ",
 			"Generate_last_modified = $self->{generate_last_modified}");
 	}
+
 	unless($headers || $self->is_cached()) {
 		if($self->{'logger'}) {
 			$self->{'logger'}->debug('There was no output');
@@ -1436,7 +1437,8 @@ sub _my_age {
 	return $self->{script_mtime};
 }
 
-sub _should_gzip {
+sub _should_gzip
+{
 	my $self = shift;
 
 	if($self->{compress_content} && ($ENV{'HTTP_ACCEPT_ENCODING'} || $ENV{'HTTP_TE'})) {
@@ -1457,13 +1459,14 @@ sub _should_gzip {
 	return '';
 }
 
-sub _set_content_type {
+sub _set_content_type
+{
 	my $self = shift;
 	my $headers = shift;
 
 	foreach my $header (split(/\r?\n/, $headers)) {
 		my ($header_name, $header_value) = split /\:\s*/, $header, 2;
-		if (lc($header_name) eq 'content-type') {
+		if(lc($header_name) eq 'content-type') {
 			my @content_type = split /\//, $header_value, 2;
 			$self->{content_type} = \@content_type;
 			return;
