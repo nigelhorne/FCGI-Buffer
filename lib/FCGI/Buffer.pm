@@ -1508,7 +1508,7 @@ sub _compress()
 	} elsif($encoding eq 'zstd') {
 		# Facebook
 		if(eval { require Compress::Zstd; 1 }) {
-			my $compressed_body = Compress::Zstd::compress(\Encode::_encode_utf8($self->{'body'}));
+			my $compressed_body = Compress::Zstd::compress(\Encode::encode_utf8($self->{'body'}));
 			if(length($compressed_body) < length($self->{'body'})) {
 				$self->{'body'} = $compressed_body;
 				unless(grep(/^Content-Encoding: zstd/, @{$self->{o}})) {
