@@ -4,7 +4,7 @@ FCGI::Buffer - Verify, Cache and Optimise FCGI Output
 
 # VERSION
 
-Version 0.21
+Version 0.22
 
 # SYNOPSIS
 
@@ -201,7 +201,7 @@ the result stored in the cache.
 
 # AUTHOR
 
-Nigel Horne, `<njh at bandsman.co.uk>`
+Nigel Horne, `<njh at nigelhorne.com>`
 
 # BUGS
 
