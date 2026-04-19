@@ -261,6 +261,8 @@ The lint operation only works on HTML4, because of a restriction in [HTML::Lint]
 
 # SUPPORT
 
+This module is provided as-is without any warranty.
+
 You can find documentation for this module with the perldoc command.
 
     perldoc FCGI::Buffer
@@ -291,5 +293,5 @@ The licence for cgi\_buffer is:
 
     This software is provided 'as is' without warranty of any kind."
 
-The rest of the program is Copyright 2015-2025 Nigel Horne,
+The rest of the program is Copyright 2015-2026 Nigel Horne,
 and is released under the following licence: GPL2
