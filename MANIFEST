@@ -28,7 +28,6 @@ t/is_cached.t
 t/js.t
 t/kwalitee.t
 t/last_mod.t
-t/lib/MyLogger.pm
 t/manifest.t
 t/metrics.t
 t/modules-used.t
