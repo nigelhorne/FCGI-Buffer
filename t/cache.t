@@ -10,14 +10,13 @@ use Storable;
 use Capture::Tiny ':all';
 use CGI::Info;
 use CGI::Lingua;
+use Test::Log::Abstraction;
 use Test::NoWarnings;
 use Directory::Scratch;
 use autodie qw(:all);
 use HTTP::Response;
 use HTTP::Headers;
 use Cwd;
-use lib 't/lib';
-use MyLogger;
 
 BEGIN {
 	use_ok('FCGI::Buffer');
@@ -188,7 +187,7 @@ CACHED: {
 			cache => $cache,
 			cache_key => 'test4',
 			info => new_ok('CGI::Info'),
-			logger => MyLogger->new()
+			logger => Test::Log::Abstraction->new()
 		});
 
 		ok($b->can_cache() == 1);
@@ -390,7 +389,7 @@ CACHED: {
 				info => $info,
 			),
 			save_to => $save_to,
-			logger => MyLogger->new()
+			logger => Test::Log::Abstraction->new()
 		});
 
 		ok($b->can_cache() == 1);
@@ -498,7 +497,7 @@ CACHED: {
 				info => $info,
 			),
 			save_to => $save_to,
-			logger => MyLogger->new(),
+			logger => Test::Log::Abstraction->new(),
 			optimise_content => 1,
 		});
 
