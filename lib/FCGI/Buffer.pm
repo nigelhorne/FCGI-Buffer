@@ -532,6 +532,22 @@ sub _send_output
 		$self->{body} = _to_bytes($self->{body});
 	}
 
+	my $dbh = $self->_try('save_to database', sub { $self->_save_to_dbh() });
+
+	my $encoding = $self->_should_gzip();
+
+	# The cache and the static page hold the page with its links as the script
+	# wrote them, since the links are looked at again for each request
+	my $unzipped_body = $self->{body};
+
+	# Premise 1: the ETag says which version of the page the client has
+	# Premise 2: changing a link gives a different version
+	# Conclusion: change the links first, otherwise a client with the old links
+	#	is told by a 304 that they're still current
+	if(defined($unzipped_body) && ($self->{status} == 200)) {
+		$self->_save_to($unzipped_body, $dbh);
+	}
+
 	# Generate the eTag before compressing, since the compressed data
 	# includes the mtime field which changes thus causing a different
 	# Etag to be generated
@@ -542,11 +558,6 @@ sub _send_output
 			$self->_check_if_none_match();
 		}
 	}
-
-	my $dbh = $self->_try('save_to database', sub { $self->_save_to_dbh() });
-
-	my $encoding = $self->_should_gzip();
-	my $unzipped_body = $self->{body};
 
 	if(defined($unzipped_body)) {
 		# Conditions are looked at before Range, and If-Modified-Since
@@ -618,22 +629,10 @@ sub _send_output
 				}
 			}
 
-			# Nothing has been output yet, so we can check if it's
-			# OK to send 304 if possible
-			# _check_modified_since() checks generate_304 itself
-			if($self->{send_body} && ($self->{status} == 200) && $ENV{'HTTP_IF_MODIFIED_SINCE'} && $self->{'cobject'} && _is_conditional_protocol()) {
-				$self->_check_modified_since({
-					since => $ENV{'HTTP_IF_MODIFIED_SINCE'},
-					modified => $self->{cobject}->created_at()
-				});
-			}
 			if($self->{send_body} && ($self->{status} == 200) && defined($cache_hash)) {
 				$self->{body} = _to_bytes($cache_hash->{'body'});
 				if($dbh) {
-					my $changes = $self->_save_to($self->{body}, $dbh);
-					if($changes && (my $ttl = $self->{save_to}->{ttl})) {
-						push @{$self->{o}}, 'Expires: ' . HTTP::Date::time2str(time + $ttl);
-					}
+					$self->_save_to($self->{body}, $dbh);
 				}
 				if(!defined($self->{body})) {
 					# Panic
@@ -678,9 +677,23 @@ sub _send_output
 				}
 			}
 			# _generate_etag() does nothing if there's already an ETag
-			if($self->{send_body} && ($self->{status} == 200) && $ENV{'HTTP_IF_NONE_MATCH'} && $self->{generate_etag} && _is_conditional_protocol()) {
+			if($self->{send_body} && ($self->{status} == 200) && $self->{generate_etag} && _is_conditional_protocol()) {
 				$self->_generate_etag();
-				$self->_check_if_none_match();
+				if($ENV{'HTTP_IF_NONE_MATCH'}) {
+					$self->_check_if_none_match();
+				}
+			}
+			# Nothing has been output yet, so we can check if it's
+			# OK to send 304 if possible.  Not if If-None-Match was
+			# looked at (RFC 9110 13.1.3): browsers send both, and the
+			# date doesn't change when a link does
+			# _check_modified_since() checks generate_304 itself
+			if($self->{send_body} && ($self->{status} == 200) && $ENV{'HTTP_IF_MODIFIED_SINCE'} && $self->{'cobject'} && _is_conditional_protocol() &&
+			   !($ENV{'HTTP_IF_NONE_MATCH'} && defined($self->{etag}))) {
+				$self->_check_modified_since({
+					since => $ENV{'HTTP_IF_MODIFIED_SINCE'},
+					modified => $self->{cobject}->created_at()
+				});
 			}
 			if($self->{status} == 200) {
 				$encoding = $self->_should_gzip();
@@ -727,8 +740,6 @@ sub _send_output
 		} else {
 			# Not in the server-side cache
 			if($self->{status} == 200) {
-				my $changes = $self->_save_to($unzipped_body, $dbh);
-
 				unless($self->{cache_duration}) {
 					# It would be great if CHI::set()
 					# allowed the time to be 'lru' for least
@@ -736,20 +747,21 @@ sub _send_output
 					$self->{cache_duration} = $DEFAULT_CACHE_DURATION;
 				}
 				$cache_hash->{'body'} = $unzipped_body;
-				if($changes && $encoding) {
-					$self->_compress({ encoding => $encoding });
-				}
 
 				my $storable = $self->_is_storable($headers, $unzipped_body);
 				if($storable) {
 					if($self->{o} && scalar(@{$self->{o}})) {
 						# Remember, we're storing the UNzipped
-						# version in the cache
+						# version in the cache.  An Expires that
+						# was generated here is about the links
+						# in this response, and they are looked
+						# at again for each request
+						my $generated = join("\r\n", grep { !/^Expires:/i } @{$self->{o}});
 						my $c;
 						if(defined($headers) && length($headers)) {
-							$c = "$headers\r\n" . join("\r\n", @{$self->{o}});
+							$c = "$headers\r\n$generated";
 						} else {
-							$c = join("\r\n", @{$self->{o}});
+							$c = $generated;
 						}
 						$c =~ s/^Content-Encoding: .+$//mgi;
 						$c =~ s/^Content-Length: .+$//mgi;
@@ -811,11 +823,6 @@ sub _send_output
 				push @{$self->{o}}, 'Last-Modified: ' . HTTP::Date::time2str($age);
 			}
 		}
-		# Changing the links in a part of a page would move the bytes that
-		# the client asked for
-		if((!$self->{_partial}) && $self->_save_to($unzipped_body, $dbh) && $encoding) {
-			$self->_compress({ encoding => $encoding });
-		}
 	} else {
 		push @{$self->{o}}, @{$self->_x_cache_headers('MISS', 'MISS')};
 	}
@@ -862,6 +869,8 @@ sub _send_output
 	} else {
 		push @{$self->{o}}, "X-FCGI-Buffer-$VERSION: No headers";
 	}
+
+	@{$self->{o}} = _one_expires(@{$self->{o}});
 
 	if($body_length && $self->{send_body}) {
 		push @{$self->{o}}, ('', $self->{body});
@@ -2004,9 +2013,10 @@ sub _is_logged_in {
 	return $ENV{'HTTP_AUTHORIZATION'} || $ENV{'REMOTE_USER'};
 }
 
-# The client's cookies, except for Google Analytics ones and csrf_token, which
-# are different for each client but don't change the output.  A page that uses a
-# csrf_token is sent with a Set-Cookie header, so _is_storable() doesn't store it
+# The client's cookies, except for Google Analytics ones and the token that
+# protects forms, which are different for each client but don't change the output.
+# A page with a form is sent that token in a Set-Cookie header, so _is_storable()
+# doesn't store it
 sub _client_cookies {
 	return () unless($ENV{'HTTP_COOKIE'});
 	return grep { !/^(?:__utm[abcz]|csrf_token=)/ } split(/;\s*/, $ENV{'HTTP_COOKIE'});
@@ -2186,6 +2196,27 @@ sub _write_static_page {
 	if($changes && $ttl) {
 		push @{$self->{o}}, 'Expires: ' . HTTP::Date::time2str(time + $ttl);
 	}
+}
+
+# Keep one of the Expires headers, the earliest, since the page is out of date
+# as soon as any part of it is.  RFC 9111 4.2.1 allows a cache to treat a response
+# with more than one as stale.  A date that can't be understood means already
+# expired (RFC 9111 5.3)
+sub _one_expires {
+	my @headers = @_;
+
+	my @expires = grep { /^Expires:/i } @headers;
+	return @headers if(scalar(@expires) < 2);
+
+	my ($earliest, $earliest_time);
+	foreach my $header(@expires) {
+		my ($date) = $header =~ /^Expires:\s*(.*)$/i;
+		my $time = HTTP::Date::str2time($date) || 0;
+		if((!defined($earliest_time)) || ($time < $earliest_time)) {
+			($earliest, $earliest_time) = ($header, $time);
+		}
+	}
+	return ((grep { !/^Expires:/i } @headers), $earliest);
 }
 
 # Make a string safe to put into an HTML attribute

@@ -5,10 +5,12 @@
 
 use strict;
 use warnings;
-use Test::Most tests => 17;
+use Test::Most tests => 22;
 use Test::Needs 'CHI', 'DBD::SQLite';
 use Capture::Tiny ':all';
 use CGI::Info;
+use HTTP::Date;
+use Storable;
 use File::Spec;
 use File::Temp qw(tempdir);
 use Test::NoWarnings;
@@ -56,11 +58,14 @@ sub request {
 			($args{'no_lingua'} ? () : (lingua => $args{'lingua'} || My::Lingua->new('English'))),
 			($args{'optimise_content'} ? (optimise_content => $args{'optimise_content'}) : ()),
 		});
-		print "Content-type: text/html\n\n",
-			'<HTML><HEAD><TITLE>t</TITLE></HEAD><BODY>', $args{'html'}, "</BODY></HTML>\n";
+		# As a script does: nothing to print if it's in the cache
+		unless($args{'if_cached'} && $b->is_cached()) {
+			print $args{'headers'} || '', "Content-type: text/html\n\n",
+				'<HTML><HEAD><TITLE>t</TITLE></HEAD><BODY>', $args{'html'}, "</BODY></HTML>\n";
+		}
 	};
 	my ($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
-	return ($body, $stderr);
+	return ($body, $stderr, $headers);
 }
 
 # A new document root, save_to area and cache for each scenario
@@ -340,6 +345,138 @@ subtest 'a csrf_token cookie is not part of the cache key' => sub {
 		request(uri => '/cgi-bin/page.fcgi?a=1', html => 'Anyone', cache => $cache, env => { HTTP_COOKIE => "csrf_token=$token" });
 	}
 	is(scalar($cache->get_keys()), 1, 'clients with different tokens share one entry');
+};
+
+# is_cached() compares the cache with the age of the script, so it has to exist
+my $script = File::Spec->catfile(tempdir(CLEANUP => 1), 'page.fcgi');
+open(my $fout, '>', $script) or die "$script: $!";
+close $fout;
+utime(1_000_000, 1_000_000, $script);
+$ENV{'SCRIPT_FILENAME'} = $script;
+$0 = $script;
+
+# The value of each of the headers with the given name
+sub header_values {
+	my ($headers, $name) = @_;
+
+	return $headers =~ /^\Q$name\E:\s*(.+?)\r?$/mgi;
+}
+
+# A page that links to /cgi-bin/page.fcgi?a=1, which has no static page yet
+sub page_with_link {
+	my ($save_to, $cache, %env) = @_;
+
+	return request(
+		uri => '/cgi-bin/page.fcgi?b=2',
+		html => '<a href="/cgi-bin/page.fcgi?a=1">a</a>',
+		cache => $cache,
+		save_to => $save_to,
+		if_cached => 1,
+		env => { SERVER_PROTOCOL => 'HTTP/1.1', %env },
+	);
+}
+
+subtest 'the ETag of a page not in the cache describes its rewritten links' => sub {
+	my (undef, $save_to, $cache) = setup();
+
+	my ($body, undef, $headers) = page_with_link($save_to, $cache);
+	unlike($body, qr{/static/}, 'there is nothing to link to yet');
+	my ($old_etag) = header_values($headers, 'ETag');
+
+	request(uri => '/cgi-bin/page.fcgi?a=1', html => 'a', cache => $cache, save_to => $save_to);
+
+	# Another cache, so that the page has to be made again
+	my $empty = CHI->new(driver => 'Memory', datastore => {});
+	($body, undef, $headers) = page_with_link($save_to, $empty, HTTP_IF_NONE_MATCH => $old_etag);
+	unlike($headers, qr/^Status: 304/m, 'a client with the old links is not sent a 304');
+	like($body, qr{<a href="/static/}, 'it is sent the new ones');
+	my ($new_etag) = header_values($headers, 'ETag');
+	isnt($new_etag, $old_etag, 'with a different ETag');
+
+	(undef, undef, $headers) = page_with_link($save_to, $empty);
+	like($headers, qr/^X-FCGI-Buffer-[\d.]+: Hit/m, 'now it is in the cache');
+	is((header_values($headers, 'ETag'))[0], $new_etag, 'a hit has the same ETag as the miss');
+
+	(undef, undef, $headers) = page_with_link($save_to, CHI->new(driver => 'Memory', datastore => {}), HTTP_IF_NONE_MATCH => $new_etag);
+	like($headers, qr/^Status: 304/m, 'a client with the new links is sent a 304 on a miss');
+
+	(undef, undef, $headers) = page_with_link($save_to, $empty, HTTP_IF_NONE_MATCH => $new_etag);
+	like($headers, qr/^Status: 304/m, 'and on a hit');
+
+	# The links are looked at again for each request
+	my ($cached) = map { Storable::thaw($empty->get($_))->{'body'} } grep { /b=2/ } $empty->get_keys();
+	like($cached, qr{<a href="/cgi-bin/page\.fcgi\?a=1">}, 'the cache holds the links that the script wrote');
+};
+
+subtest 'If-Modified-Since is not used for a page in the cache if If-None-Match fails' => sub {
+	my (undef, $save_to, $cache) = setup();
+
+	my (undef, undef, $headers) = page_with_link($save_to, $cache);
+	my ($old_etag) = header_values($headers, 'ETag');
+	my ($date) = header_values($headers, 'Last-Modified');
+
+	request(uri => '/cgi-bin/page.fcgi?a=1', html => 'a', cache => $cache, save_to => $save_to);
+
+	# What a browser sends
+	my $body;
+	($body, undef, $headers) = page_with_link($save_to, $cache, HTTP_IF_NONE_MATCH => $old_etag, HTTP_IF_MODIFIED_SINCE => $date);
+	like($headers, qr/^X-FCGI-Buffer-[\d.]+: Hit/m, 'it is in the cache');
+	unlike($headers, qr/^Status: 304/m, 'no 304 for a client with the old links');
+	like($body, qr{<a href="/static/}, 'it is sent the new ones');
+	my ($new_etag) = header_values($headers, 'ETag');
+
+	(undef, undef, $headers) = page_with_link($save_to, $cache, HTTP_IF_MODIFIED_SINCE => $date);
+	like($headers, qr/^Status: 304/m, 'If-Modified-Since on its own still gives a 304');
+	is((header_values($headers, 'ETag'))[0], $new_etag, 'with the ETag of the current page');
+	unlike($headers, qr/^Content-Encoding/m, 'and no Content-Encoding');
+};
+
+subtest 'one Expires header is sent' => sub {
+	my (undef, $save_to, $cache) = setup();
+
+	request(uri => '/cgi-bin/page.fcgi?a=1', html => 'a', cache => $cache, save_to => $save_to);
+
+	foreach my $request(['a miss', 'Miss'], ['a hit', 'Hit'], ['another hit', 'Hit']) {
+		my (undef, undef, $headers) = page_with_link($save_to, $cache);
+		like($headers, qr/^X-FCGI-Buffer-[\d.]+: $request->[1]/m, "this is $request->[0]");
+		is(scalar(() = header_values($headers, 'Expires')), 1, "one on $request->[0]");
+	}
+	my ($key) = grep { /b=2/ } $cache->get_keys();
+	unlike(Storable::thaw($cache->get($key))->{'headers'}, qr/^Expires/mi, 'none is kept in the cache');
+};
+
+subtest 'the script\'s Expires is kept' => sub {
+	my (undef, $save_to, $cache) = setup();
+
+	request(uri => '/cgi-bin/page.fcgi?a=1', html => 'a', cache => $cache, save_to => $save_to);
+
+	my $soon = HTTP::Date::time2str(time + 60);
+	my %page = (uri => '/cgi-bin/page.fcgi?b=2', html => '<a href="/cgi-bin/page.fcgi?a=1">a</a>', cache => $cache, save_to => $save_to, if_cached => 1);
+
+	my (undef, undef, $headers) = request(%page, headers => "Expires: $soon\n");
+	is_deeply([header_values($headers, 'Expires')], [$soon], 'it is earlier than the static page, on a miss');
+	(undef, undef, $headers) = request(%page, headers => "Expires: $soon\n");
+	like($headers, qr/^X-FCGI-Buffer-[\d.]+: Hit/m, 'now it is in the cache');
+	is_deeply([header_values($headers, 'Expires')], [$soon], 'and on a hit');
+
+	my $later = HTTP::Date::time2str(time + 7200);
+	(undef, undef, $headers) = request(%page, uri => '/cgi-bin/page.fcgi?c=3', headers => "Expires: $later\n");
+	my @expires = header_values($headers, 'Expires');
+	is(scalar(@expires), 1, 'one, when the static page expires first');
+	isnt($expires[0], $later, 'which is the static page');
+};
+
+subtest '_one_expires' => sub {
+	my @none = ('Content-Type: text/html', 'ETag: "a"');
+	is_deeply([FCGI::Buffer::_one_expires(@none)], \@none, 'no Expires');
+
+	my @one = ('Expires: 0', 'ETag: "a"');
+	is_deeply([FCGI::Buffer::_one_expires(@one)], \@one, 'one is left alone, even if invalid');
+
+	my ($first, $second) = ('Expires: Fri, 30 Oct 2026 18:00:00 GMT', 'Expires: Fri, 30 Oct 2026 19:00:00 GMT');
+	is_deeply([FCGI::Buffer::_one_expires($second, 'ETag: "a"', $first)], ['ETag: "a"', $first], 'the earliest of two');
+	is_deeply([FCGI::Buffer::_one_expires($first, $first)], [$first], 'the same one twice');
+	is_deeply([FCGI::Buffer::_one_expires('expires: 0', $first)], ['expires: 0'], 'an invalid date means already expired');
 };
 
 subtest 'save_to works without a lingua object' => sub {

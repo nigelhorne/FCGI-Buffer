@@ -197,7 +197,7 @@ Only use where output is guaranteed to be the same with a given set of arguments
 (the same criteria for enabling generate\_304).
 Only HTML pages are saved.
 Pages generated for clients that send cookies (other than Google Analytics
-cookies) or have logged in, or those that aren't stored in the server-side
+cookies and `csrf_token`) or have logged in, or those that aren't stored in the server-side
 cache for the reasons above, are not saved,
 since the static page would be given to everyone.
 Several virtual hosts can share a directory.

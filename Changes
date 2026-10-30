@@ -20,6 +20,12 @@ Revision history for FCGI-Buffer
 	- optimise_content: an unterminated <title> took quadratic time
 
 	[ Bug Fixes ]
+	- The ETag of a page that wasn't in the cache was worked out before its
+		links were changed to point to static pages, so a client with
+		the old links could be given a 304 and keep them
+	- If-Modified-Since was looked at before If-None-Match for a page in the
+		cache, so a 304 could be sent for a page that had changed
+	- Several Expires headers could be sent, and they were kept in the cache
 	- A csrf_token cookie no longer stops a page from being cached or saved.
 		It is different for each client but doesn't change the output
 	- An exception while sending the page lost the output, it could also
