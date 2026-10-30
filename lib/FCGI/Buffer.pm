@@ -272,16 +272,19 @@ sub DESTROY
 					$protocol = 'http';
 				}
 
-				$self->{body} =~ s/<a\s+?href="$protocol:\/\/$href"/<a href="\/"/gim;
-				$self->{body} =~ s/<a\s+?href="$protocol:\/\/$href/<a href="/gim;
-				$self->{body} =~ s/<a\s+?href="$protocol:\/\//<a href="\/\//gim;
+				$self->{body} =~ s/<a\s+?href="\Q$protocol\E:\/\/\Q$href\E"/<a href="\/"/gim;
+				$self->{body} =~ s/<a\s+?href="\Q$protocol\E:\/\/\Q$href\E(?=[\/?#])/<a href="/gim;
+				$self->{body} =~ s/<a\s+?href="\Q$protocol\E:\/\//<a href="\/\//gim;
 
 				# If we're in "/cgi-bin/foo.cgi?arg1=a" replace
 				# "/cgi-bin/foo.cgi?arg2=b" with "?arg2=b"
+				# A link to "/cgi-bin/foo.cgi" with no arguments is
+				# left alone, since href="" would mean the current
+				# page, arguments and all
 
 				if(my $script_name = $ENV{'SCRIPT_NAME'}) {
 					if($script_name =~ /^\//) {
-						$self->{body} =~ s/<a\s+?href="$script_name(\?.+)?"/<a href="$1"/gim;
+						$self->{body} =~ s/<a\s+?href="\Q$script_name\E(\?[^"]+)"/<a href="$1"/gim;
 					}
 				}
 
@@ -290,8 +293,8 @@ sub DESTROY
 				# ../ff.htm
 
 				# TODO: <img border=0 src=...>
-				$self->{body} =~ s/<img\s+?src="$protocol:\/\/$href"/<img src="\/"/gim;
-				$self->{body} =~ s/<img\s+?src="$protocol:\/\/$href/<img src="/gim;
+				$self->{body} =~ s/<img\s+?src="\Q$protocol\E:\/\/\Q$href\E"/<img src="\/"/gim;
+				$self->{body} =~ s/<img\s+?src="\Q$protocol\E:\/\/\Q$href\E(?=[\/?#])/<img src="/gim;
 
 				# Don't use HTML::Clean because of RT402
 				# my $h = new HTML::Clean(\$self->{body});
@@ -486,20 +489,20 @@ sub DESTROY
 					}
 
 					if($dbh) {
-						my $query = "SELECT DISTINCT path FROM fcgi_buffer WHERE key = '$key'";
+						my $query = 'SELECT DISTINCT path FROM fcgi_buffer WHERE key = ?';
 						my $sth = $dbh->prepare($query);
 						if($self->{logger}) {
-							$self->{logger}->debug($query);
+							$self->{logger}->debug("$query: $key");
 						}
-						if($sth->execute() && (my $href = $sth->fetchrow_hashref())) {
+						if($sth->execute($key) && (my $href = $sth->fetchrow_hashref())) {
 							if(my $path = $href->{'path'}) {
 								unlink($path);
 							}
 						}
-						$query = "DELETE FROM fcgi_buffer WHERE key = '$key'";
-						$dbh->do($query);
+						$query = 'DELETE FROM fcgi_buffer WHERE key = ?';
+						$dbh->do($query, undef, $key);
 						if($self->{logger}) {
-							$self->{logger}->debug($query);
+							$self->{logger}->debug("$query: $key");
 						}
 					}
 
@@ -619,8 +622,11 @@ sub DESTROY
 
 				# Create a static page with the information and link to that in the output
 				# HTML
-				if($dbh && $self->{info} && $self->{save_to} && (my $request_uri = $ENV{'REQUEST_URI'})) {
-					my $query = "SELECT DISTINCT creation FROM fcgi_buffer WHERE key = ?";
+				# Pages whose content depends on the client's cookies
+				# or Vary headers are never saved, since anyone
+				# following the static link would be given them
+				if($dbh && $self->{info} && $self->{save_to} && (my $request_uri = $ENV{'REQUEST_URI'}) && !$self->{_key_is_per_client}) {
+					my $query = 'SELECT DISTINCT creation FROM fcgi_buffer WHERE key = ?';
 					if($self->{logger}) {
 						$self->{logger}->debug("$query: $key");
 					}
@@ -634,43 +640,36 @@ sub DESTROY
 					} else {
 						my $dir = $self->{save_to}->{directory};
 						my $browser_type = $self->{info}->browser_type();
-						my $language;
-						if($self->{'lingua'}) {
-							$language = $self->{lingua}->language();
-							if($language =~ /([\w\s]+)/i) {
-								$language = $1;	# Untaint
-							}
-						} else {
-							$language = 'default';
+						my $language = $self->_save_to_language();
+						my $bdir = File::Spec->catfile($dir, _safe_filename($browser_type));
+						if($bdir =~ /^(.+)$/) {
+							$bdir = $1;	# Untaint
 						}
-						my $bdir = File::Spec->catfile($dir, $browser_type);
-						if($bdir =~ /^([\/\\])(.+)$/) {
-							$bdir = "$1$2";	# Untaint
-						}
-						my $ldir = File::Spec->catfile($bdir, $language);
-						my $sdir = File::Spec->catfile($ldir, $self->{info}->script_name());
+						my $ldir = File::Spec->catfile($bdir, _safe_filename($language));
+						my $sdir = File::Spec->catfile($ldir, _safe_filename($self->{info}->script_name()));
 						if($self->{logger}) {
 							$self->{logger}->debug("Create paths to $sdir");
 						}
 						File::Path::make_path($sdir);
-						my $file = $self->{'info'}->as_string();
-						$file =~ tr/\//_/;
-						$file =~ s/\s//g;
-						my $path = File::Spec->catfile($sdir, "$file.html");
+						my $path = File::Spec->catfile($sdir, $self->_save_to_filename() . '.html');
 						if($path =~ /^(.+)$/) {
 							$path = $1;	# Untaint
-							$path =~ tr/[\|;]/_/;
 						}
 						if(open(my $fout, '>', $path)) {
-							my $u = $request_uri;
-							$u =~ s/\?/\\?/g;
-							$u =~ s/\)/\\)/g;
 							my $copy = $unzipped_body;
-							my $changes = ($copy =~ s/<a\s+href="$u"/<a href="$path"/gi);
 
 							# handle <a href="?arg3=4">Call self with different args</a>
-							my $script_name = $ENV{'SCRIPT_NAME'};
-							$copy =~ s/<a\s+href="(\?.+?)"/<a href="$script_name$1"/gi;
+							# The static page is somewhere else, so
+							# make the links absolute
+							my $r = $request_uri;
+							$r =~ s/\?.*$//;
+							$copy =~ s/<a\s+href="(\?[^"]*)"/<a href="$r$1"/gi;
+
+							# Links to ourself now point to the static page
+							my $changes = 0;
+							if(defined(my $url = $self->_path_to_url($path))) {
+								$changes = ($copy =~ s/((?i:<a\s+href="))\Q$request_uri\E"/$1$url"/g);
+							}
 
 							# Avoid Wide character
 							unless($self->{_encode_loaded}) {
@@ -681,11 +680,11 @@ sub DESTROY
 							close $fout;
 							# Do INSERT OR REPLACE in case another program has
 							# got in first,
-							$query = "INSERT OR REPLACE INTO fcgi_buffer(key, language, browser_type, path, uri, creation) VALUES('$key', '$language', '$browser_type', '$path', '$request_uri', strftime('\%s','now'))";
+							$query = "INSERT OR REPLACE INTO fcgi_buffer(key, language, browser_type, path, uri, creation) VALUES(?, ?, ?, ?, ?, strftime('\%s','now'))";
 							if($self->{logger}) {
-								$self->{logger}->debug($query);
+								$self->{logger}->debug("$query: $key, $language, $browser_type, $path, $request_uri");
 							}
-							$dbh->prepare($query)->execute();
+							$dbh->prepare($query)->execute($key, $language, $browser_type, $path, $request_uri);
 
 							if($changes && (my $ttl = $self->{save_to}->{ttl})) {
 								push @{$self->{o}}, 'Expires: ' . HTTP::Date::time2str(time + $ttl);
@@ -1024,6 +1023,10 @@ sub _generate_key {
 
 	my $key = __PACKAGE__ . '::' . $self->{info}->browser_type() . '::' . $self->{info}->domain_name() . '::' . $self->{info}->script_name() . '::' . $self->{info}->as_string();
 
+	if(defined($ENV{'PATH_INFO'}) && length($ENV{'PATH_INFO'})) {
+		# /cgi-bin/foo.fcgi/bar and /cgi-bin/foo.fcgi/baz are different pages
+		$key .= '::PATH_INFO=' . $ENV{'PATH_INFO'};
+	}
 	if($self->{lingua}) {
 		$key .= '::' . $self->{lingua}->language();
 	}
@@ -1031,9 +1034,10 @@ sub _generate_key {
 		# Different states of the client are stored in different caches
 		# Don't put different Google Analytics in different caches, and anyway they
 		# would be wrong
-		foreach my $cookie(split(/;/, $ENV{'HTTP_COOKIE'})) {
+		foreach my $cookie(split(/;\s*/, $ENV{'HTTP_COOKIE'})) {
 			unless($cookie =~ /^__utm[abcz]/) {
 				$key .= "::$cookie";
+				$self->{_key_is_per_client} = 1;
 			}
 		}
 	}
@@ -1051,6 +1055,7 @@ sub _generate_key {
 					my ($h2_name, $h2_value) = split /\:\s*/, $h2, 2;
 					if($h2_name eq $h1_value) {
 						$key .= "::$h2_value";
+						$self->{_key_is_per_client} = 1;
 						last;
 					}
 				}
@@ -1111,10 +1116,16 @@ to avoid going through CGI at all.
 Ttl is set to the number of seconds that the static pages are deemed to
 be live for, the default is 10 minutes.
 If set to 0, the page is live forever.
-To enable save_to, a info and lingua arguments must also be given.
+To enable save_to, an info argument must also be given,
+and a lingua argument should be given if the output depends on the language.
 It works best when cache is also given.
+The directory must be inside the document root,
+otherwise the static pages can't be linked to.
 Only use where output is guaranteed to be the same with a given set of arguments
 (the same criteria for enabling generate_304).
+Pages generated for clients that send cookies (other than Google Analytics
+cookies), or whose output depends on a Vary header, are not saved,
+since the static page would be given to everyone.
 You can turn it off on a case by case basis thus:
 
     my $params = CGI::Info->new()->params();
@@ -1600,52 +1611,64 @@ sub _save_to {
 	my $changes = 0;
 	my $creation;
 	my %seen_links;
-	while($unzipped_body =~ /<a\shref="(.+?)"/gis) {
+	my $language = $self->_save_to_language();
+	my $browser_type = $self->{info}->browser_type();
+	while($unzipped_body =~ /<a\s+href="([^"]+)"/gis) {
 		my $link = $1;
 		next if($seen_links{$link});	# Already updated in the copy
 		$seen_links{$link} = 1;
-		$link =~ tr/[\|;]/_/;
 
+		# The link is as it appears in the HTML, the database holds
+		# the REQUEST_URI
 		my $search_uri = $link;
+		$search_uri =~ s/&amp;/&/g;
 		if($search_uri =~ /^\?/) {
 			# CGI script has links to itself
 			# $search_uri = "${request_uri}${link}";
 			my $r = $request_uri;
 			$r =~ s/\?.*$//;
-			$search_uri = "${r}$link";
+			$search_uri = "${r}$search_uri";
 		} else {
 			next if($link =~ /^https?:\/\//);	# FIXME: skips full URLs to ourself
 								#	Though optimise_content fixes that
-			next if($link =~ /.html?$/);
-			next if($link =~ /.jpg$/);
-			next if($link =~ /.gif$/);
+			next if($link =~ /\.html?$/);
+			next if($link =~ /\.jpg$/);
+			next if($link =~ /\.gif$/);
 		}
 		if($self->{save_to}->{ttl}) {
-			$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE uri = ? AND language = ? AND browser_type = ? AND creation >= strftime('\%s','now') - " . $self->{save_to}->{ttl};
+			$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE uri = ? AND language = ? AND browser_type = ? AND creation >= strftime('\%s','now') - ?";
 		} else {
-			$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE uri = ? AND language = ? AND browser_type = ?";
+			$query = 'SELECT DISTINCT path, creation FROM fcgi_buffer WHERE uri = ? AND language = ? AND browser_type = ?';
 		}
 		if($self->{logger}) {
-			$self->{logger}->debug("$query: $search_uri, ", $self->{lingua}->language(), ', ', $self->{info}->browser_type());
+			$self->{logger}->debug("$query: $search_uri, $language, $browser_type");
 		}
 		if(defined(my $sth = $dbh->prepare($query))) {
-			$sth->execute($search_uri, $self->{lingua}->language(), $self->{info}->browser_type());
+			if($self->{save_to}->{ttl}) {
+				$sth->execute($search_uri, $language, $browser_type, $self->{save_to}->{ttl});
+			} else {
+				$sth->execute($search_uri, $language, $browser_type);
+			}
 			if(my $href = $sth->fetchrow_hashref()) {
 				if(my $path = $href->{'path'}) {
 					if(-r $path) {
-						if($self->{logger}) {
-							$self->{logger}->debug("Changing links from $link to $path");
+						my $url = $self->_path_to_url($path);
+						if(!defined($url)) {
+							if($self->{logger}) {
+								$self->{logger}->warn("$path is not under the document root, can't link to it");
+							}
+							next;
 						}
-						$link =~ s/\?/\\?/g;
-						my $rootdir = $self->{info}->rootdir();
-						$path = substr($path, length($rootdir));
-						$changes += ($copy =~ s/<a\s+href="$link">/<a href="$path">/gis);
+						if($self->{logger}) {
+							$self->{logger}->debug("Changing links from $link to $url");
+						}
+						$changes += ($copy =~ s/((?i:<a\s+href="))\Q$link\E"/$1$url"/g);
 						# Find the first link that will expire and use that
 						if((!defined($creation)) || ($href->{'creation'} < $creation)) {
 							$creation = $href->{'creation'};
 						}
 					} else {
-						$query = "DELETE FROM fcgi_buffer WHERE path = ?";
+						$query = 'DELETE FROM fcgi_buffer WHERE path = ?';
 						$dbh->prepare($query)->execute($path);
 						if($self->{logger}) {
 							$self->{logger}->warn("Remove entry for non-existant file $path");
@@ -1682,12 +1705,12 @@ sub _save_to {
 	} elsif($expiration && ($expiration < time)) {
 		# Delete the save_to files
 		if($self->{save_to}->{ttl}) {
-			$query = "SELECT path FROM fcgi_buffer WHERE creation < strftime('\%s','now') - " . $self->{save_to}->{ttl};
+			$query = "SELECT path FROM fcgi_buffer WHERE creation < strftime('\%s','now') - ?";
 		} else {
 			$query = 'SELECT path FROM fcgi_buffer';	# Hmm, I suspect this is overkill
 		}
 		my $sth = $dbh->prepare($query);
-		$sth->execute();
+		$sth->execute($self->{save_to}->{ttl} ? ($self->{save_to}->{ttl}) : ());
 		while(my $href = $sth->fetchrow_hashref()) {
 			if(my $path = $href->{'path'}) {
 				if($self->{logger}) {
@@ -1697,14 +1720,14 @@ sub _save_to {
 			}
 		}
 		if($self->{save_to}->{ttl}) {
-			$query = "DELETE FROM fcgi_buffer WHERE creation < strftime('\%s','now') - " . $self->{save_to}->{ttl};
+			$query = "DELETE FROM fcgi_buffer WHERE creation < strftime('\%s','now') - ?";
 		} else {
 			$query = 'DELETE FROM fcgi_buffer';	# Hmm, I suspect this is overkill
 		}
 		if($self->{logger}) {
 			$self->{logger}->debug($query);
 		}
-		$dbh->prepare($query)->execute();
+		$dbh->prepare($query)->execute($self->{save_to}->{ttl} ? ($self->{save_to}->{ttl}) : ());
 	# } else {
 		# Old code
 		# if($self->{save_to}->{ttl}) {
@@ -1728,6 +1751,87 @@ sub _save_to {
 		# }
 	}
 	return $changes;
+}
+
+# The language as stored in the save_to database
+sub _save_to_language {
+	my $self = shift;
+
+	if($self->{'lingua'}) {
+		my $language = $self->{'lingua'}->language();
+		return $language if(defined($language) && length($language));
+	}
+	return 'default';
+}
+
+# Make a string safe to use as a file or directory name, and in a URL.
+# If anything had to be changed, a digest of the original is appended so that
+# different strings don't map onto the same file
+sub _safe_filename {
+	my $name = shift;
+
+	require Encode;
+
+	my $safe = $name;
+	$safe =~ s/[^A-Za-z0-9=_.,+-]/_/g;
+	$safe =~ s/^\./_/;
+	if(($safe ne $name) || (length($safe) > 200)) {
+		$safe = substr($safe, 0, 200) . '-' . substr(Digest::MD5::md5_hex(Encode::encode_utf8($name)), 0, 8);
+	}
+	if($safe =~ /^(.+)$/) {
+		$safe = $1;	# Untaint
+	}
+	return $safe;
+}
+
+# The basename of the static page for this request
+sub _save_to_filename {
+	my $self = shift;
+
+	my $name = $self->{'info'}->as_string();
+	if(defined($name) && length($name)) {
+		# Keep the historical "arg1=a_arg2=b" naming
+		$name =~ s/;\s*/_/g;
+	} else {
+		# An empty name would give a hidden file
+		$name = 'index';
+	}
+	if(defined($ENV{'PATH_INFO'}) && length($ENV{'PATH_INFO'})) {
+		$name = "$ENV{PATH_INFO}_$name";
+	}
+	return _safe_filename($name);
+}
+
+# Convert the filename of a static page into the URL used to reach it, or undef
+# if it isn't under the document root
+sub _path_to_url {
+	my ($self, $path) = @_;
+
+	my $rootdir = $self->{'info'}->rootdir();
+	return unless(defined($rootdir) && length($rootdir));
+
+	require Cwd;
+	foreach my $p(\$rootdir, \$path) {
+		my $real = Cwd::realpath(${$p});
+		${$p} = File::Spec->canonpath(defined($real) ? $real : ${$p});
+	}
+
+	my @root = File::Spec->splitdir($rootdir);
+	my @dirs = File::Spec->splitdir($path);
+	pop @root if(@root && ($root[-1] eq ''));
+
+	return if(scalar(@dirs) <= scalar(@root));
+	foreach my $d(@root) {
+		my $p = shift @dirs;
+		return if(($^O eq 'MSWin32') ? (lc($d) ne lc($p)) : ($d ne $p));
+	}
+
+	require Encode;
+	return join('/', '', map {
+		my $s = Encode::encode_utf8($_);
+		$s =~ s/([^A-Za-z0-9\-._~=,+])/sprintf('%%%02X', ord($1))/ge;
+		$s
+	} @dirs);
 }
 
 =head1 AUTHOR

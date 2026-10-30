@@ -1,12 +1,12 @@
-# NAME
+## Name
 
 FCGI::Buffer - Verify, Cache and Optimise FCGI Output
 
-# VERSION
+## Version
 
 Version 0.22
 
-# SYNOPSIS
+## Synopsis
 
 FCGI::Buffer verifies the HTML that you produce by passing it through
 `HTML::Lint`.
@@ -18,44 +18,48 @@ client and server caches.
 To make use of client caches, that is to say to reduce needless calls
 to your server asking for the same data:
 
-    use FCGI;
-    use FCGI::Buffer;
+```perl
+use FCGI;
+use FCGI::Buffer;
+# ...
+my $request = FCGI::Request();
+while($request->FCGI::Accept() >= 0) {
+    my $buffer = FCGI::Buffer->new();
+    $buffer->init(
+            optimise_content => 1,
+            lint_content => 0,
+    );
     # ...
-    my $request = FCGI::Request();
-    while($request->FCGI::Accept() >= 0) {
-        my $buffer = FCGI::Buffer->new();
-        $buffer->init(
-                optimise_content => 1,
-                lint_content => 0,
-        );
-        # ...
-    }
+}
+```
 
 To also make use of server caches, that is to say,
 to save regenerating output when different clients ask you for the same data,
 you will need to create a cache.
 But that's simple:
 
-    use FCGI;
-    use CHI;
-    use FCGI::Buffer;
+```perl
+use FCGI;
+use CHI;
+use FCGI::Buffer;
 
+# ...
+my $request = FCGI::Request();
+while($request->FCGI::Accept() >= 0) {
+    my $buffer = FCGI::Buffer->new();
+    $buffer->init(
+        optimise_content => 1,
+        lint_content => 0,
+        cache => CHI->new(driver => 'File')
+    );
+    if($buffer->is_cached()) {
+        # Nothing has changed - use the version in the cache
+        $request->Finish();
+        next;
     # ...
-    my $request = FCGI::Request();
-    while($request->FCGI::Accept() >= 0) {
-        my $buffer = FCGI::Buffer->new();
-        $buffer->init(
-            optimise_content => 1,
-            lint_content => 0,
-            cache => CHI->new(driver => 'File')
-        );
-        if($buffer->is_cached()) {
-            # Nothing has changed - use the version in the cache
-            $request->Finish();
-            next;
-        # ...
-        }
     }
+}
+```
 
 To temporarily prevent the use of server-side caches, for example, whilst
 debugging before publishing a code change, set the NO\_CACHE environment variable
@@ -68,38 +72,40 @@ As a hack work around you could also remove accents and the like by using
 [Text::Unidecode](https://metacpan.org/pod/Text%3A%3AUnidecode),
 which works well but isn't really what you want.
 
-# SUBROUTINES/METHODS
+## Subroutines/Methods
 
-## new
+### New
 
 Create an FCGI::Buffer object.
 Do one of these for each FCGI::Accept.
 
-## init
+### Init
 
 Set various options and override default values.
 
-    # Put this toward the top of your program before you do anything
-    # By default, generate_tag, generate_304 and compress_content are ON,
-    # optimise_content and lint_content are OFF.  Set optimise_content to 2 to
-    # do aggressive JavaScript optimisations which may fail.
-    use FCGI::Buffer;
+```perl
+# Put this toward the top of your program before you do anything
+# By default, generate_tag, generate_304 and compress_content are ON,
+# optimise_content and lint_content are OFF.  Set optimise_content to 2 to
+# do aggressive JavaScript optimisations which may fail.
+use FCGI::Buffer;
 
-    my $buffer = FCGI::Buffer->new()->init({
-        generate_etag => 1,     # make good use of client's cache
-        generate_last_modified => 1,    # more use of client's cache
-        compress_content => 1,  # if gzip the output
-        optimise_content => 0,  # optimise your program's HTML, CSS and JavaScript
-        cache => CHI->new(driver => 'File'),    # cache requests
-        cache_key => 'string',  # key for the cache
-        cache_duration => '10 minutes', # how long to store responses in the cache
-        logger => $self->{logger},
-        lint_content => 0,      # Pass through HTML::Lint
-        generate_304 => 1,      # When appropriate, generate 304: Not modified
-        save_to => { directory => '/var/www/htdocs/save_to', ttl => 600, create_table => 1 },
-        info => CGI::Info->new(),
-        lingua => CGI::Lingua->new(),
-    });
+my $buffer = FCGI::Buffer->new()->init({
+    generate_etag => 1,     # make good use of client's cache
+    generate_last_modified => 1,    # more use of client's cache
+    compress_content => 1,  # if gzip the output
+    optimise_content => 0,  # optimise your program's HTML, CSS and JavaScript
+    cache => CHI->new(driver => 'File'),    # cache requests
+    cache_key => 'string',  # key for the cache
+    cache_duration => '10 minutes', # how long to store responses in the cache
+    logger => $self->{logger},
+    lint_content => 0,      # Pass through HTML::Lint
+    generate_304 => 1,      # When appropriate, generate 304: Not modified
+    save_to => { directory => '/var/www/htdocs/save_to', ttl => 600, create_table => 1 },
+    info => CGI::Info->new(),
+    lingua => CGI::Lingua->new(),
+});
+```
 
 If no cache\_key is given, one will be generated which may not be unique.
 The cache\_key should be a unique value dependent upon the values set by the
@@ -119,16 +125,24 @@ to avoid going through CGI at all.
 Ttl is set to the number of seconds that the static pages are deemed to
 be live for, the default is 10 minutes.
 If set to 0, the page is live forever.
-To enable save\_to, a info and lingua arguments must also be given.
+To enable save\_to, an info argument must also be given,
+and a lingua argument should be given if the output depends on the language.
 It works best when cache is also given.
+The directory must be inside the document root,
+otherwise the static pages can't be linked to.
 Only use where output is guaranteed to be the same with a given set of arguments
 (the same criteria for enabling generate\_304).
+Pages generated for clients that send cookies (other than Google Analytics
+cookies), or whose output depends on a Vary header, are not saved,
+since the static page would be given to everyone.
 You can turn it off on a case by case basis thus:
 
-    my $params = CGI::Info->new()->params();
-    if($params->{'send_private_email'}) {
-        $buffer->init('save_to' => undef);
-    }
+```perl
+my $params = CGI::Info->new()->params();
+if($params->{'send_private_email'}) {
+    $buffer->init('save_to' => undef);
+}
+```
 
 Info is an optional argument to give information about the FCGI environment, e.g.
 a [CGI::Info](https://metacpan.org/pod/CGI%3A%3AInfo) object.
@@ -153,57 +167,59 @@ the server-side cache is no longer used.
 This is useful when you find an error condition when creating your HTML
 and decide that you no longer wish to store the output in the cache.
 
-## set\_options
+### Set\_Options
 
 Synonym for init, kept for historical reasons.
 
-## can\_cache
+### Can\_Cache
 
 Returns true if the server is allowed to store the results locally.
 This is the value of X-Cache in the returned header.
 
-## is\_cached
+### Is\_Cached
 
 Returns true if the output is cached. If it is then it means that all of the
 expensive routines in the FCGI script can be by-passed because we already have
 the result stored in the cache.
 
-    # Put this toward the top of your program before you do anything
+```perl
+# Put this toward the top of your program before you do anything
 
-    # Example key generation - use whatever you want as something
-    # unique for this call, so that subsequent calls with the same
-    # values match something in the cache
-    use CGI::Info;
-    use CGI::Lingua;
-    use FCGI::Buffer;
+# Example key generation - use whatever you want as something
+# unique for this call, so that subsequent calls with the same
+# values match something in the cache
+use CGI::Info;
+use CGI::Lingua;
+use FCGI::Buffer;
 
-    my $i = CGI::Info->new();
-    my $l = CGI::Lingua->new(supported => ['en']);
+my $i = CGI::Info->new();
+my $l = CGI::Lingua->new(supported => ['en']);
 
-    # To use server-side caching you must give the cache argument, however
-    # the cache_key argument is optional - if you don't give one then one will
-    # be generated for you
-    my $buffer = FCGI::Buffer->new();
-    if($buffer->can_cache()) {
-        $buffer->init(
-            cache => CHI->new(driver => 'File'),
-            cache_key => $i->domain_name() . '/' . $i->script_name() . '/' . $i->as_string() . '/' . $l->language()
-        );
-        if($buffer->is_cached()) {
-            # Output will be retrieved from the cache and sent automatically
-            exit;
-        }
+# To use server-side caching you must give the cache argument, however
+# the cache_key argument is optional - if you don't give one then one will
+# be generated for you
+my $buffer = FCGI::Buffer->new();
+if($buffer->can_cache()) {
+    $buffer->init(
+        cache => CHI->new(driver => 'File'),
+        cache_key => $i->domain_name() . '/' . $i->script_name() . '/' . $i->as_string() . '/' . $l->language()
+    );
+    if($buffer->is_cached()) {
+        # Output will be retrieved from the cache and sent automatically
+        exit;
     }
-    # Not in the cache, so now do our expensive computing to generate the
-    # results
-    print "Content-type: text/html\n";
-    # ...
+}
+# Not in the cache, so now do our expensive computing to generate the
+# results
+print "Content-type: text/html\n";
+# ...
+```
 
-# AUTHOR
+## Author
 
 Nigel Horne, `<njh at nigelhorne.com>`
 
-# BUGS
+## Bugs
 
 FCGI::Buffer should be safe even in scripts that produce lots of different
 output, e.g. e-commerce situations.
@@ -215,9 +231,11 @@ instead,
 you will need to capture into a variable and print that.
 For example:
 
-    my $output;
-    $template->process($input, $vars, \$output) || ($output = $template->error());
-    print $output;
+```perl
+my $output;
+$template->process($input, $vars, \$output) || ($output = $template->error());
+print $output;
+```
 
 Can produce buggy JavaScript if you use the &lt;!-- HIDING technique.
 This is a bug in [JavaScript::Packer](https://metacpan.org/pod/JavaScript%3A%3APacker), not FCGI::Buffer.
@@ -225,7 +243,9 @@ This is a bug in [JavaScript::Packer](https://metacpan.org/pod/JavaScript%3A%3AP
 Mod\_deflate can confuse this when compressing output.
 Ensure that deflation is off for .pl files:
 
-    SetEnvIfNoCase Request_URI \.(?:gif|jpe?g|png|pl)$ no-gzip dont-vary
+```
+SetEnvIfNoCase Request_URI \.(?:gif|jpe?g|png|pl)$ no-gzip dont-vary
+```
 
 If you request compressed output then uncompressed output (or vice
 versa) on input that produces the same output, the status will be 304.
@@ -253,19 +273,21 @@ your bug as I make changes.
 
 The lint operation only works on HTML4, because of a restriction in [HTML::Lint](https://metacpan.org/pod/HTML%3A%3ALint).
 
-# SEE ALSO
+## See Also
 
 [CGI::Buffer](https://metacpan.org/pod/CGI%3A%3ABuffer),
 [HTML::Packer](https://metacpan.org/pod/HTML%3A%3APacker),
 [HTML::Lint](https://metacpan.org/pod/HTML%3A%3ALint)
 
-# SUPPORT
+## Support
 
 This module is provided as-is without any warranty.
 
 You can find documentation for this module with the perldoc command.
 
-    perldoc FCGI::Buffer
+```
+perldoc FCGI::Buffer
+```
 
 You can also look for information at:
 
@@ -277,21 +299,23 @@ You can also look for information at:
 
     [http://search.cpan.org/dist/FCGI-Buffer/](http://search.cpan.org/dist/FCGI-Buffer/)
 
-# ACKNOWLEDGEMENTS
+## Acknowledgements
 
 The inspiration and code for some of this is cgi\_buffer by Mark
 Nottingham: [https://www.mnot.net/blog/2003/04/24/etags](https://www.mnot.net/blog/2003/04/24/etags).
 
-# LICENSE AND COPYRIGHT
+## License and Copyright
 
 The licence for cgi\_buffer is:
 
-    "(c) 2000 Copyright Mark Nottingham <mnot@pobox.com>
+```
+"(c) 2000 Copyright Mark Nottingham <mnot@pobox.com>
 
-    This software may be freely distributed, modified and used,
-    provided that this copyright notice remain intact.
+This software may be freely distributed, modified and used,
+provided that this copyright notice remain intact.
 
-    This software is provided 'as is' without warranty of any kind."
+This software is provided 'as is' without warranty of any kind."
+```
 
 The rest of the program is Copyright 2015-2026 Nigel Horne,
 and is released under the following licence: GPL2
