@@ -176,6 +176,40 @@ Synonym for init, kept for historical reasons.
 Returns true if the server is allowed to store the results locally.
 This is the value of X-Cache in the returned header.
 
+The cache isn't used if the NO\_CACHE or NO\_STORE environment variables are set,
+or if the client's Cache-Control header includes any of no-store, no-cache,
+private or max-age=0.
+The answer is decided on the first call, and doesn't change for the rest of the
+request.
+
+### How the Output Is Sent
+
+- Compression
+
+    The first encoding listed by the client (in Accept-Encoding, or TE) that
+    FCGI::Buffer can produce is used.
+    Encodings with q=0 are skipped.
+
+    Premise 1: the client is happy with any of the encodings that it lists.
+    Premise 2: an encoding can only be produced if its module is installed.
+    Conclusion: an encoding whose module isn't installed is passed over for the
+    next one, rather than failing the request.
+    If none can be used, the output is sent uncompressed.
+
+- Range
+
+    A single range of bytes, such as `bytes=0-99` or `bytes=100-`, is honoured
+    with a 206 status.
+    Anything else, such as several ranges or a backwards range, is ignored and the
+    whole page is sent.
+    Note that `bytes=-n` gives the first n bytes, although RFC 7233 says that it
+    should be the last n.
+
+- Conditional requests
+
+    If-None-Match may be a list of ETags, weak ETags or "\*".
+    If it is given and doesn't match, If-Modified-Since is not used to send a 304.
+
 ### Is\_Cached
 
 Returns true if the output is cached. If it is then it means that all of the

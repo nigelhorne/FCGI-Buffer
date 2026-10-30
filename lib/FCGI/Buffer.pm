@@ -22,6 +22,31 @@ Readonly my $DEFAULT_COMPRESS_CONTENT => 1;
 Readonly my $DEFAULT_OPTIMISE_CONTENT => 0;
 Readonly my $DEFAULT_LINT_CONTENT => 0;
 Readonly my $MIN_GZIP_LEN => 32;
+Readonly my $DEFAULT_PROTOCOL => 'http';
+Readonly my $DEFAULT_CACHE_DURATION => '10 minutes';
+Readonly my $DEFAULT_SAVE_TO_TTL => 600;
+Readonly my $SAVE_TO_DATABASE => 'fcgi.buffer.sql';
+
+# The protocols that understand ETag, If-None-Match and If-Modified-Since
+Readonly my $CONDITIONAL_PROTOCOL => qr/^HTTP\/(?:1\.1|2\.0)$/;
+
+# Cache-Control directives in a request which forbid using the server cache
+Readonly my %NO_CACHE_DIRECTIVES => map { $_ => 1 } qw(no-store no-cache private);
+
+# Content encodings that we can produce, and the module needed for each
+Readonly my %ENCODING_MODULE => (
+	'gzip' => 'Compress::Zlib',
+	'x-gzip' => 'Compress::Zlib',
+	'br' => 'IO::Compress::Brotli',
+	'zstd' => 'Compress::Zstd',
+);
+
+# Options to init() which can be changed at any time, and are only changed
+# when a defined value is given
+Readonly my @SAFE_OPTIONS => qw(
+	generate_etag generate_last_modified compress_content optimise_content
+	lint_content logger lingua generate_304
+);
 
 =head1 NAME
 
@@ -145,8 +170,12 @@ sub new
 	};
 	# $rc->{o} = ();
 
-	# Set generate_etag based on server protocol
-	$rc->{generate_etag} = ($ENV{'SERVER_PROTOCOL'} || '') =~ /^(HTTP\/1\.1|HTTP\/2\.0)$/ ? 1 : 0;
+	# Premise 1: an ETag is only useful if the protocol supports If-None-Match
+	# Premise 2: an explicit generate_etag argument is the caller's decision
+	# Conclusion: default it from the protocol, but only when it isn't given
+	if(!defined($rc->{generate_etag})) {
+		$rc->{generate_etag} = _is_conditional_protocol() ? 1 : 0;
+	}
 
 	# Return the blessed object
 	return bless $rc, $class;
@@ -210,11 +239,7 @@ sub DESTROY
 		}
 		return;
 	}
-	if($ENV{'REQUEST_METHOD'} && ($ENV{'REQUEST_METHOD'} eq 'HEAD')) {
-		$self->{send_body} = 0;
-	} else {
-		$self->{send_body} = 1;
-	}
+	$self->{send_body} = (defined($ENV{'REQUEST_METHOD'}) && ($ENV{'REQUEST_METHOD'} eq 'HEAD')) ? 0 : 1;
 
 	if($headers) {
 		$self->_set_content_type($headers);
@@ -239,17 +264,14 @@ sub DESTROY
 					$self->{'logger'}->trace('Packer');
 				}
 
+				# Level 1 is one pass, higher levels repeat until
+				# the body stops shrinking
 				my $oldlength = length($self->{body});
-				my $newlength;
-
-				if($self->{optimise_content} == 1) {
-					$self->_optimise_content();
-				} else {
-					while(1) {
+				$self->_optimise_content();
+				if($self->{optimise_content} >= 2) {
+					while(length($self->{body}) < $oldlength) {
+						$oldlength = length($self->{body});
 						$self->_optimise_content();
-						$newlength = length($self->{body});
-						last if ($newlength >= $oldlength);
-						$oldlength = $newlength;
 					}
 				}
 
@@ -257,24 +279,13 @@ sub DESTROY
 				# to http://www.example.com/foo/bar.htm, change the
 				# link to /foo/bar.htm - there's no need to include
 				# the site name in the link
-				unless(defined($self->{info})) {
-					if($self->{cache}) {
-						$self->{info} = CGI::Info->new({ cache => $self->{cache} });
-					} else {
-						$self->{info} = CGI::Info->new();
-					}
-				}
+				my $info = $self->_info();
+				my $href = $info->host_name();
+				my $protocol = $info->protocol() || $DEFAULT_PROTOCOL;
 
-				my $href = $self->{info}->host_name();
-				my $protocol = $self->{info}->protocol();
-
-				unless($protocol) {
-					$protocol = 'http';
-				}
-
-				$self->{body} =~ s/<a\s+?href="\Q$protocol\E:\/\/\Q$href\E"/<a href="\/"/gim;
-				$self->{body} =~ s/<a\s+?href="\Q$protocol\E:\/\/\Q$href\E(?=[\/?#])/<a href="/gim;
-				$self->{body} =~ s/<a\s+?href="\Q$protocol\E:\/\//<a href="\/\//gim;
+				$self->{body} =~ s/<a\s+href="\Q$protocol\E:\/\/\Q$href\E"/<a href="\/"/gi;
+				$self->{body} =~ s/<a\s+href="\Q$protocol\E:\/\/\Q$href\E(?=[\/?#])/<a href="/gi;
+				$self->{body} =~ s/<a\s+href="\Q$protocol\E:\/\//<a href="\/\//gi;
 
 				# If we're in "/cgi-bin/foo.cgi?arg1=a" replace
 				# "/cgi-bin/foo.cgi?arg2=b" with "?arg2=b"
@@ -282,10 +293,9 @@ sub DESTROY
 				# left alone, since href="" would mean the current
 				# page, arguments and all
 
-				if(my $script_name = $ENV{'SCRIPT_NAME'}) {
-					if($script_name =~ /^\//) {
-						$self->{body} =~ s/<a\s+?href="\Q$script_name\E(\?[^"]+)"/<a href="$1"/gim;
-					}
+				my $script_name = $ENV{'SCRIPT_NAME'};
+				if(defined($script_name) && ($script_name =~ /^\//)) {
+					$self->{body} =~ s/<a\s+href="\Q$script_name\E(\?[^"]+)"/<a href="$1"/gi;
 				}
 
 				# TODO use URI->path_segments to change links in
@@ -293,8 +303,8 @@ sub DESTROY
 				# ../ff.htm
 
 				# TODO: <img border=0 src=...>
-				$self->{body} =~ s/<img\s+?src="\Q$protocol\E:\/\/\Q$href\E"/<img src="\/"/gim;
-				$self->{body} =~ s/<img\s+?src="\Q$protocol\E:\/\/\Q$href\E(?=[\/?#])/<img src="/gim;
+				$self->{body} =~ s/<img\s+src="\Q$protocol\E:\/\/\Q$href\E"/<img src="\/"/gi;
+				$self->{body} =~ s/<img\s+src="\Q$protocol\E:\/\/\Q$href\E(?=[\/?#])/<img src="/gi;
 
 				# Don't use HTML::Clean because of RT402
 				# my $h = new HTML::Clean(\$self->{body});
@@ -311,20 +321,30 @@ sub DESTROY
 				};
 				if($self->{optimise_content} >= 2) {
 					$options->{do_javascript} = 'best';
-					$self->{body} =~ s/(<script.*?>)\s*<!--/$1/gi;
-					$self->{body} =~ s/\/\/-->\s*<\/script>/<\/script>/gi;
-					$self->{body} =~ s/(<script.*?>)\s+/$1/gi;
+					# [^>] stops the tag running on into the
+					# rest of the page
+					$self->{body} =~ s/(<script[^>]*+>)\s*+<!--/$1/gi;
+					$self->{body} =~ s/\/\/-->\s*+<\/script>/<\/script>/gi;
+					$self->{body} =~ s/(<script[^>]*+>)\s++/$1/gi;
 				}
 				$self->{body} = HTML::Packer->init()->minify(\$self->{body}, $options);
 				if($self->{optimise_content} >= 2) {
 					# Change document.write("a"); document.write("b")
 					# into document.write("a"+"b");
-					while(1) {
-						$self->{body} =~ s/<script\s*?type\s*?=\s*?"text\/javascript"\s*?>(.*?)document\.write\((.+?)\);\s*?document\.write\((.+?)\)/<script type="text\/JavaScript">${1}document.write($2+$3)/igs;
-						$newlength = length($self->{body});
-						last if ($newlength >= $oldlength);
-						$oldlength = $newlength;
-					}
+					# Premise 1: every substitution removes
+					#	");document.write(" and adds "+"
+					# Premise 2: so every substitution shortens the body
+					# Conclusion: looping until nothing is substituted
+					#	is the same as looping until it stops
+					#	shrinking, and always terminates
+					# Nothing may cross a </script>, otherwise
+					# writes in different scripts get merged
+					1 while($self->{body} =~ s{
+						(<script\s+type\s*=\s*"text/javascript"\s*>)		# $1: opening tag, kept as written
+						((?:(?!</script>).)*?)					# $2: code before the writes, within this script
+						document\.write\(((?:(?!</script>)[^;])*?)\);\s*+	# $3: first argument
+						document\.write\(((?:(?!</script>)[^;])*?)\)		# $4: second argument
+					}{$1${2}document.write($3+$4)}gisx);
 				}
 			}
 			if($self->{lint_content}) {
@@ -371,9 +391,7 @@ sub DESTROY
 	# Generate the eTag before compressing, since the compressed data
 	# includes the mtime field which changes thus causing a different
 	# Etag to be generated
-	if($ENV{'SERVER_PROTOCOL'} &&
-	  (($ENV{'SERVER_PROTOCOL'} eq 'HTTP/1.1') || ($ENV{'SERVER_PROTOCOL'} eq 'HTTP/2.0')) &&
-	  $self->{generate_etag} && defined($self->{body})) {
+	if($self->{generate_etag} && defined($self->{body}) && _is_conditional_protocol()) {
 		$self->_generate_etag();
 
 		if($ENV{'HTTP_IF_NONE_MATCH'} && $self->{generate_304} && ($self->{status} == 200)) {
@@ -383,20 +401,19 @@ sub DESTROY
 
 	my $dbh;
 	if(my $save_to = $self->{save_to}) {
-		my $sqlite_file = File::Spec->catfile($save_to->{directory}, 'fcgi.buffer.sql');
+		my $sqlite_file = File::Spec->catfile($save_to->{directory}, $SAVE_TO_DATABASE);
 		if($self->{logger}) {
 			$self->{logger}->debug("save_to sqlite file: $sqlite_file");
 		}
-		if(!-r $sqlite_file) {
-			if(!-d $save_to->{directory}) {
-				mkdir $save_to->{directory};
-			}
-			$dbh = DBI->connect("dbi:SQLite:dbname=$sqlite_file", undef, undef);
-			if($self->{save_to}->{create_table}) {
-				$dbh->prepare('CREATE TABLE fcgi_buffer(key char PRIMARY KEY, language char, browser_type char, path char UNIQUE NOT NULL, uri char NOT NULL, creation timestamp NOT NULL)')->execute();
-			}
-		} else {
-			$dbh = DBI->connect("dbi:SQLite:dbname=$sqlite_file", undef, undef);
+		# Both branches connected in the same way, they only differ in
+		# whether the table may need to be created
+		my $is_new = !-r $sqlite_file;
+		if($is_new && !-d $save_to->{directory}) {
+			mkdir $save_to->{directory};
+		}
+		$dbh = DBI->connect("dbi:SQLite:dbname=$sqlite_file", undef, undef);
+		if($is_new && $save_to->{create_table}) {
+			$dbh->prepare('CREATE TABLE fcgi_buffer(key char PRIMARY KEY, language char, browser_type char, path char UNIQUE NOT NULL, uri char NOT NULL, creation timestamp NOT NULL)')->execute();
 		}
 	}
 
@@ -404,24 +421,12 @@ sub DESTROY
 	my $unzipped_body = $self->{body};
 
 	if(defined($unzipped_body)) {
-		my $range = $ENV{'Range'} ? $ENV{'Range'} : $ENV{'HTTP_RANGE'};
+		my $range = $ENV{'Range'} || $ENV{'HTTP_RANGE'};
 
-		if($range && !$self->{cache}) {
-			# TODO: Partials
-			if($range =~ /^bytes=(\d*)-(\d*)/) {
-				if($1 && $2) {
-					$self->{body} = substr($self->{body}, $1, $2-$1);
-				} elsif($1) {
-					$self->{body} = substr($self->{body}, $1);
-				} elsif($2) {
-					$self->{body} = substr($self->{body}, 0, $2);
-				}
-				$unzipped_body = $self->{body};
-				$self->{'status'} = 206;
-				if($self->{'info'}) {
-					$self->{'info'}->status(206);
-				}
-			}
+		# TODO: Partials
+		if($range && !$self->{cache} && defined(my $partial = _apply_range($self->{body}, $range))) {
+			$self->{body} = $unzipped_body = $partial;
+			$self->_set_status(206);
 		}
 		$self->_compress({ encoding => $encoding });
 	}
@@ -445,13 +450,7 @@ sub DESTROY
 					$cache_hash = Storable::thaw($self->{cobject}->value());
 					$headers = $cache_hash->{'headers'};
 					$self->_set_content_type($headers);
-					@{$self->{o}} = ("X-FCGI-Buffer-$VERSION: Hit");
-					if($self->{info}) {
-						my $host_name = $self->{info}->host_name();
-						push @{$self->{o}}, "X-Cache: HIT from $host_name", "X-Cache-Lookup: HIT from $host_name";
-					} else {
-						push @{$self->{o}}, 'X-Cache: HIT', 'X-Cache-Lookup: HIT';
-					}
+					@{$self->{o}} = ("X-FCGI-Buffer-$VERSION: Hit", @{$self->_x_cache_headers('HIT', 'HIT')});
 				} elsif($self->{logger}) {
 					$self->{logger}->warn(ref($self), ": Error retrieving data for key $key");
 				} else {
@@ -461,15 +460,12 @@ sub DESTROY
 
 			# Nothing has been output yet, so we can check if it's
 			# OK to send 304 if possible
-			if($self->{send_body} && $ENV{'SERVER_PROTOCOL'} &&
-			  (($ENV{'SERVER_PROTOCOL'} eq 'HTTP/1.1') || ($ENV{'SERVER_PROTOCOL'} eq 'HTTP/2.0')) &&
-			  $self->{generate_304} && ($self->{status} == 200)) {
-				if($ENV{'HTTP_IF_MODIFIED_SINCE'} && $self->{'cobject'}) {
-					$self->_check_modified_since({
-						since => $ENV{'HTTP_IF_MODIFIED_SINCE'},
-						modified => $self->{cobject}->created_at()
-					});
-				}
+			# _check_modified_since() checks generate_304 itself
+			if($self->{send_body} && ($self->{status} == 200) && $ENV{'HTTP_IF_MODIFIED_SINCE'} && $self->{'cobject'} && _is_conditional_protocol()) {
+				$self->_check_modified_since({
+					since => $ENV{'HTTP_IF_MODIFIED_SINCE'},
+					modified => $self->{cobject}->created_at()
+				});
 			}
 			if($self->{send_body} && ($self->{status} == 200) && defined($cache_hash)) {
 				$self->{body} = $cache_hash->{'body'};
@@ -516,46 +512,44 @@ sub DESTROY
 						warn($self->{body});
 					}
 					$self->{send_body} = 0;
-					$self->{status} = 500;
-					if($self->{'info'}) {
-						$self->{'info'}->status(500);
-					}
+					$self->_set_status(500);
 				}
 			}
-			if($self->{send_body} && $ENV{'SERVER_PROTOCOL'} &&
-			  (($ENV{'SERVER_PROTOCOL'} eq 'HTTP/1.1') || ($ENV{'SERVER_PROTOCOL'} eq 'HTTP/2.0')) &&
-			  ($self->{status} == 200)) {
-				if($ENV{'HTTP_IF_NONE_MATCH'} && $self->{generate_etag}) {
-					if(!defined($self->{etag})) {
-						$self->_generate_etag();
-					}
-					$self->_check_if_none_match();
-				}
+			# _generate_etag() does nothing if there's already an ETag
+			if($self->{send_body} && ($self->{status} == 200) && $ENV{'HTTP_IF_NONE_MATCH'} && $self->{generate_etag} && _is_conditional_protocol()) {
+				$self->_generate_etag();
+				$self->_check_if_none_match();
 			}
 			if($self->{status} == 200) {
-                                $encoding = $self->_should_gzip();
-                                if($self->{send_body}) {
-                                        if($self->{generate_etag} && !defined($self->{etag}) && ((!defined($headers)) || ($headers !~ /^ETag: /m))) {
-                                                $self->_generate_etag();
-                                        }
-                                        $self->_compress({ encoding => $encoding });
-                                }
-                        }
-			my $cannot_304 = !$self->{generate_304};
+				$encoding = $self->_should_gzip();
+				if($self->{send_body}) {
+					if($self->{generate_etag} && ((!defined($headers)) || ($headers !~ /^ETag: /m))) {
+						$self->_generate_etag();
+					}
+					$self->_compress({ encoding => $encoding });
+				}
+			}
 			unless($self->{etag}) {
-				if(defined($headers) && ($headers =~ /^ETag: "([a-z0-9]{32})"/m)) {
+				# Keep the quotes, they're part of the ETag and
+				# If-None-Match includes them
+				if(defined($headers) && ($headers =~ /^ETag:\s*("[a-f0-9]{32}")/mi)) {
 					$self->{etag} = $1;
 				} else {
 					$self->{etag} = $cache_hash->{'etag'};
 				}
 			}
-			if($ENV{'HTTP_IF_NONE_MATCH'} && $self->{send_body} && ($self->{status} != 304) && $self->{generate_304}) {
-				if(!$self->_check_if_none_match()) {
-					$cannot_304 = 1;
-				}
+			# Premise 1: If-Modified-Since may only give a 304 if
+			#	If-None-Match didn't rule it out
+			# Premise 2: If-None-Match rules it out only when it is
+			#	checked and fails
+			# Conclusion: a 304 is possible unless generate_304 is off,
+			#	or the If-None-Match check was made and failed
+			my $can_304 = $self->{generate_304};
+			if($can_304 && $ENV{'HTTP_IF_NONE_MATCH'} && $self->{send_body} && ($self->{status} != 304)) {
+				$can_304 = $self->_check_if_none_match();
 			}
 			if($self->{cobject}) {
-				if($ENV{'HTTP_IF_MODIFIED_SINCE'} && ($self->{status} != 304) && !$cannot_304) {
+				if($can_304 && $ENV{'HTTP_IF_MODIFIED_SINCE'} && ($self->{status} != 304)) {
 					$self->_check_modified_since({
 						since => $ENV{'HTTP_IF_MODIFIED_SINCE'},
 						modified => $self->{cobject}->created_at()
@@ -577,7 +571,7 @@ sub DESTROY
 					# It would be great if CHI::set()
 					# allowed the time to be 'lru' for least
 					# recently used.
-					$self->{cache_duration} = '10 minutes';
+					$self->{cache_duration} = $DEFAULT_CACHE_DURATION;
 				}
 				$cache_hash->{'body'} = $unzipped_body;
 				if($changes && $encoding) {
@@ -607,9 +601,7 @@ sub DESTROY
 					}
 				}
 				if($self->{generate_etag}) {
-					if(!defined($self->{etag})) {
-						$self->_generate_etag();
-					}
+					$self->_generate_etag();
 					$cache_hash->{'etag'} = $self->{etag};
 				}
 				# TODO: Support the Expires header
@@ -665,7 +657,7 @@ sub DESTROY
 							$r =~ s/\?.*$//;
 							$copy =~ s/<a\s+href="(\?[^"]*)"/<a href="$r$1"/gi;
 
-							# Links to ourself now point to the static page
+							# Links to this page now point to its static copy
 							my $changes = 0;
 							if(defined(my $url = $self->_path_to_url($path))) {
 								$changes = ($copy =~ s/((?i:<a\s+href="))\Q$request_uri\E"/$1$url"/g);
@@ -705,36 +697,20 @@ sub DESTROY
 					}
 				}
 			}
-			if($self->{info}) {
-				my $host_name = $self->{info}->host_name();
-				if(defined($self->{x_cache})) {
-					push @{$self->{o}}, 'X-Cache: ' . $self->{x_cache} . " from $host_name";
-				} else {
-					push @{$self->{o}}, "X-Cache: MISS from $host_name";
-				}
-				push @{$self->{o}}, "X-Cache-Lookup: MISS from $host_name";
-			} else {
-				if(defined($self->{x_cache})) {
-					push @{$self->{o}}, 'X-Cache: ' . $self->{x_cache};
-				} else {
-					push @{$self->{o}}, 'X-Cache: MISS';
-				}
-				push @{$self->{o}}, 'X-Cache-Lookup: MISS';
-			}
-			push @{$self->{o}}, "X-FCGI-Buffer-$VERSION: Miss";
+			push @{$self->{o}}, @{$self->_x_cache_headers(defined($self->{x_cache}) ? $self->{x_cache} : 'MISS', 'MISS')}, "X-FCGI-Buffer-$VERSION: Miss";
 		}
 		# We don't need it any more, so give Perl a chance to
 		# tidy it up seeing as we're in the destructor
 		delete $self->{cache};
 	} elsif($self->{info}) {
-		my $host_name = $self->{info}->host_name();
-		push @{$self->{o}}, ("X-Cache: MISS from $host_name", "X-Cache-Lookup: MISS from $host_name");
+		push @{$self->{o}}, @{$self->_x_cache_headers('MISS', 'MISS')};
 		if($self->{generate_last_modified}) {
 			if(my $age = $self->_my_age()) {
 				push @{$self->{o}}, 'Last-Modified: ' . HTTP::Date::time2str($age);
 			}
 		}
-		if($ENV{'HTTP_IF_MODIFIED_SINCE'} && ($self->{status} != 304) && $self->{generate_304}) {
+		# _check_modified_since() checks generate_304 itself
+		if($ENV{'HTTP_IF_MODIFIED_SINCE'} && ($self->{status} != 304)) {
 			$self->_check_modified_since({
 				since => $ENV{'HTTP_IF_MODIFIED_SINCE'},
 				modified => $self->_my_age()
@@ -744,75 +720,24 @@ sub DESTROY
 			$self->_compress({ encoding => $encoding });
 		}
 	} else {
-		push @{$self->{o}}, ('X-Cache: MISS', 'X-Cache-Lookup: MISS');
+		push @{$self->{o}}, @{$self->_x_cache_headers('MISS', 'MISS')};
 	}
 
-	# if($self->{generate_etag} && ((!defined($headers)) || ($headers !~ /^ETag: /m))) {
-                # if((!defined($self->{etag})) &&
-                   # (($self->{status} == 200) || $self->{status} == 304) &&
-                   # $self->{body} && (!$ENV{'NO_CACHE'}) &&
-                   # !$self->is_cached()) {
-                        # unless($self->{_encode_loaded}) {
-                                # require Encode;
-                                # $self->{_encode_loaded} = 1;
-                        # }
-                        # $self->{etag} = '"' . Digest::MD5->new->add(Encode::encode_utf8($unzipped_body))->hexdigest() . '"';
-                # }
-                # if(defined($self->{etag})) {
-                        # push @{$self->{o}}, "ETag: $self->{etag}";
-                        # if($self->{logger}) {
-                                # $self->{logger}->debug("Set ETag to $self->{etag}");
-                        # }
-                # } else {
-                        # open(my $fout, '>>', '/tmp/FCGI-bug');
-                        # print $fout "BUG: ETag not generated, status $self->{status}:\n",
-                                # "$headers\n",
-                                # 'x' x 40, "\n",
-                                # # defined($self->{body}) ? $self->{body} : "body is empty\n",
-                                # defined($unzipped_body) ? "$unzipped_body\n" : "body is empty\n",
-                                # 'x' x 40,
-                                # "\n";
-			# print $fout "ENV:\n";
-                        # while(my ($key, $value) = each %ENV) {
-                                # print $fout "$key = $value\n";
-                        # }
-                        # close $fout;
-                        # $self->{logger}->warn("BUG: ETag not generated, status $self->{status}");
-                # }
-        # }
-	if($self->{generate_etag} && ((!defined($headers)) || ($headers !~ /^ETag: /m))) {
-                if(defined($self->{etag})) {
-                        push @{$self->{o}}, "ETag: $self->{etag}";
-                        if($self->{logger}) {
-                                $self->{logger}->debug("Set ETag to $self->{etag}");
-                        }
-                } elsif($self->{logger} && (($self->{status} == 200) || $self->{status} == 304) && $self->{body} && (!$ENV{'NO_CACHE'}) && !$self->is_cached()) {
-                        # $self->{logger}->warn("BUG: ETag not generated, status $self->{status}");
-                        # open(my $fout, '>>', '/tmp/FCGI-bug');
-                        # print $fout "BUG: ETag not generated, status $self->{status}:\n",
-                                # $headers,
-                                # 'x' x 40,
-                                # defined($self->{body}) ? $self->{body} : "body is empty\n",
-                                # 'x' x 40,
-                                # "\n";
-			# print $fout "ENV:\n";
-			# while(my ($key, $value) = each %ENV) {
-				# print $fout "$key = $value\n;
-			# }
-			# print $fout 'x' x 40, "\n";
-                        # close $fout;
-                        # $self->{logger}->warn("BUG: ETag not generated, status $self->{status}");
-                }
-        }
+	# The branch that was taken when there was no ETag had an empty body,
+	# but called is_cached() which looks in the cache, so it is removed
+	if($self->{generate_etag} && defined($self->{etag}) && ((!defined($headers)) || ($headers !~ /^ETag: /m))) {
+		push @{$self->{o}}, "ETag: $self->{etag}";
+		if($self->{logger}) {
+			$self->{logger}->debug("Set ETag to $self->{etag}");
+		}
+	}
 
-	my $body_length;
+	my $body_length = 0;
 	if(defined($self->{body})) {
 		if(utf8::is_utf8($self->{body})) {
 			utf8::encode($self->{body});
 		}
 		$body_length = length($self->{body});
-	} else {
-		$body_length = 0;
 	}
 
 	if(defined($headers) && length($headers)) {
@@ -829,9 +754,7 @@ sub DESTROY
 			HTTP::Status->import();
 
 			push @{$self->{o}}, 'Status: ' . $self->{status} . ' ' . HTTP::Status::status_message($self->{status});
-			if($self->{'info'}) {
-				$self->{'info'}->status($self->{'status'});
-			}
+			$self->_set_status($self->{status});
 		}
 	} else {
 		push @{$self->{o}}, "X-FCGI-Buffer-$VERSION: No headers";
@@ -841,44 +764,13 @@ sub DESTROY
 		push @{$self->{o}}, ('', $self->{body});
 	}
 
-	# XXXXXXXXXXXXXXXXXXXXXXX
-	if(0) {
-		# This code helps to debug Wide character prints
-		my $wideCharWarningsIssued = 0;
-		my $widemess;
-		$SIG{__WARN__} = sub {
-			$wideCharWarningsIssued += "@_" =~ /Wide character in .../;
-			$widemess = "@_";
-			if($self->{logger}) {
-				$self->{logger}->fatal($widemess);
-				my $i = 1;
-				$self->{logger}->trace('Stack Trace');
-				while((my @call_details = (caller($i++)))) {
-					$self->{logger}->trace($call_details[1], ':', $call_details[2], ' in function ', $call_details[3]);
-				}
-			}
-			CORE::warn(@_);	# call the builtin warn as usual
-		};
-
-		if(scalar @{$self->{o}}) {
-			print join("\r\n", @{$self->{o}});
-			if($wideCharWarningsIssued) {
-				my $mess = join("\r\n", @{$self->{o}});
-				$mess =~ /[^\x00-\xFF]/;
-				open(my $fout, '>>', '/tmp/NJH');
-				print $fout "$widemess:\n",
-					$mess,
-					'x' x 40,
-					"\n";
-				close $fout;
-			}
-		}
-	} elsif(scalar @{$self->{o}}) {
+	# The Wide character debugging code that was here was inside if(0), so
+	# could never run
+	if(scalar(@{$self->{o}})) {
 		print join("\r\n", @{$self->{o}});
 	}
-	# XXXXXXXXXXXXXXXXXXXXXXX
 
-	if((!$self->{send_body}) || !defined($self->{body})) {
+	if(!($self->{send_body} && defined($self->{body}))) {
 		print "\r\n\r\n";
 	}
 }
@@ -943,10 +835,7 @@ sub _check_modified_since {
 	}
 	if($$params{modified} <= $s) {
 		push @{$self->{o}}, 'Status: 304 Not Modified';
-		$self->{status} = 304;
-		if($self->{'info'}) {
-			$self->{'info'}->status(304);
-		}
+		$self->_set_status(304);
 		$self->{send_body} = 0;
 		if($self->{logger}) {
 			$self->{logger}->debug('Set status to 304');
@@ -960,7 +849,14 @@ sub _optimise_content {
 
 	# FIXME: regex bad, HTML parser good
 	# Regexp::List - wow!
-	$self->{body} =~ s/(((\s+|\r)\n|\n(\s+|\+)))/\n/g;
+	# Remove whitespace around newlines.  Possessive quantifiers and only
+	# starting at the beginning of a run of whitespace keep it linear
+	$self->{body} =~ s{
+		(?<![^\S\n])	# start only at the beginning of a whitespace run
+		[^\S\n]*+	# trailing spaces, tabs and \r before the newline
+		\n
+		\s*+		# blank lines and indentation after it
+	}{\n}gx;
 	# $self->{body} =~ s/\r\n/\n/gs;
 	# $self->{body} =~ s/\s+\n/\n/gs;
 	# $self->{body} =~ s/\n+/\n/gs;
@@ -968,17 +864,18 @@ sub _optimise_content {
 	$self->{body} =~ s/\<\/div\>\s+\<div/\<\/div\>\<div/gis;
 	# $self->{body} =~ s/\<\/p\>\s\<\/div/\<\/p\>\<\/div/gis;
 	# $self->{body} =~ s/\<div\>\s+/\<div\>/gis;	# Remove spaces after <div>
-	$self->{body} =~ s/(<div>\s+|\s+<div>)/<div>/gis;
+	# In these, (?<!\s) and possessive quantifiers stop each alternation
+	# being retried at every position inside a long run of whitespace
+	$self->{body} =~ s/(?:<div>\s++|(?<!\s)\s++<div>)/<div>/gi;
 	$self->{body} =~ s/\s+<\/div\>/\<\/div\>/gis;	# Remove spaces before </div>
-	$self->{body} =~ s/\s+\<p\>|\<p\>\s+/\<p\>/im;	# TODO <p class=
-	$self->{body} =~ s/\s+\<\/p\>|\<\/p\>\s+/\<\/p\>/gis;
+	$self->{body} =~ s/(?:(?<!\s)\s++<p>|<p>\s++)/<p>/i;	# TODO <p class=
+	$self->{body} =~ s/(?:(?<!\s)\s++<\/p>|<\/p>\s++)/<\/p>/gi;
 	$self->{body} =~ s/<html>\s+<head>/<html><head>/is;
-	$self->{body} =~ s/\s*<\/head>\s+<body>\s*/<\/head><body>/is;
+	$self->{body} =~ s/(?<!\s)\s*+<\/head>\s++<body>\s*+/<\/head><body>/i;
 	$self->{body} =~ s/<html>\s+<body>/<html><body>/is;
 	$self->{body} =~ s/<body>\s+/<body>/is;
 	$self->{body} =~ s/\s+\<\/html/\<\/html/is;
 	$self->{body} =~ s/\s+\<\/body/\<\/body/is;
-	$self->{body} =~ s/\s(\<.+?\>\s\<.+?\>)/$1/;
 	# $self->{body} =~ s/(\<.+?\>\s\<.+?\>)\s/$1/g;
 	$self->{body} =~ s/\<p\>\s/\<p\>/gi;
 	$self->{body} =~ s/\<\/p\>\s\<p\>/\<\/p\>\<p\>/gi;
@@ -996,10 +893,19 @@ sub _optimise_content {
 	$self->{body} =~ s/(<script>\s|\s<script>)/<script>/gis;
 	$self->{body} =~ s/(<\/script>\s|\s<\/script>)/<\/script>/gis;
 	$self->{body} =~ s/\<td\>\s/\<td\>/gi;
-	$self->{body} =~ s/\s+\<a\shref="(.+?)"\>\s?/ <a href="$1">/gis;
-	$self->{body} =~ s/\s?<a\shref=\s"(.+?)"\>/ <a href="$1">/gis;
+	# The link can't leave its quotes, so these can't span tags or
+	# backtrack across the rest of the page
+	$self->{body} =~ s{
+		(?<!\s)\s++		# a whole run of whitespace, starting at its first character
+		<a\shref="([^"]*+)">	# $1: the link
+		\s?
+	}{ <a href="$1">}gix;
+	$self->{body} =~ s{
+		\s?
+		<a\shref=\s"([^"]*+)">	# $1: the link
+	}{ <a href="$1">}gix;
 	$self->{body} =~ s/\s+<\/a\>\s+/<\/a> /gis;
-	$self->{body} =~ s/(\s?<hr>\s+|\s+<hr>\s?)/<hr>/gis;
+	$self->{body} =~ s/(?:\s?<hr>\s++|(?<!\s)\s++<hr>\s?)/<hr>/gi;
 	# $self->{body} =~ s/\s<hr>/<hr>/gis;
 	# $self->{body} =~ s/<hr>\s/<hr>/gis;
 	$self->{body} =~ s/<\/li>\s+<li>/<\/li><li>/gis;
@@ -1017,9 +923,7 @@ sub _generate_key {
 	if($self->{cache_key}) {
 		return $self->{cache_key};
 	}
-	unless(defined($self->{info})) {
-		$self->{info} = CGI::Info->new({ cache => $self->{cache} });
-	}
+	$self->_info();
 
 	my $key = __PACKAGE__ . '::' . $self->{info}->browser_type() . '::' . $self->{info}->domain_name() . '::' . $self->{info}->script_name() . '::' . $self->{info}->as_string();
 
@@ -1044,7 +948,7 @@ sub _generate_key {
 
 	# Honour the Vary headers
 	my $headers = $self->{'headers'};
-	if($headers && ($headers =~ /^Vary: .*$/m)) {
+	if($headers && ($headers =~ /^Vary: /m)) {
 		if(defined($self->{logger})) {
 			$self->{logger}->debug('Found Vary header');
 		}
@@ -1063,7 +967,7 @@ sub _generate_key {
 		}
 	}
 	$key =~ s/\//::/g;
-	$key =~ s/::::/::/g;
+	$key =~ s/(?:::){2,}/::/g;
 	$key =~ s/::$//;
 	if(defined($self->{logger})) {
 		$self->{logger}->trace("Returning $key");
@@ -1163,26 +1067,10 @@ sub init {
 	my %params = (ref($_[0]) eq 'HASH') ? %{$_[0]} : @_;
 
 	# Safe options - can be called at any time
-	if(defined($params{generate_etag})) {
-		$self->{generate_etag} = $params{generate_etag};
-	}
-	if(defined($params{generate_last_modified})) {
-		$self->{generate_last_modified} = $params{generate_last_modified};
-	}
-	if(defined($params{compress_content})) {
-		$self->{compress_content} = $params{compress_content};
-	}
-	if(defined($params{optimise_content})) {
-		$self->{optimise_content} = $params{optimise_content};
-	}
-	if(defined($params{lint_content})) {
-		$self->{lint_content} = $params{lint_content};
-	}
-	if(defined($params{logger})) {
-		$self->{logger} = $params{logger};
-	}
-	if(defined($params{lingua})) {
-		$self->{lingua} = $params{lingua};
+	foreach my $option(@SAFE_OPTIONS) {
+		if(defined($params{$option})) {
+			$self->{$option} = $params{$option};
+		}
 	}
 
 	if(defined($params{save_to}) && $self->can_cache()) {
@@ -1201,13 +1089,10 @@ sub init {
 		}
 		$self->{save_to} = $params{save_to};
 		if(!exists($params{save_to}->{'ttl'})) {
-			$self->{save_to}->{'ttl'} = 600;
+			$self->{save_to}->{'ttl'} = $DEFAULT_SAVE_TO_TTL;
 		}
 	} elsif(exists($params{'save_to'}) && !defined($params{'save_to'})) {
 		delete $self->{'save_to'};
-	}
-	if(defined($params{generate_304})) {
-		$self->{generate_304} = $params{generate_304};
 	}
 	if(defined($params{info}) && (!defined($self->{info}))) {
 		$self->{info} = $params{info};
@@ -1225,32 +1110,22 @@ sub init {
 		}
 	}
 	if(exists($params{cache}) && $self->can_cache()) {
-		if(defined($ENV{'HTTP_CACHE_CONTROL'})) {
-			my $control = $ENV{'HTTP_CACHE_CONTROL'};
+		# There is an argument not to do this since one client will
+		# affect others
+		if(defined(my $max_age = _cache_control()->{'max-age'})) {
+			$self->{cache_duration} = "$max_age seconds";
 			if(defined($self->{logger})) {
-				$self->{logger}->debug("cache_control = $control");
-			}
-			if($control =~ /^max-age\s*=\s*(\d+)$/) {
-				# There is an argument not to do this
-				# since one client will affect others
-				$self->{cache_duration} = "$1 seconds";
-				if(defined($self->{logger})) {
-					$self->{logger}->debug("cache_duration = $self->{cache_duration}");
-				}
+				$self->{logger}->debug("cache_duration = $self->{cache_duration}");
 			}
 		}
 		$self->{cache_duration} ||= $params{cache_duration};
-		if((!defined($params{cache})) && defined($self->{cache})) {
-			if(defined($self->{logger})) {
-				if($self->{cache_key}) {
-					$self->{logger}->debug('disabling cache ', $self->{cache_key});
-				} else {
-					$self->{logger}->debug('disabling cache');
-				}
+		if(defined($params{cache})) {
+			$self->{cache} = $params{cache};
+		} else {
+			if(defined($self->{logger}) && defined($self->{cache})) {
+				$self->{logger}->debug('disabling cache', ($self->{cache_key} ? " $self->{cache_key}" : ''));
 			}
 			delete $self->{cache};
-		} else {
-			$self->{cache} = $params{cache};
 		}
 		if(defined($params{cache_key})) {
 			$self->{cache_key} = $params{cache_key};
@@ -1287,6 +1162,44 @@ sub set_options {
 Returns true if the server is allowed to store the results locally.
 This is the value of X-Cache in the returned header.
 
+The cache isn't used if the NO_CACHE or NO_STORE environment variables are set,
+or if the client's Cache-Control header includes any of no-store, no-cache,
+private or max-age=0.
+The answer is decided on the first call, and doesn't change for the rest of the
+request.
+
+=head2 How the output is sent
+
+=over 4
+
+=item * Compression
+
+The first encoding listed by the client (in Accept-Encoding, or TE) that
+FCGI::Buffer can produce is used.
+Encodings with q=0 are skipped.
+
+Premise 1: the client is happy with any of the encodings that it lists.
+Premise 2: an encoding can only be produced if its module is installed.
+Conclusion: an encoding whose module isn't installed is passed over for the
+next one, rather than failing the request.
+If none can be used, the output is sent uncompressed.
+
+=item * Range
+
+A single range of bytes, such as C<bytes=0-99> or C<bytes=100->, is honoured
+with a 206 status.
+Anything else, such as several ranges or a backwards range, is ignored and the
+whole page is sent.
+Note that C<bytes=-n> gives the first n bytes, although RFC 7233 says that it
+should be the last n.
+
+=item * Conditional requests
+
+If-None-Match may be a list of ETags, weak ETags or "*".
+If it is given and doesn't match, If-Modified-Since is not used to send a 304.
+
+=back
+
 =cut
 
 sub can_cache {
@@ -1295,26 +1208,20 @@ sub can_cache {
 	if(defined($self->{x_cache})) {
 		return ($self->{x_cache} eq 'HIT');
 	}
-	if(defined($ENV{'NO_CACHE'}) || defined($ENV{'NO_STORE'})) {
-		$self->{x_cache} = 'MISS';
-		return 0;
+	if(defined($self->{logger}) && defined($ENV{'HTTP_CACHE_CONTROL'})) {
+		$self->{logger}->debug("cache_control = $ENV{HTTP_CACHE_CONTROL}");
 	}
-	if(defined($ENV{'HTTP_CACHE_CONTROL'})) {
-		my $control = $ENV{'HTTP_CACHE_CONTROL'};
-		if(defined($self->{logger})) {
-			$self->{logger}->debug("cache_control = $control");
-		}
-		# TODO: check Authorization header not present
-		if(($control eq 'no-store') ||
-		   ($control eq 'no-cache') ||
-		   ($control eq 'max-age=0') ||
-		   ($control eq 'private')) {
-			$self->{x_cache} = 'MISS';
-			return 0;
-		}
-	}
-	$self->{x_cache} = 'HIT';
-	return 1;
+
+	# TODO: check Authorization header not present
+	# A request may give several directives, e.g. "no-cache, max-age=0",
+	# and any one of them forbids the cache
+	my $control = _cache_control();
+	my $forbidden = defined($ENV{'NO_CACHE'}) || defined($ENV{'NO_STORE'}) ||
+		(grep { $NO_CACHE_DIRECTIVES{$_} } keys %{$control}) ||
+		(defined($control->{'max-age'}) && ($control->{'max-age'} == 0));
+
+	$self->{x_cache} = $forbidden ? 'MISS' : 'HIT';
+	return $forbidden ? 0 : 1;
 }
 
 =head2 is_cached
@@ -1424,50 +1331,55 @@ sub is_cached {
 sub _my_age {
 	my $self = shift;
 
-	if($self->{script_mtime}) {
-		return $self->{script_mtime};
-	}
-	unless(defined($self->{info})) {
-		if($self->{cache}) {
-			$self->{info} = CGI::Info->new({ cache => $self->{cache} })
-				or croak 'Failed to create CGI::Info object with cache';
-		} else {
-			$self->{info} = CGI::Info->new()
-				or croak 'Failed to create CGI::Info object';
-		}
-	}
+	return $self->{script_mtime} if(defined($self->{script_mtime}));
 
-	my $path = $self->{info}->script_path();
-	unless(defined($path)) {
-		croak 'Failed to retrieve script path';
-		return;
-	}
+	# croak() never returns, so nothing is needed after it
+	my $path = $self->_info()->script_path();
+	croak 'Failed to retrieve script path' unless(defined($path));
 
 	my @statb = stat($path);
 	$self->{'script_mtime'} = $statb[9];	# Set script_mtime to the modification time of the script
 	return $self->{script_mtime};
 }
 
+# Return the content encoding to use, or '' for none.
+# Premise 1: _compress() fails the request with a 406 if it can't load the
+#	module for the encoding
+# Premise 2: the client is happy with any of the encodings it lists
+# Conclusion: choose the first listed encoding that can be loaded, then the 406
+#	can't happen
 sub _should_gzip
 {
 	my $self = shift;
 
-	if($self->{compress_content} && ($ENV{'HTTP_ACCEPT_ENCODING'} || $ENV{'HTTP_TE'})) {
-		if(defined($self->{content_type})) {
-			my @content_type = @{$self->{content_type}};
-			if($content_type[0] ne 'text') {
-				return '';
-			}
-		}
-		my $accept = lc($ENV{'HTTP_ACCEPT_ENCODING'} ? $ENV{'HTTP_ACCEPT_ENCODING'} : $ENV{'HTTP_TE'});
-		foreach my $method(split(/,\s?/, $accept)) {
-			if(($method eq 'gzip') || ($method eq 'x-gzip') || ($method eq 'br') || ($method eq 'zstd')) {
-				return $method;
-			}
-		}
+	return '' unless($self->{compress_content});
+	my $accept = $ENV{'HTTP_ACCEPT_ENCODING'} || $ENV{'HTTP_TE'};
+	return '' unless($accept);
+	return '' if(defined($self->{content_type}) && (lc($self->{content_type}->[0]) ne 'text'));
+
+	foreach my $method(split(/\s*,\s*/, lc($accept))) {
+		# e.g. "gzip;q=0.8", where q=0 means "not acceptable"
+		my ($name, @params) = split(/\s*;\s*/, $method);
+		next if(grep { /^q=0(?:\.0*)?$/ } @params);
+		return $name if($ENCODING_MODULE{$name} && _can_load($ENCODING_MODULE{$name}));
 	}
 
 	return '';
+}
+
+# Can the given module be loaded?  The answer is remembered
+{
+	my %loadable;
+
+	sub _can_load
+	{
+		my $module = shift;
+
+		if(!exists($loadable{$module})) {
+			$loadable{$module} = eval "require $module; 1" ? 1 : 0;
+		}
+		return $loadable{$module};
+	}
 }
 
 sub _set_content_type
@@ -1485,97 +1397,61 @@ sub _set_content_type
 	}
 }
 
-sub _compress()
+# Compress the body with the given encoding, from _should_gzip()
+sub _compress
 {
 	my $self = shift;
 	my %params = (ref($_[0]) eq 'HASH') ? %{$_[0]} : @_;
 
-	return unless(defined($self->{'body'}));
 	my $encoding = $params{encoding};
 
-	if((length($encoding) == 0) || (length($self->{body}) < $MIN_GZIP_LEN)) {
+	return unless(defined($self->{'body'}) && defined($encoding) && length($encoding));
+	return if(length($self->{body}) < $MIN_GZIP_LEN);
+
+	# Premise: _should_gzip() only returns encodings whose module loads
+	# Conclusion: if one can't be loaded here, the request can't be met
+	my $module = $ENCODING_MODULE{$encoding};
+	if((!defined($module)) || !_can_load($module)) {
+		$self->_set_status(406);
 		return;
 	}
 
-	if($encoding eq 'gzip') {
-		require Compress::Zlib;
-		Compress::Zlib->import;
-
-		# Avoid 'Wide character in memGzip'
-		unless($self->{_encode_loaded}) {
-			require Encode;
-			$self->{_encode_loaded} = 1;
-		}
-		my $nbody = Compress::Zlib::memGzip(\Encode::encode_utf8($self->{body}));
-		if(length($nbody) < length($self->{body})) {
-			$self->{body} = $nbody;
-			unless(grep(/^Content-Encoding: gzip/, @{$self->{o}})) {
-				push @{$self->{o}}, 'Content-Encoding: gzip';
-			}
-			unless(grep(/^Vary: Accept-Encoding/, @{$self->{o}})) {
-				push @{$self->{o}}, 'Vary: Accept-Encoding';
-			}
-		}
-	} elsif($encoding eq 'zstd') {
+	# Avoid 'Wide character in memGzip'
+	require Encode;
+	my $bytes = Encode::encode_utf8($self->{body});
+	my $compressed;
+	if($module eq 'Compress::Zlib') {
+		$compressed = Compress::Zlib::memGzip(\$bytes);
+	} elsif($module eq 'Compress::Zstd') {
 		# Facebook
-		if(eval { require Compress::Zstd; 1 }) {
-			my $compressed_body = Compress::Zstd::compress(\Encode::encode_utf8($self->{'body'}));
-			if(length($compressed_body) < length($self->{'body'})) {
-				$self->{'body'} = $compressed_body;
-				unless(grep(/^Content-Encoding: zstd/, @{$self->{o}})) {
-					push @{$self->{o}}, 'Content-Encoding: zstd';
-				}
-				unless(grep(/^Vary: Accept-Encoding/, @{$self->{o}})) {
-					push @{$self->{o}}, 'Vary: Accept-Encoding';
-				}
-			}
-		} else {
-			$self->{status} = 406;
-			if($self->{'info'}) {
-				$self->{'info'}->status(406);
-			}
-		}
-	} elsif($encoding eq 'br') {
-		if(eval { require IO::Compress::Brotli }) {
-			IO::Compress::Brotli->import();
+		$compressed = Compress::Zstd::compress(\$bytes);
+	} else {
+		$compressed = IO::Compress::Brotli::bro($bytes);
+	}
 
-			unless($self->{_encode_loaded}) {
-				require Encode;
-				$self->{_encode_loaded} = 1;
-			}
-			my $nbody = IO::Compress::Brotli::bro(Encode::encode_utf8($self->{body}));
-			if(length($nbody) < length($self->{body})) {
-				$self->{body} = $nbody;
-				unless(grep(/^Content-Encoding: br/, @{$self->{o}})) {
-					push @{$self->{o}}, 'Content-Encoding: br';
-				}
-				unless(grep(/^Vary: Accept-Encoding/, @{$self->{o}})) {
-					push @{$self->{o}}, 'Vary: Accept-Encoding';
-				}
-			}
-		} else {
-			$self->{status} = 406;
-			if($self->{'info'}) {
-				$self->{'info'}->status(406);
-			}
-		}
+	# Don't send it compressed if that makes it larger
+	return unless(defined($compressed) && (length($compressed) < length($self->{body})));
+
+	$self->{body} = $compressed;
+	$encoding = 'gzip' if($encoding eq 'x-gzip');
+	foreach my $header("Content-Encoding: $encoding", 'Vary: Accept-Encoding') {
+		push @{$self->{o}}, $header unless(grep { $_ eq $header } @{$self->{o}});
 	}
 }
 
 sub _check_if_none_match {
 	my $self = shift;
 
-	if($ENV{'HTTP_IF_NONE_MATCH'}) {
+	if($ENV{'HTTP_IF_NONE_MATCH'} && defined($self->{etag})) {
 		if($self->{logger}) {
 			$self->{logger}->debug("Compare $ENV{HTTP_IF_NONE_MATCH} with $self->{etag}");
 		}
-		if($ENV{'HTTP_IF_NONE_MATCH'} eq $self->{etag}) {
+		# The header is "*" or a list of entity tags, any of which may be weak
+		my @etags = map { (my $e = $_) =~ s/^W\///; $e } split(/\s*,\s*/, $ENV{'HTTP_IF_NONE_MATCH'});
+		if(grep { ($_ eq '*') || ($_ eq $self->{etag}) } @etags) {
 			push @{$self->{o}}, 'Status: 304 Not Modified';
 			$self->{send_body} = 0;
-			$self->{status} = 304;
-			if($self->{'info'}) {
-				$self->{'info'}->status(304);
-			}
+			$self->_set_status(304);
 			if($self->{logger}) {
 				$self->{logger}->debug('Set status to 304');
 			}
@@ -1599,6 +1475,79 @@ sub _check_if_none_match {
 	return 0;
 }
 
+# The CGI::Info object, which is created if it wasn't given
+sub _info {
+	my $self = shift;
+
+	if(!defined($self->{info})) {
+		$self->{info} = CGI::Info->new($self->{cache} ? { cache => $self->{cache} } : ())
+			or croak(__PACKAGE__, ': Failed to create CGI::Info object');
+	}
+	return $self->{info};
+}
+
+# Set the HTTP status, and tell CGI::Info if we have one
+sub _set_status {
+	my ($self, $status) = @_;
+
+	$self->{status} = $status;
+	if($self->{info}) {
+		$self->{info}->status($status);
+	}
+}
+
+# Does the protocol support conditional requests (ETag etc.)?
+sub _is_conditional_protocol {
+	return defined($ENV{'SERVER_PROTOCOL'}) && ($ENV{'SERVER_PROTOCOL'} =~ $CONDITIONAL_PROTOCOL);
+}
+
+# The directives in the request's Cache-Control header, as a hashref of
+# lower case name to value (undef when there is no value)
+sub _cache_control {
+	my %directives;
+
+	if(defined(my $control = $ENV{'HTTP_CACHE_CONTROL'})) {
+		foreach my $directive(split(/\s*,\s*/, lc($control))) {
+			my ($name, $value) = split(/\s*=\s*/, $directive, 2);
+			next unless(defined($name) && length($name));
+			$value =~ s/^"(.*)"$/$1/ if(defined($value));
+			$directives{$name} = $value;
+		}
+	}
+	return \%directives;
+}
+
+# The X-Cache and X-Cache-Lookup headers, as an arrayref
+sub _x_cache_headers {
+	my ($self, $cache, $lookup) = @_;
+
+	my $from = $self->{info} ? ' from ' . $self->{info}->host_name() : '';
+	return [ "X-Cache: $cache$from", "X-Cache-Lookup: $lookup$from" ];
+}
+
+# Return the part of the body asked for by a Range header, or undef if the
+# range isn't one that we support, in which case the whole body is sent.
+# Only a single range of bytes is supported.
+# Note that "bytes=-n" is treated as the first n bytes, though RFC 7233 says
+# that it is the last n
+sub _apply_range {
+	my ($body, $range) = @_;
+
+	return unless($range =~ /^bytes=(\d*)-(\d*)$/);
+	my ($first, $last) = ($1, $2);
+
+	# "bytes=-" says nothing
+	return if(($first eq '') && ($last eq ''));
+	return substr($body, 0, $last) if($first eq '');
+	return substr($body, $first) if($last eq '');
+
+	# A backwards range is invalid
+	return if($first > $last);
+
+	# The range includes both ends
+	return substr($body, $first, $last - $first + 1);
+}
+
 # replace dynamic links with static links
 sub _save_to {
 	my ($self, $unzipped_body, $dbh) = @_;
@@ -1613,7 +1562,7 @@ sub _save_to {
 	my %seen_links;
 	my $language = $self->_save_to_language();
 	my $browser_type = $self->{info}->browser_type();
-	while($unzipped_body =~ /<a\s+href="([^"]+)"/gis) {
+	while($unzipped_body =~ /<a\s+href="([^"]+)"/gi) {
 		my $link = $1;
 		next if($seen_links{$link});	# Already updated in the copy
 		$seen_links{$link} = 1;
@@ -1631,9 +1580,7 @@ sub _save_to {
 		} else {
 			next if($link =~ /^https?:\/\//);	# FIXME: skips full URLs to ourself
 								#	Though optimise_content fixes that
-			next if($link =~ /\.html?$/);
-			next if($link =~ /\.jpg$/);
-			next if($link =~ /\.gif$/);
+			next if($link =~ /\.(?:html?|jpg|gif)$/i);
 		}
 		if($self->{save_to}->{ttl}) {
 			$query = "SELECT DISTINCT path, creation FROM fcgi_buffer WHERE uri = ? AND language = ? AND browser_type = ? AND creation >= strftime('\%s','now') - ?";

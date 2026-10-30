@@ -27,9 +27,39 @@ Revision history for FCGI-Buffer
 	- PATH_INFO is now part of the generated cache key
 	- Google Analytics cookies after the first weren't excluded from the
 		cache key
+	- optimise_content: several regexes took quadratic time on long runs
+		of whitespace or unterminated links, allowing a slow down by
+		hostile input
+	- optimise_content: "+" at the start of a line was deleted, breaking
+		JavaScript
+	- optimise_content: document.write() calls in different <script>
+		blocks could be merged, and the script's type was changed
+	- optimise_content: text of an HTML comment after a <script> tag was
+		displayed
+	- optimise_content: no longer removes visible spaces between tags,
+		e.g. "Hello <b>world</b>" became "Hello<b>world</b>"
+	- Range: "bytes=0-n" was ignored and ranges were a byte short, multiple
+		and backwards ranges are now ignored rather than half applied
+	- Accept-Encoding with a space before a comma wasn't understood
+	- If the first encoding the client accepts couldn't be loaded (e.g.
+		IO::Compress::Brotli isn't installed), a 406 was sent instead of
+		trying the next, or sending it uncompressed
+	- Accept-Encoding parameters, e.g. "gzip;q=0.8", weren't understood, and
+		q=0 wasn't honoured.  x-gzip is now supported.
+	- Content-Type "Text/html" wasn't compressed
+	- zstd compression could die if Encode wasn't loaded
+	- Cache-Control with more than one directive (e.g. "no-cache, max-age=0")
+		or in upper case didn't stop the cache being used
+	- If-None-Match with a list of ETags, weak ETags or "*" wasn't
+		understood, and an undefined ETag gave a warning
+	- An ETag in the script's own headers lost its quotes when read from the
+		cache, so never matched If-None-Match
+	- new(generate_etag => 0) was overridden by the server protocol
+	- Removed a branch which did nothing but look in the cache, and dead
+		debugging code
 	[ Tests ]
 	- Use Test::Log::Abstraction
-	- Added t/save_to.t
+	- Added t/save_to.t, t/optimise.t and t/logic.t
 
 0.22	Sat Apr 18 20:55:55 EDT 2026
 	Fix uninitialized variable

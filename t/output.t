@@ -176,7 +176,9 @@ OUTPUT: {
 		html_ok($body, 'HTML:Lint shows no errors');
 	} else {
 		SKIP: {
-			ok($headers =~ /^Status: 406/m);
+			# The client also accepts gzip, so that's used rather
+			# than failing with a 406
+			like($headers, qr/^Content-Encoding: gzip/m, 'falls back to gzip without Brotli');
 
 			skip('Install IO::Compress::Brotli to test Brotli compression', 3);
 		}

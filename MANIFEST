@@ -28,6 +28,7 @@ t/is_cached.t
 t/js.t
 t/kwalitee.t
 t/last_mod.t
+t/logic.t
 t/manifest.t
 t/metrics.t
 t/modules-used.t
@@ -36,6 +37,7 @@ t/no404s.t
 t/nocache.t
 t/noopentickets.t
 t/noplan.t
+t/optimise.t
 t/output.t
 t/pod-cm.t
 t/pod-links.t
