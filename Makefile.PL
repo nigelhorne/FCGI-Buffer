@@ -73,18 +73,18 @@ WriteMakefile(
     META_MERGE => {
     	'meta-spec' => { version => 2 },
 		resources => {
-			homepage => 'https://metacpan.org/pod/CGI::Buffer',
+			homepage => 'https://metacpan.org/pod/FCGI::Buffer',
 			repository => {
 				type => 'git',
-				url => 'git://github.com/nigelhorne/CGI-Buffer.git',
-				web => 'https://github.com/nigelhorne/CGI-Buffer',
+				url => 'git://github.com/nigelhorne/FCGI-Buffer.git',
+				web => 'https://github.com/nigelhorne/FCGI-Buffer',
 				# license => 'http://dev.perl.org/licenses/',
 			}, bugtracker => {
-				web => 'https://rt.cpan.org/Public/Dist/Display.html?Name=CGI-Buffer',
-				url => 'https://rt.cpan.org/Public/Dist/Display.html?Name=CGI-Buffer',
-				# web => 'https://github.com/nigelhorne/CGI-Buffer/issues',
-				# url => 'https://github.com/nigelhorne/CGI-Buffer/issues',
-				mailto => 'bug-CGI-Buffer@rt.cpan.org'
+				web => 'https://rt.cpan.org/Public/Dist/Display.html?Name=FCGI-Buffer',
+				url => 'https://rt.cpan.org/Public/Dist/Display.html?Name=FCGI-Buffer',
+				# web => 'https://github.com/nigelhorne/FCGI-Buffer/issues',
+				# url => 'https://github.com/nigelhorne/FCGI-Buffer/issues',
+				mailto => 'bug-FCGI-Buffer@rt.cpan.org'
 			}
 		},
     },
