@@ -5,7 +5,7 @@
 
 use strict;
 use warnings;
-use Test::Most tests => 16;
+use Test::Most tests => 17;
 use Test::Needs 'CHI', 'DBD::SQLite';
 use Capture::Tiny ':all';
 use CGI::Info;
@@ -313,6 +313,33 @@ subtest 'pages that depend on cookies are not saved' => sub {
 		env => { HTTP_COOKIE => '__utma=1; __utmz=2' },
 	);
 	ok(-f File::Spec->catfile($sdir, 'b=2.html'), 'analytics cookies do not stop the page being saved');
+
+	request(
+		uri => '/cgi-bin/page.fcgi?c=3',
+		html => 'Anyone',
+		cache => $cache,
+		save_to => $save_to,
+		env => { HTTP_COOKIE => 'csrf_token=1:2:3' },
+	);
+	ok(-f File::Spec->catfile($sdir, 'c=3.html'), 'a csrf_token cookie does not stop the page being saved');
+
+	request(
+		uri => '/cgi-bin/page.fcgi?d=4',
+		html => 'Logged in as Fred',
+		cache => $cache,
+		save_to => $save_to,
+		env => { HTTP_COOKIE => 'csrf_token=1:2:3; session=fred' },
+	);
+	ok(!-e File::Spec->catfile($sdir, 'd=4.html'), 'a csrf_token cookie does not hide a session cookie');
+};
+
+subtest 'a csrf_token cookie is not part of the cache key' => sub {
+	my (undef, undef, $cache) = setup();
+
+	foreach my $token('1:2:3', '4:5:6') {
+		request(uri => '/cgi-bin/page.fcgi?a=1', html => 'Anyone', cache => $cache, env => { HTTP_COOKIE => "csrf_token=$token" });
+	}
+	is(scalar($cache->get_keys()), 1, 'clients with different tokens share one entry');
 };
 
 subtest 'save_to works without a lingua object' => sub {

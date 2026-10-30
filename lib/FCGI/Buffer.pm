@@ -1135,7 +1135,7 @@ Only use where output is guaranteed to be the same with a given set of arguments
 (the same criteria for enabling generate_304).
 Only HTML pages are saved.
 Pages generated for clients that send cookies (other than Google Analytics
-cookies) or have logged in, or those that aren't stored in the server-side
+cookies and C<csrf_token>) or have logged in, or those that aren't stored in the server-side
 cache for the reasons above, are not saved,
 since the static page would be given to everyone.
 Several virtual hosts can share a directory.
@@ -2004,11 +2004,12 @@ sub _is_logged_in {
 	return $ENV{'HTTP_AUTHORIZATION'} || $ENV{'REMOTE_USER'};
 }
 
-# The client's cookies, except for Google Analytics ones which are different for
-# each client but don't change the output
+# The client's cookies, except for Google Analytics ones and csrf_token, which
+# are different for each client but don't change the output.  A page that uses a
+# csrf_token is sent with a Set-Cookie header, so _is_storable() doesn't store it
 sub _client_cookies {
 	return () unless($ENV{'HTTP_COOKIE'});
-	return grep { !/^__utm[abcz]/ } split(/;\s*/, $ENV{'HTTP_COOKIE'});
+	return grep { !/^(?:__utm[abcz]|csrf_token=)/ } split(/;\s*/, $ENV{'HTTP_COOKIE'});
 }
 
 # Does the output depend on who the client is?
