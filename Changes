@@ -13,6 +13,8 @@ Revision history for FCGI-Buffer
 	- save_to: cookies now stop a page from being saved when a cache_key is
 		given
 	- save_to: stored cross-site scripting through REQUEST_URI
+	- A page that includes the value of the client's csrf_token cookie is no
+		longer cached or saved
 	- A client's Cache-Control: max-age=1abc caused an empty response, and
 		max-age=99999999 kept pages in the cache for years.  Invalid
 		values and those over 600 seconds are now ignored
@@ -26,6 +28,14 @@ Revision history for FCGI-Buffer
 	- If-Modified-Since was looked at before If-None-Match for a page in the
 		cache, so a 304 could be sent for a page that had changed
 	- Several Expires headers could be sent, and they were kept in the cache
+	- With generate_304 off, If-None-Match could still give a 304 for a page in
+		the cache
+	- save_to: static pages are written atomically, a reader could be given a
+		partial page and a full disc wasn't noticed
+	- save_to: links to a page weren't changed if they gave its arguments in
+		a different order
+	- Range: when there is no cache, a part of a page is now cut from the page
+		with its links changed, so that it matches the ETag
 	- A csrf_token cookie no longer stops a page from being cached or saved.
 		It is different for each client but doesn't change the output
 	- An exception while sending the page lost the output, it could also
@@ -64,7 +74,9 @@ Revision history for FCGI-Buffer
 	- Removed import(), which died if given any arguments
 	- Text::Diff was used without loading it safely, and Storable might not
 		have been loaded
-	- Raised MIN_PERL_VERSION to 5.010 which is what the code needs,
+	- Test::Log::Abstraction, which needs Perl 5.26, is no longer required to
+		install this module
+	- Raised MIN_PERL_VERSION to 5.012, which the latest DBI needs,
 		CGI::Info to 0.71 and added DBD::SQLite to the prerequisites
 	- save_to: links to a page from its own static copy pointed to the
 		file's location on disk rather than its URL

@@ -327,6 +327,10 @@ subtest 'a response from the cache' => sub {
 	($hit, $headers) = is_hit(cache => $cache, env => { HTTP_IF_NONE_MATCH => $etag });
 	like($headers, qr/^Status: 304/m, 'If-None-Match gives a 304');
 
+	($hit, $headers) = is_hit(cache => $cache, init => { generate_304 => 0 }, env => { HTTP_IF_NONE_MATCH => $etag });
+	ok($hit, 'with generate_304 off it is still in the cache');
+	unlike($headers, qr/^Status: 304/m, 'but If-None-Match gives no 304');
+
 	($hit, $headers, $body) = is_hit(cache => $cache, env => { HTTP_ACCEPT_ENCODING => 'gzip' });
 	like($headers, qr/^ETag: "[0-9a-f]{32}-gzip"/m, 'the compressed version has its own ETag');
 	my @lengths = $headers =~ /^Content-Length: (\d+)/mg;

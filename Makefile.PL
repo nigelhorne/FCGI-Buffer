@@ -9,7 +9,6 @@ my %prereq_pm = (
 	'Compress::Zlib' => 0,
 	'Cwd' => 0,
 	'File::Path' => 0,
-	'File::Spec' => 0,
 	'Digest::MD5' => 0,
     	'Encode' => 0,
 	# 'HTML::Clean' => 0.8,
@@ -17,8 +16,9 @@ my %prereq_pm = (
 	'IO::String' => 0,
 	'JavaScript::Packer' => 2.00,
 	'HTTP::Date' => 0,
+	'File::Basename' => 0,
 	'File::Spec' => 0,
-	'Time::localtime' => 0,
+	'File::Temp' => 0,	# save_to
 	'HTML::Lint' => 0,
 	'Storable' => 0,
 	'HTTP::Status' => 0,
@@ -27,12 +27,6 @@ my %prereq_pm = (
 	'Readonly' => 0,
 	'Scalar::Util' => 0
 );
-
-if(($^O ne 'MSWin32') && ($^O ne 'openbsd') && ($^O ne 'freebsd')) {
-	# Doesn't work on Windows or compile on OpenBSD/FreeBSD
-	# Also doesn't compile on Arm on Linux, so let's give up
-	# $prereq_pm{'IO::Compress::Brotli'} = 0.003;
-}
 
 my $dist = {
 	COMPRESS => 'gzip -9f',
@@ -50,18 +44,22 @@ WriteMakefile(
     ABSTRACT_FROM       => 'lib/FCGI/Buffer.pm',
     ((defined($ExtUtils::MakeMaker::VERSION) &&
      ($ExtUtils::MakeMaker::VERSION >= 6.3002))
-      ? ('LICENSE'=> 'GPL')
+      ? ('LICENSE'=> 'gpl_2')
       : ()),
     PL_FILES            => {},
+    CONFIGURE_REQUIRES => {
+	'ExtUtils::MakeMaker' => 6.64
+    },
     TEST_REQUIRES => {
 	'Test::Most' => 0,
 	'Test::DescribeMe' => 0,
-	'Test::Log::Abstraction' => 0,
+	'Test::HTML::Lint' => 0,
 	'Test::NoWarnings' => 0,
 	'Test::Needs' => 0,
 	'Capture::Tiny' => 0,
 	'DBI' => 0,
 	'File::Find' => 0,
+	'File::Temp' => 0,
 	'DateTime' => 0,
 	'DateTime::Format::HTTP' => 0,
 	# 'Test::Kwalitee' => 0,
@@ -79,16 +77,21 @@ WriteMakefile(
 		prereqs => {
 			runtime => {
 				recommends => {
+					'CHI' => 0,	# the server-side cache and save_to
 					'Compress::Zstd' => 0,	# zstd encoding
 					'IO::Compress::Brotli' => 0,	# br encoding
 					'Text::Diff' => 0	# debug logging of what changed
+				}
+			}, test => {
+				recommends => {
+					'Test::Log::Abstraction' => 0	# needs Perl 5.26
 				}
 			}
 		}, resources => {
 			homepage => 'https://metacpan.org/pod/FCGI::Buffer',
 			repository => {
 				type => 'git',
-				url => 'git://github.com/nigelhorne/FCGI-Buffer.git',
+				url => 'https://github.com/nigelhorne/FCGI-Buffer.git',
 				web => 'https://github.com/nigelhorne/FCGI-Buffer',
 				# license => 'http://dev.perl.org/licenses/',
 			}, bugtracker => {
@@ -100,5 +103,5 @@ WriteMakefile(
 			}
 		},
     },
-    MIN_PERL_VERSION	=> '5.010'	# The possessive quantifiers in the regular expressions need this
+    MIN_PERL_VERSION	=> '5.012'	# The latest DBI needs this
 );

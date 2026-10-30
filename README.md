@@ -200,6 +200,11 @@ Pages generated for clients that send cookies (other than Google Analytics
 cookies and `csrf_token`) or have logged in, or those that aren't stored in the server-side
 cache for the reasons above, are not saved,
 since the static page would be given to everyone.
+Those cookies don't change which entry in the server-side cache is used,
+so a script whose output depends on one must send a Set-Cookie header with that
+output.
+A page that includes the value of the `csrf_token` cookie is never stored.
+Links can give the arguments of a page in any order.
 Several virtual hosts can share a directory.
 You can turn it off on a case by case basis thus:
 
@@ -484,14 +489,26 @@ None.
     An If-Range header is honoured.
     A part of a page is never compressed, so it has the ETag of the uncompressed
     version.
+    It is a part of the page after any links have been changed to point to static
+    pages.
 
 - Conditional requests
 
     If-None-Match may be a list of ETags, weak ETags or "\*".
-    If it is given and doesn't match, If-Modified-Since is not used to send a 304.
+    If it is given, If-Modified-Since isn't looked at.
+    The ETag is of the page as it's sent, so it changes when a link is changed to
+    point to a static page.
+    Last-Modified is when the page was put into the cache and doesn't change,
+    so a client that only sends If-Modified-Since can be given a 304 and keep the
+    old links.
+    Browsers send both.
     For methods other than GET and HEAD a match gives a 412 status, although the
     script will have already run,
     and If-Modified-Since is ignored.
+
+    If there would be more than one Expires header,
+    because the script gave one and there are links to static pages,
+    only the earliest is sent.
 
     The ETag of compressed output ends with the name of the encoding,
     e.g. `"0123456789abcdef0123456789abcdef-gzip"`, since it isn't the same bytes

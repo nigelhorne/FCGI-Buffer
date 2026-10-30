@@ -10,7 +10,7 @@ use Storable;
 use Capture::Tiny ':all';
 use CGI::Info;
 use CGI::Lingua;
-use Test::Log::Abstraction;
+use Test::Needs 'Test::Log::Abstraction';
 use Test::NoWarnings;
 use Directory::Scratch;
 use autodie qw(:all);

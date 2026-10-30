@@ -13,7 +13,7 @@ use Capture::Tiny ':all';
 use DateTime;
 use HTTP::Date;
 # use Test::NoWarnings;	# HTML::Clean has them
-use Test::Log::Abstraction;
+use Test::Needs 'Test::Log::Abstraction';
 
 BEGIN {
 	use_ok('FCGI::Buffer');

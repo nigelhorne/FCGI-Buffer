@@ -8,7 +8,7 @@ use Test::Most;
 use Storable;
 use Capture::Tiny ':all';
 use autodie qw(:all);
-use Test::Log::Abstraction;
+use Test::Needs 'Test::Log::Abstraction';
 
 eval "use Test::Without::Module qw(CHI)";
 

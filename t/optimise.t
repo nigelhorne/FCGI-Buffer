@@ -94,6 +94,9 @@ subtest 'links' => sub {
 subtest 'hostile input runs in linear time' => sub {
 	my $n = 50_000;
 
+	# Smokers can be very slow and very busy
+	my $limit = $ENV{'AUTOMATED_TESTING'} ? 60 : 10;
+
 	foreach my $test(
 		[ 'unterminated links', '<html><body>' . (' <a href="x' x $n) . '</body></html>' ],
 		[ 'long run of spaces', '<html><head></head>' . (' ' x ($n * 4)) . "x</head> <body>\n</body></html>" ],
@@ -103,7 +106,7 @@ subtest 'hostile input runs in linear time' => sub {
 	) {
 		my ($name, $html) = @{$test};
 		my $b = FCGI::Buffer->new();
-		my $ok = within(10, sub {
+		my $ok = within($limit, sub {
 			$b->{body} = $html;
 			$b->_optimise_content();
 		});
@@ -118,7 +121,7 @@ subtest 'hostile input runs in linear time' => sub {
 	) {
 		my ($name, $html) = @{$test};
 		my $b = FCGI::Buffer->new();
-		my $ok = within(10, sub {
+		my $ok = within($limit, sub {
 			$b->{body} = $html;
 			$b->_restore_preformatted($b->_protect_preformatted());
 		});

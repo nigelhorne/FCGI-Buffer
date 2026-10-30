@@ -5,7 +5,7 @@
 
 use strict;
 use warnings;
-use Test::Most tests => 22;
+use Test::Most tests => 26;
 use Test::Needs 'CHI', 'DBD::SQLite';
 use Capture::Tiny ':all';
 use CGI::Info;
@@ -24,6 +24,15 @@ package My::Lingua;
 
 sub new { my ($class, $language) = @_; return bless { language => $language }, $class }
 sub language { return $_[0]->{language} }
+
+# To test what writes files, without sending anything
+package My::Writer;
+
+our @ISA = ('FCGI::Buffer');
+
+sub new { return bless { problems => [] }, shift }
+sub _problem { push @{$_[0]->{problems}}, $_[1] }
+sub DESTROY { }
 
 package main;
 
@@ -428,7 +437,10 @@ subtest 'If-Modified-Since is not used for a page in the cache if If-None-Match 
 	(undef, undef, $headers) = page_with_link($save_to, $cache, HTTP_IF_MODIFIED_SINCE => $date);
 	like($headers, qr/^Status: 304/m, 'If-Modified-Since on its own still gives a 304');
 	is((header_values($headers, 'ETag'))[0], $new_etag, 'with the ETag of the current page');
-	unlike($headers, qr/^Content-Encoding/m, 'and no Content-Encoding');
+
+	(undef, undef, $headers) = page_with_link($save_to, $cache, HTTP_IF_MODIFIED_SINCE => $date, HTTP_ACCEPT_ENCODING => 'gzip');
+	like($headers, qr/^Status: 304/m, 'and when the client accepts gzip');
+	unlike($headers, qr/^Content-Encoding/m, 'with no Content-Encoding');
 };
 
 subtest 'one Expires header is sent' => sub {
@@ -477,6 +489,96 @@ subtest '_one_expires' => sub {
 	is_deeply([FCGI::Buffer::_one_expires($second, 'ETag: "a"', $first)], ['ETag: "a"', $first], 'the earliest of two');
 	is_deeply([FCGI::Buffer::_one_expires($first, $first)], [$first], 'the same one twice');
 	is_deeply([FCGI::Buffer::_one_expires('expires: 0', $first)], ['expires: 0'], 'an invalid date means already expired');
+};
+
+subtest 'a page that includes the client\'s csrf_token is not stored' => sub {
+	foreach my $test(
+		[ 'as it is', 'SECRETOFVICTIM', 'SECRETOFVICTIM' ],
+		[ 'when the cookie is encoded', 'SECRET%3AOFVICTIM', 'SECRET:OFVICTIM' ],
+	) {
+		my ($name, $cookie, $value) = @{$test};
+		my ($docroot, $save_to, $cache) = setup();
+		my %page = (
+			uri => '/cgi-bin/page.fcgi?a=1',
+			html => qq{<form><input type="hidden" name="csrf_token" value="$value"></form>},
+			cache => $cache,
+			save_to => $save_to,
+			if_cached => 1,
+		);
+
+		my ($body) = request(%page, env => { HTTP_COOKIE => "csrf_token=$cookie; __utma=1" });
+		like($body, qr/\Q$value\E/, "$name: its owner is sent it");
+
+		is(scalar($cache->get_keys()), 0, "$name: it is not in the cache");
+		ok(!-e File::Spec->catfile($docroot, 'static', 'web', 'English', 'page.fcgi', 'a=1.html'), "$name: there is no static page");
+
+		($body) = request(%page, html => 'Another client');
+		unlike($body, qr/\Q$value\E/, "$name: the next client is not sent it");
+	}
+
+	my ($docroot, $save_to, $cache) = setup();
+	request(uri => '/cgi-bin/page.fcgi?a=1', html => 'Anyone', cache => $cache, save_to => $save_to, env => { HTTP_COOKIE => 'csrf_token=SECRETOFVICTIM' });
+	is(scalar($cache->get_keys()), 1, 'a page without it is still stored');
+};
+
+subtest 'links can give the arguments in any order' => sub {
+	my (undef, $save_to, $cache) = setup();
+
+	request(uri => '/cgi-bin/page.fcgi?b=2&a=1', html => 'page', cache => $cache, save_to => $save_to);
+
+	my %page = (uri => '/cgi-bin/page.fcgi?c=3', cache => $cache, save_to => $save_to);
+	my ($body) = request(%page, html => '<a href="/cgi-bin/page.fcgi?a=1&amp;b=2">x</a>');
+	like($body, qr{<a href="/static/[^"]+\.html">x</a>}, 'another order');
+
+	($body) = request(%page, html => '<a href="?b=2&amp;a=1">x</a>');
+	like($body, qr{<a href="/static/[^"]+\.html">x</a>}, 'the order it was asked for in, to itself');
+
+	($body) = request(%page, html => '<a href="/cgi-bin/page.fcgi?a=1&amp;b=3">x</a>');
+	unlike($body, qr{/static/}, 'different arguments are a different page');
+};
+
+subtest 'static pages are written atomically' => sub {
+	my ($docroot, $save_to, $cache) = setup();
+	my $sdir = File::Spec->catdir($docroot, 'static', 'web', 'English', 'page.fcgi');
+
+	request(uri => '/cgi-bin/page.fcgi?a=1', html => 'page', cache => $cache, save_to => $save_to);
+
+	my $file = File::Spec->catfile($sdir, 'a=1.html');
+	like(slurp($file), qr/page/, 'the page is written');
+	is((stat($file))[2] & 0777, 0666 & ~umask(), 'the web server can read it');
+
+	opendir(my $dh, $sdir) or die "$sdir: $!";
+	my @files = grep { !/^\.\.?$/ } readdir($dh);
+	closedir($dh);
+	is_deeply(\@files, ['a=1.html'], 'nothing else is left behind');
+};
+
+subtest '_write_atomically' => sub {
+	my $dir = tempdir(CLEANUP => 1);
+	my $writer = My::Writer->new();
+	my $file = File::Spec->catfile($dir, 'page.html');
+
+	ok($writer->_write_atomically($file, 'old'), 'a new file');
+	is(slurp($file), 'old', 'has the contents');
+
+	ok($writer->_write_atomically($file, 'new'), 'replacing a file');
+	is(slurp($file), 'new', 'has the new contents');
+
+	my $missing = File::Spec->catfile($dir, 'missing', 'page.html');
+	ok(!$writer->_write_atomically($missing, 'x'), "the file can't be created");
+	like($writer->{problems}->[0], qr/Can't create \Q$missing\E/, 'and that is reported');
+
+	# rename() can't replace a directory
+	my $target = File::Spec->catdir($dir, 'target');
+	mkdir $target or die "$target: $!";
+	$writer = My::Writer->new();
+	ok(!$writer->_write_atomically($target, 'x'), "the file can't be moved into place");
+	like($writer->{problems}->[0], qr/Can't create \Q$target\E/, 'and that is reported');
+
+	opendir(my $dh, $dir) or die "$dir: $!";
+	my @files = sort grep { !/^\.\.?$/ } readdir($dh);
+	closedir($dh);
+	is_deeply(\@files, ['page.html', 'target'], 'the temporary file is removed');
 };
 
 subtest 'save_to works without a lingua object' => sub {

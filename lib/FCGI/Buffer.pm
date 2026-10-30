@@ -3,7 +3,6 @@ package FCGI::Buffer;
 use strict;
 use warnings;
 
-# FIXME: save_to treats ?arg1=a&arg2=b and ?arg2=b&arg1=a as different
 # FIXME: save_to treats /cgi-bin/foo.fcgi and /cgi-bin2/foo.fcgi as the same
 
 # TODO: Features
@@ -22,8 +21,7 @@ use warnings;
 #	script fails
 # TODO: Document web server rules so that an expired static link falls back to
 #	the script rather than giving a 404
-# TODO: save_to: normalise the order of the arguments, and include the full path
-#	of the script, which closes the FIXMEs above
+# TODO: save_to: include the full path of the script, which closes the FIXME above
 # TODO: A metrics hook: hit ratio, bytes saved and the time taken by each stage
 # TODO: save_to: max_bytes and a parameter allowlist, to go with max_pages
 # TODO: Detect that a script died part way through its output for all content
@@ -58,6 +56,7 @@ use Readonly;
 use Scalar::Util;
 
 Readonly my $DEFAULT_GENERATE_304 => 1;
+Readonly my $FORM_TOKEN_COOKIE => 'csrf_token';
 Readonly my $DEFAULT_GENERATE_LAST_MODIFIED => 1;
 Readonly my $DEFAULT_COMPRESS_CONTENT => 1;
 Readonly my $DEFAULT_OPTIMISE_CONTENT => 0;
@@ -676,33 +675,8 @@ sub _send_output
 					$self->_set_status(500);
 				}
 			}
-			# _generate_etag() does nothing if there's already an ETag
-			if($self->{send_body} && ($self->{status} == 200) && $self->{generate_etag} && _is_conditional_protocol()) {
+			if($self->{send_body} && ($self->{status} == 200) && $self->{generate_etag} && ((!defined($headers)) || ($headers !~ /^ETag: /m))) {
 				$self->_generate_etag();
-				if($ENV{'HTTP_IF_NONE_MATCH'}) {
-					$self->_check_if_none_match();
-				}
-			}
-			# Nothing has been output yet, so we can check if it's
-			# OK to send 304 if possible.  Not if If-None-Match was
-			# looked at (RFC 9110 13.1.3): browsers send both, and the
-			# date doesn't change when a link does
-			# _check_modified_since() checks generate_304 itself
-			if($self->{send_body} && ($self->{status} == 200) && $ENV{'HTTP_IF_MODIFIED_SINCE'} && $self->{'cobject'} && _is_conditional_protocol() &&
-			   !($ENV{'HTTP_IF_NONE_MATCH'} && defined($self->{etag}))) {
-				$self->_check_modified_since({
-					since => $ENV{'HTTP_IF_MODIFIED_SINCE'},
-					modified => $self->{cobject}->created_at()
-				});
-			}
-			if($self->{status} == 200) {
-				$encoding = $self->_should_gzip();
-				if($self->{send_body}) {
-					if($self->{generate_etag} && ((!defined($headers)) || ($headers !~ /^ETag: /m))) {
-						$self->_generate_etag();
-					}
-					$self->_compress({ encoding => $encoding });
-				}
 			}
 			unless($self->{etag}) {
 				# Keep the quotes, they're part of the ETag and
@@ -713,23 +687,32 @@ sub _send_output
 					$self->{etag} = $cache_hash->{'etag'};
 				}
 			}
-			# Premise 1: If-Modified-Since may only give a 304 if
-			#	If-None-Match didn't rule it out
-			# Premise 2: If-None-Match rules it out only when it is
-			#	checked and fails
-			# Conclusion: a 304 is possible unless generate_304 is off,
-			#	or the If-None-Match check was made and failed
-			my $can_304 = $self->{generate_304};
-			if($can_304 && $ENV{'HTTP_IF_NONE_MATCH'} && $self->{send_body} && ($self->{status} != 304)) {
-				$can_304 = $self->_check_if_none_match();
-			}
-			if($self->{cobject}) {
-				if($can_304 && $ENV{'HTTP_IF_MODIFIED_SINCE'} && ($self->{status} != 304)) {
+			# Nothing has been output yet, so we can check if it's OK to
+			# send 304 if possible.
+			# Premise 1: the ETag includes any changes to the links, the
+			#	date doesn't, and browsers send both
+			# Premise 2: RFC 9110 13.1.3 says not to look at the date if
+			#	there's an If-None-Match
+			# Conclusion: only one of them is ever looked at
+			# _check_modified_since() checks generate_304 itself
+			if($self->{status} == 200) {
+				if($ENV{'HTTP_IF_NONE_MATCH'} && defined($self->{etag})) {
+					if($self->{generate_304}) {
+						$self->_check_if_none_match();
+					}
+				} elsif($ENV{'HTTP_IF_MODIFIED_SINCE'} && $self->{cobject}) {
 					$self->_check_modified_since({
 						since => $ENV{'HTTP_IF_MODIFIED_SINCE'},
 						modified => $self->{cobject}->created_at()
 					});
 				}
+			}
+			# A 304 has no body to compress, and mustn't say that it has
+			if(($self->{status} == 200) && $self->{send_body}) {
+				$encoding = $self->_should_gzip();
+				$self->_compress({ encoding => $encoding });
+			}
+			if($self->{cobject}) {
 				if(($self->{status} == 200) && $self->{generate_last_modified}) {
 					if($self->{logger}) {
 						$self->{logger}->debug('Set Last-Modified to ', HTTP::Date::time2str($self->{cobject}->created_at()));
@@ -1147,6 +1130,11 @@ Pages generated for clients that send cookies (other than Google Analytics
 cookies and C<csrf_token>) or have logged in, or those that aren't stored in the server-side
 cache for the reasons above, are not saved,
 since the static page would be given to everyone.
+Those cookies don't change which entry in the server-side cache is used,
+so a script whose output depends on one must send a Set-Cookie header with that
+output.
+A page that includes the value of the C<csrf_token> cookie is never stored.
+Links can give the arguments of a page in any order.
 Several virtual hosts can share a directory.
 You can turn it off on a case by case basis thus:
 
@@ -1844,6 +1832,9 @@ sub _is_storable {
 	# It would log the next client in as this one
 	return 0 if(_header_values($headers, 'Set-Cookie') || _header_values($headers, 'Set-Cookie2'));
 
+	# It would give this client's form token to the next one
+	return 0 if(_has_form_token($body));
+
 	foreach my $control(_header_values($headers, 'Cache-Control')) {
 		foreach my $directive(split(/\s*,\s*/, lc($control))) {
 			(my $name = $directive) =~ s/\s*=.*$//;
@@ -2019,7 +2010,27 @@ sub _is_logged_in {
 # doesn't store it
 sub _client_cookies {
 	return () unless($ENV{'HTTP_COOKIE'});
-	return grep { !/^(?:__utm[abcz]|csrf_token=)/ } split(/;\s*/, $ENV{'HTTP_COOKIE'});
+	return grep { !/^(?:__utm[abcz]|\Q$FORM_TOKEN_COOKIE\E=)/ } split(/;\s*/, $ENV{'HTTP_COOKIE'});
+}
+
+# Does this page include the client's own form token?  _client_cookies() ignores
+# the cookie that holds it, on the understanding that it doesn't change the output.
+# A script that puts its value into the page has made the page per client
+sub _has_form_token {
+	my $body = shift;
+
+	return 0 unless($ENV{'HTTP_COOKIE'} && defined($body));
+
+	foreach my $cookie(split(/;\s*/, $ENV{'HTTP_COOKIE'})) {
+		next unless($cookie =~ /^\Q$FORM_TOKEN_COOKIE\E=(.+)$/);
+		my $token = $1;
+		return 1 if(index($body, $token) >= 0);
+		# The cookie may be encoded, what's printed may not be
+		if($token =~ s/%([0-9A-Fa-f]{2})/chr(hex($1))/ge) {
+			return 1 if(index($body, $token) >= 0);
+		}
+	}
+	return 0;
 }
 
 # Does the output depend on who the client is?
@@ -2159,11 +2170,6 @@ sub _write_static_page {
 		$path = $1;	# Untaint
 	}
 
-	my $fout;
-	unless(open($fout, '>', $path)) {
-		$self->_problem("Can't create $path");
-		return;
-	}
 	my $copy = $unzipped_body;
 
 	# handle <a href="?arg3=4">Call self with different args</a>
@@ -2182,8 +2188,7 @@ sub _write_static_page {
 	}
 
 	# Avoid Wide character
-	print $fout _to_bytes($copy);
-	close $fout;
+	return unless($self->_write_atomically($path, _to_bytes($copy)));
 
 	# Do INSERT OR REPLACE in case another program has got in first
 	my $uri = $self->_save_to_uri($request_uri);
@@ -2219,6 +2224,38 @@ sub _one_expires {
 	return ((grep { !/^Expires:/i } @headers), $earliest);
 }
 
+# Write a file so that anyone reading it sees all of the old file or all of the
+# new one, never a part of it, and the old one survives a failure such as a full
+# disc.  Returns true if it worked
+sub _write_atomically {
+	my ($self, $path, $contents) = @_;
+
+	require File::Basename;
+	require File::Temp;
+
+	my ($fout, $tmp) = eval {
+		File::Temp::tempfile('.fcgi-buffer-XXXXXXXX', DIR => File::Basename::dirname($path), SUFFIX => '.tmp', UNLINK => 0);
+	};
+	unless($fout) {
+		$self->_problem("Can't create $path");
+		return 0;
+	}
+	if($tmp =~ /^(.+)$/s) {
+		$tmp = $1;	# Untaint
+	}
+
+	# File::Temp creates files that only their owner can read, but it's the
+	# web server that sends these
+	my $ok = chmod(0666 & ~umask(), $fout) && (print $fout $contents);
+	$ok = close($fout) && $ok;
+	if($ok && rename($tmp, $path)) {
+		return 1;
+	}
+	$self->_problem("Can't create $path: $!");
+	unlink $tmp;
+	return 0;
+}
+
 # Make a string safe to put into an HTML attribute
 sub _escape_attribute {
 	my $string = shift;
@@ -2240,10 +2277,15 @@ sub _save_to_host {
 }
 
 # What the database holds for a URI.  The same URI on another virtual host is a
-# different page, and this needs no change to the database's schema
+# different page, and this needs no change to the database's schema.
+# The order of the arguments doesn't make a different page, a link can give them
+# in any order
 sub _save_to_uri {
 	my ($self, $uri) = @_;
 
+	if($uri =~ /^([^?]*)\?(.*)$/s) {
+		$uri = "$1?" . join('&', sort split(/[&;]/, $2));
+	}
 	return $self->_save_to_host() . $uri;
 }
 
@@ -2516,14 +2558,26 @@ which RFC 9110 allows.
 An If-Range header is honoured.
 A part of a page is never compressed, so it has the ETag of the uncompressed
 version.
+It is a part of the page after any links have been changed to point to static
+pages.
 
 =item * Conditional requests
 
 If-None-Match may be a list of ETags, weak ETags or "*".
-If it is given and doesn't match, If-Modified-Since is not used to send a 304.
+If it is given, If-Modified-Since isn't looked at.
+The ETag is of the page as it's sent, so it changes when a link is changed to
+point to a static page.
+Last-Modified is when the page was put into the cache and doesn't change,
+so a client that only sends If-Modified-Since can be given a 304 and keep the
+old links.
+Browsers send both.
 For methods other than GET and HEAD a match gives a 412 status, although the
 script will have already run,
 and If-Modified-Since is ignored.
+
+If there would be more than one Expires header,
+because the script gave one and there are links to static pages,
+only the earliest is sent.
 
 The ETag of compressed output ends with the name of the encoding,
 e.g. C<"0123456789abcdef0123456789abcdef-gzip">, since it isn't the same bytes
