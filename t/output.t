@@ -5,9 +5,6 @@
 
 # TODO: check optimise_content and gzips do the *right* thing
 # TODO: check ETags are correct
-# TODO: Write a test to check that 304 is sent when a cached object
-#	is newer than the IF_MODIFIED_SINCE date
-# TODO: Test HTTP_IF_MODIFIED_SINCE sends 304 when appropriate
 
 use strict;
 use warnings;
@@ -150,7 +147,7 @@ OUTPUT: {
 	ok(defined($length));
 
 	($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
-	ok($headers =~ /ETag: "[A-Za-z0-F0-f]{32}"/m);
+	ok($headers =~ /ETag: "[A-Za-z0-F0-f]{32}-(?:gzip|br|zstd)"/m);
 
 	ok(defined($body));
 	ok(length($body) eq $length);

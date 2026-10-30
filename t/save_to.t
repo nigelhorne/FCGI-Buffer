@@ -151,11 +151,16 @@ subtest 'a document root with a trailing slash still gives an absolute URL' => s
 	like($body, qr{<a href="/static/web/English/page\.fcgi/a=1\.html">a</a>}, 'URL starts with a /');
 };
 
-subtest 'links are left alone when save_to is outside of the document root' => sub {
+subtest 'save_to is turned off when it is outside of the document root' => sub {
 	my ($docroot, $save_to, $cache) = setup(outside_docroot => 1);
 
+	my @warnings;
+	local $SIG{__WARN__} = sub { push @warnings, @_ };
+
 	request(uri => '/cgi-bin/page.fcgi?a=1', html => 'a', cache => $cache, save_to => $save_to);
-	ok(-f File::Spec->catfile($save_to->{'directory'}, 'web', 'English', 'page.fcgi', 'a=1.html'), 'static page is written');
+	ok(!-e File::Spec->catfile($save_to->{'directory'}, 'web', 'English', 'page.fcgi', 'a=1.html'), 'no page which nothing could link to');
+	is(scalar(@warnings), 1, 'a warning is given');
+	like($warnings[0], qr/not under the document root/, 'saying why');
 
 	my ($body, $stderr) = request(
 		uri => '/cgi-bin/page.fcgi?b=2',
@@ -164,6 +169,7 @@ subtest 'links are left alone when save_to is outside of the document root' => s
 		save_to => $save_to,
 	);
 	is($stderr, '', 'no errors');
+	is(scalar(@warnings), 1, 'the warning is only given once');
 	like($body, qr{<a href="/cgi-bin/page\.fcgi\?a=1">a</a>}, 'link still points to the CGI script');
 };
 

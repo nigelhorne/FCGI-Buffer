@@ -4,7 +4,7 @@ use ExtUtils::MakeMaker 6.64;	# 6.64 for TEST_REQUIRES
 
 my %prereq_pm = (
 	'Carp' => 0,
-	'CGI::Info' => 0.51,
+	'CGI::Info' => 0.71,	# status() can set the status from this version
 	'CSS::Packer' => 0,
 	'Compress::Zlib' => 0,
 	'Cwd' => 0,
@@ -23,7 +23,9 @@ my %prereq_pm = (
 	'Storable' => 0,
 	'HTTP::Status' => 0,
 	'DBI' => 0,
-	'Readonly' => 0
+	'DBD::SQLite' => 0,	# save_to
+	'Readonly' => 0,
+	'Scalar::Util' => 0
 );
 
 if(($^O ne 'MSWin32') && ($^O ne 'openbsd') && ($^O ne 'freebsd')) {
@@ -58,6 +60,8 @@ WriteMakefile(
 	'Test::NoWarnings' => 0,
 	'Test::Needs' => 0,
 	'Capture::Tiny' => 0,
+	'DBI' => 0,
+	'File::Find' => 0,
 	'DateTime' => 0,
 	'DateTime::Format::HTTP' => 0,
 	# 'Test::Kwalitee' => 0,
@@ -72,7 +76,15 @@ WriteMakefile(
     clean      => { FILES => 'FCGI-Buffer-*' },
     META_MERGE => {
     	'meta-spec' => { version => 2 },
-		resources => {
+		prereqs => {
+			runtime => {
+				recommends => {
+					'Compress::Zstd' => 0,	# zstd encoding
+					'IO::Compress::Brotli' => 0,	# br encoding
+					'Text::Diff' => 0	# debug logging of what changed
+				}
+			}
+		}, resources => {
 			homepage => 'https://metacpan.org/pod/FCGI::Buffer',
 			repository => {
 				type => 'git',
@@ -88,5 +100,5 @@ WriteMakefile(
 			}
 		},
     },
-    MIN_PERL_VERSION	=> '5.6.2'	# Probably would work, but never tested on earlier versions than this
+    MIN_PERL_VERSION	=> '5.010'	# The possessive quantifiers in the regular expressions need this
 );

@@ -1,7 +1,63 @@
 Revision history for FCGI-Buffer
  
 0.23
+	[ Security ]
+	- Pages for clients that have logged in (Authorization or REMOTE_USER)
+		and POST requests are no longer cached or saved
+	- Responses with Set-Cookie, or a Cache-Control of no-store, no-cache or
+		private, are no longer cached or saved.  A Set-Cookie header was
+		being replayed to other clients
+	- A Vary on anything other than Accept-Encoding (or Accept-Language with
+		lingua) now stops a response from being cached or saved.  The
+		code that was meant to honour it could never run
+	- save_to: cookies now stop a page from being saved when a cache_key is
+		given
+	- save_to: stored cross-site scripting through REQUEST_URI
+	- A client's Cache-Control: max-age=1abc caused an empty response, and
+		max-age=99999999 kept pages in the cache for years.  Invalid
+		values and those over 600 seconds are now ignored
+	- save_to: max_pages, default 10000, stops clients from filling the disc
+	- optimise_content: an unterminated <title> took quadratic time
+
 	[ Bug Fixes ]
+	- An exception while sending the page lost the output, it could also
+		leave all that the process then printed going to a dead buffer.
+		Failures of the cache, the database or the logger now give a
+		warning and the page is still sent
+	- UTF-8 that a script printed as bytes was encoded twice when compressed
+		or written by save_to
+	- Entries in the cache were used after they had expired
+	- save_to: pages that had passed their ttl were never updated or deleted,
+		and were sent with an Expires header in the past
+	- save_to: only HTML is saved, other types were corrupted
+	- save_to: virtual hosts sharing a directory linked to each other's pages
+	- HTML with no </html>, which suggests that the script died, isn't stored
+	- optimise_content: changed the contents of <pre> and <textarea>
+	- A Content-Length from the script was kept when the body was changed
+	- Output for which the script gave a Content-Encoding was compressed again
+	- Headers ending in LF gave duplicate Status and Content-Length headers
+	- Range: a Status header from the script stopped the 206 being sent, so
+		part of the page was sent as a 200 or a 404.  Ranges were worked
+		out in characters, and applied to POST requests.  A part of a
+		page is no longer compressed, and If-Range is honoured
+	- A 304 no longer also has the script's Status: 200 or a Content-Encoding
+	- If-None-Match matching on other than GET and HEAD gives 412, not 304, and
+		If-Modified-Since is ignored for them
+	- If-Modified-Since could turn a 404 into a 304, and was used when
+		If-None-Match had failed if there was no cache
+	- Compressed and uncompressed output had the same strong ETag
+	- Vary: Accept-Encoding wasn't sent with uncompressed output
+	- ETags weren't generated for HTTP/2 and HTTP/3 in some spellings
+	- init() returned undef if save_to couldn't be used, so chained calls
+		died.  It now gives one warning and carries on without save_to.
+		Arguments to save_to are checked
+	- new() now checks the cache, logger and save_to arguments in the same way
+	- A logger that doesn't understand all of the methods is ignored
+	- Removed import(), which died if given any arguments
+	- Text::Diff was used without loading it safely, and Storable might not
+		have been loaded
+	- Raised MIN_PERL_VERSION to 5.010 which is what the code needs,
+		CGI::Info to 0.71 and added DBD::SQLite to the prerequisites
 	- save_to: links to a page from its own static copy pointed to the
 		file's location on disk rather than its URL
 	- save_to: requests with no arguments were saved as a hidden ".html" file
@@ -62,9 +118,16 @@ Revision history for FCGI-Buffer
 	- new(generate_etag => 0) was overridden by the server protocol
 	- Removed a branch which did nothing but look in the cache, and dead
 		debugging code
+
+	[ Documentation ]
+	- API and formal specifications for the public methods
+	- Documented character encoding, failures and how output is sent
+	- Corrected what's said about NO_CACHE, the logger, Last-Modified, Range
+		and when save_to works
+
 	[ Tests ]
 	- Use Test::Log::Abstraction
-	- Added t/save_to.t, t/optimise.t and t/logic.t
+	- Added t/save_to.t, t/optimise.t, t/logic.t and t/regressions.t
 
 0.22	Sat Apr 18 20:55:55 EDT 2026
 	Fix uninitialized variable

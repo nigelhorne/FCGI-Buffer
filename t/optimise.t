@@ -99,6 +99,7 @@ subtest 'hostile input runs in linear time' => sub {
 		[ 'long run of spaces', '<html><head></head>' . (' ' x ($n * 4)) . "x</head> <body>\n</body></html>" ],
 		[ 'long run of spaces without a newline', '<html><body>' . (' ' x ($n * 4)) . "x\n</body></html>" ],
 		[ 'long run of spaces before tags', '<html><body>' . (' ' x ($n * 4)) . "x<div><p></p><hr></div></body></html>" ],
+		[ 'unterminated titles', '<html><head>' . ('<title>a' x $n) . '</head></html>' ],
 	) {
 		my ($name, $html) = @{$test};
 		my $b = FCGI::Buffer->new();
@@ -107,6 +108,22 @@ subtest 'hostile input runs in linear time' => sub {
 			$b->_optimise_content();
 		});
 		ok($ok, $name);
+		capture { undef $b };
+	}
+
+	foreach my $test(
+		[ 'unterminated <pre>', '<html><body>' . ('<pre>' x $n) . '</body></html>' ],
+		[ 'unterminated <pre> and <textarea>', '<html><body>' . ('<pre><textarea>' x $n) . '</body></html>' ],
+		[ 'terminated <pre>', '<html><body>' . ('<pre> </pre>' x $n) . '</body></html>' ],
+	) {
+		my ($name, $html) = @{$test};
+		my $b = FCGI::Buffer->new();
+		my $ok = within(10, sub {
+			$b->{body} = $html;
+			$b->_restore_preformatted($b->_protect_preformatted());
+		});
+		ok($ok, $name);
+		is($b->{body}, $html, "$name: is put back as it was");
 		capture { undef $b };
 	}
 };
