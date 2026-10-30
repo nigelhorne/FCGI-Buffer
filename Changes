@@ -1,6 +1,6 @@
 Revision history for FCGI-Buffer
  
-0.23
+0.23	Fri Oct 30 02:52:42 PM EDT 2026
 	[ Security ]
 	- Pages for clients that have logged in (Authorization or REMOTE_USER)
 		and POST requests are no longer cached or saved
