@@ -425,8 +425,16 @@ sub DESTROY
 
 		# TODO: Partials
 		if($range && !$self->{cache} && defined(my $partial = _apply_range($self->{body}, $range))) {
-			$self->{body} = $unzipped_body = $partial;
-			$self->_set_status(206);
+			$self->_set_status($partial->{status});
+			push @{$self->{o}}, "Content-Range: $partial->{content_range}";
+			if($partial->{status} == 416) {
+				# Range Not Satisfiable has no body
+				delete $self->{body};
+				undef $unzipped_body;
+				$self->{send_body} = 0;
+			} else {
+				$self->{body} = $unzipped_body = $partial->{body};
+			}
 		}
 		$self->_compress({ encoding => $encoding });
 	}
@@ -1186,12 +1194,13 @@ If none can be used, the output is sent uncompressed.
 
 =item * Range
 
-A single range of bytes, such as C<bytes=0-99> or C<bytes=100->, is honoured
-with a 206 status.
+A single range of bytes, such as C<bytes=0-99>, C<bytes=100-> or
+C<bytes=-100> (the last 100 bytes), is honoured with a 206 status and a
+Content-Range header.
+A range which starts after the end of the page, or C<bytes=-0>,
+can't be satisfied and gets a 416 status with no body.
 Anything else, such as several ranges or a backwards range, is ignored and the
 whole page is sent.
-Note that C<bytes=-n> gives the first n bytes, although RFC 7233 says that it
-should be the last n.
 
 =item * Conditional requests
 
@@ -1525,27 +1534,48 @@ sub _x_cache_headers {
 	return [ "X-Cache: $cache$from", "X-Cache-Lookup: $lookup$from" ];
 }
 
-# Return the part of the body asked for by a Range header, or undef if the
-# range isn't one that we support, in which case the whole body is sent.
+# Work out the response to a Range header, as a hashref of the new status,
+# body and Content-Range header, or undef if the range isn't one that we
+# support, in which case the header is ignored and the whole body is sent.
 # Only a single range of bytes is supported.
-# Note that "bytes=-n" is treated as the first n bytes, though RFC 7233 says
-# that it is the last n
+#	206: the part of the body asked for
+#	416: a valid range which is outside of the body, so has no body
 sub _apply_range {
 	my ($body, $range) = @_;
 
 	return unless($range =~ /^bytes=(\d*)-(\d*)$/);
 	my ($first, $last) = ($1, $2);
+	my $length = length($body);
 
 	# "bytes=-" says nothing
 	return if(($first eq '') && ($last eq ''));
-	return substr($body, 0, $last) if($first eq '');
-	return substr($body, $first) if($last eq '');
 
-	# A backwards range is invalid
-	return if($first > $last);
+	# A backwards range is invalid, so is ignored (RFC 7233 2.1)
+	return if(($first ne '') && ($last ne '') && ($first > $last));
 
-	# The range includes both ends
-	return substr($body, $first, $last - $first + 1);
+	if($first eq '') {
+		# "bytes=-n" is the last n bytes, all of it if there are
+		# fewer than n
+		$first = ($last >= $length) ? 0 : $length - $last;
+		$last = $length - 1;
+		# Premise 1: the last 0 bytes is an empty range
+		# Premise 2: so is any range of an empty body
+		# Conclusion: both leave $first > $last, and can't be satisfied
+	} elsif(($last eq '') || ($last >= $length)) {
+		# A range past the end stops at the end
+		$last = $length - 1;
+	}
+
+	# A range starting at or after the end can't be satisfied
+	if(($first >= $length) || ($first > $last)) {
+		return { status => 416, content_range => "bytes */$length" };
+	}
+
+	return {
+		status => 206,
+		body => substr($body, $first, $last - $first + 1),
+		content_range => "bytes $first-$last/$length",
+	};
 }
 
 # replace dynamic links with static links

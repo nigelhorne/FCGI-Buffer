@@ -198,12 +198,13 @@ request.
 
 - Range
 
-    A single range of bytes, such as `bytes=0-99` or `bytes=100-`, is honoured
-    with a 206 status.
+    A single range of bytes, such as `bytes=0-99`, `bytes=100-` or
+    `bytes=-100` (the last 100 bytes), is honoured with a 206 status and a
+    Content-Range header.
+    A range which starts after the end of the page, or `bytes=-0`,
+    can't be satisfied and gets a 416 status with no body.
     Anything else, such as several ranges or a backwards range, is ignored and the
     whole page is sent.
-    Note that `bytes=-n` gives the first n bytes, although RFC 7233 says that it
-    should be the last n.
 
 - Conditional requests
 

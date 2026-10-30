@@ -435,8 +435,8 @@ OUTPUT: {
 	$length = $1;
 	ok(defined($length));
 	ok($length <= 40);
-	ok($body =~ /^<HTML>/);
-	ok($body !~ /<\/HTML>$/ms);
+	unlike($body, qr/^<HTML>/, 'bytes=-40 is the end of the page, not the start');
+	like($body, qr/<\/HTML>\n?$/, 'bytes=-40 includes the last byte');
 
 	ok($headers =~ /ETag: "([A-Za-z0-F0-f]{32})"/m);
 	$etag = $1;

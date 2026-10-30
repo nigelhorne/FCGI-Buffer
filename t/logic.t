@@ -6,7 +6,7 @@
 
 use strict;
 use warnings;
-use Test::Most tests => 16;
+use Test::Most tests => 17;
 use Test::Needs 'CHI';
 use Capture::Tiny ':all';
 use CGI::Info;
@@ -205,20 +205,61 @@ subtest '_compress()' => sub {
 
 subtest '_apply_range()' => sub {
 	my $body = join('', 0..9);
+	my $partial = sub { return { status => 206, body => $_[0], content_range => "bytes $_[1]/10" } };
+	my $unsatisfiable = { status => 416, content_range => 'bytes */10' };
 
 	foreach my $test(
-		[ 'bytes=0-0', '0', 'boundary: a single byte' ],
-		[ 'bytes=2-5', '2345', 'includes both ends' ],
-		[ 'bytes=7-', '789', 'open ended' ],
-		[ 'bytes=-3', '012', 'suffix (the first bytes, see the POD)' ],
-		[ 'bytes=5-4', undef, 'boundary: backwards' ],
+		[ 'bytes=0-0', $partial->('0', '0-0'), 'boundary: a single byte' ],
+		[ 'bytes=2-5', $partial->('2345', '2-5'), 'includes both ends' ],
+		[ 'bytes=7-', $partial->('789', '7-9'), 'open ended' ],
+		[ 'bytes=8-20', $partial->('89', '8-9'), 'end past the end of the body stops at the end' ],
+		[ 'bytes=-3', $partial->('789', '7-9'), 'suffix is the last bytes' ],
+		[ 'bytes=-10', $partial->($body, '0-9'), 'boundary: suffix of the whole body' ],
+		[ 'bytes=-11', $partial->($body, '0-9'), 'boundary: suffix longer than the body' ],
+		[ 'bytes=9-', $partial->('9', '9-9'), 'boundary: starts at the last byte' ],
+		[ 'bytes=10-', $unsatisfiable, 'boundary: starts after the end' ],
+		[ 'bytes=10-12', $unsatisfiable, 'closed range after the end' ],
+		[ 'bytes=-0', $unsatisfiable, 'boundary: empty suffix' ],
+		[ 'bytes=5-4', undef, 'boundary: backwards is ignored' ],
+		[ 'bytes=20-5', undef, 'backwards after the end is ignored, not 416' ],
 		[ 'bytes=-', undef, 'no numbers' ],
 		[ 'bytes=0-1,3-4', undef, 'multiple ranges' ],
 		[ 'items=0-1', undef, 'other units' ],
 	) {
 		my ($range, $expect, $name) = @{$test};
-		is(FCGI::Buffer::_apply_range($body, $range), $expect, "$range: $name");
+		is_deeply(scalar(FCGI::Buffer::_apply_range($body, $range)), $expect, "$range: $name");
 	}
+
+	is_deeply(FCGI::Buffer::_apply_range('', 'bytes=-5'), { status => 416, content_range => 'bytes */0' }, 'any suffix of an empty body is unsatisfiable');
+};
+
+subtest 'Range responses' => sub {
+	my $text = join('', 'a'..'z');
+
+	my $request = sub {
+		my $range = shift;
+		local $ENV{'HTTP_RANGE'} = $range;
+		my ($stdout, $stderr) = capture {
+			my $b = FCGI::Buffer->new();
+			$b->init(generate_etag => 0);
+			print "Content-type: text/plain\n\n$text";
+		};
+		my ($headers, $body) = split /\r?\n\r?\n/, $stdout, 2;
+		return ($headers, $body, $stderr);
+	};
+
+	my ($headers, $body, $stderr) = $request->('bytes=-5');
+	is($stderr, '', 'no errors');
+	like($headers, qr/^Status: 206 /m, '206 status');
+	like($headers, qr/^Content-Range: bytes 21-25\/26\r?$/m, 'Content-Range');
+	is($body, 'vwxyz', 'the last 5 bytes');
+
+	($headers, $body, $stderr) = $request->('bytes=26-');
+	is($stderr, '', 'no errors');
+	like($headers, qr/^Status: 416 /m, '416 status');
+	like($headers, qr/^Content-Range: bytes \*\/26\r?$/m, 'Content-Range gives the length');
+	unlike($headers, qr/^Content-Length: [1-9]/m, 'no Content-Length');
+	ok(!defined($body) || ($body eq ''), 'no body');
 };
 
 subtest '_check_if_none_match()' => sub {

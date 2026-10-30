@@ -40,6 +40,11 @@ Revision history for FCGI-Buffer
 		e.g. "Hello <b>world</b>" became "Hello<b>world</b>"
 	- Range: "bytes=0-n" was ignored and ranges were a byte short, multiple
 		and backwards ranges are now ignored rather than half applied
+	- Range: "bytes=-n" gave the first n bytes rather than the last n
+		(RFC 7233)
+	- Range: unsatisfiable ranges, e.g. starting after the end, now give a
+		416 rather than a warning, and 206 and 416 responses include
+		Content-Range
 	- Accept-Encoding with a space before a comma wasn't understood
 	- If the first encoding the client accepts couldn't be loaded (e.g.
 		IO::Compress::Brotli isn't installed), a 406 was sent instead of
